@@ -1,0 +1,37 @@
+{
+  "name": "frag-harness",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently --kill-others --names client,backend \"npm:dev:client\" \"npm:dev:server\"",
+    "dev:client": "vite",
+    "dev:server": "node scripts/start-frag-backend.mjs",
+    "check:size": "node scripts/check-source-size.mjs",
+    "check:boundaries": "node scripts/check-module-boundaries.mjs",
+    "check:version": "node scripts/check-version-sync.mjs",
+    "check:safety": "node scripts/check-repository-safety.mjs",
+    "check:architecture": "npm run check:size && npm run check:boundaries && npm run check:safety && npm run check:version && npm run check:mermaid",
+    "check:mermaid": "node scripts/check-mermaid.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:python": "uv run --offline --project backend --cache-dir .tmp/uv-cache pytest",
+    "build": "npm run check:architecture && npm run typecheck && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^10.0.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^4.1.10"
+  }
+}

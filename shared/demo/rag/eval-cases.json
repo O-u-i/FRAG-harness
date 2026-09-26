@@ -1,0 +1,21 @@
+{
+  "suiteVersion": "v1",
+  "datasetId": "synthetic-risk-review-v1",
+  "cases": [
+    {
+      "id": "regulatory-risk",
+      "query": "What regulatory risks are mentioned in the source?",
+      "expectedChunkId": "rag-synthetic-risk-review-v1-c002"
+    },
+    {
+      "id": "revenue-growth",
+      "query": "How did revenue growth perform?",
+      "expectedChunkId": "rag-synthetic-risk-review-v1-c001"
+    },
+    {
+      "id": "dividend-policy",
+      "query": "What happened to dividend policy?",
+      "expectedChunkId": "rag-synthetic-risk-review-v1-c003"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# Preserve upstream whitespace in bundled font licenses.
+src/assets/fonts/OFL-Libre-Bodoni.txt -whitespace
+src/assets/fonts/OFL-Public-Sans.txt -whitespace

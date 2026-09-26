@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import Field
+
+from frag_api.schemas.common import ApiModel, StageResult, TokenBudget
+
+RagDatasetId = Literal["synthetic-risk-review-v1"]
+RagIndexState = Literal["not_built", "ready", "stale"]
+
+
+class RagDatasetRequest(ApiModel):
+    dataset_id: RagDatasetId = Field(alias="datasetId")
+
+
+class RagQueryRequest(RagDatasetRequest):
+    query: str = Field(min_length=3, max_length=500)
+    top_k: int = Field(default=3, alias="topK", ge=1, le=10)
+
+
+class RagRunRequest(RagQueryRequest):
+    context_fingerprint: str = Field(alias="contextFingerprint", min_length=64, max_length=64)
+    approval_token: str = Field(alias="approvalToken", min_length=32)
+    approved: Literal[True]
+
+
+class RagIndexStatus(ApiModel):
+    dataset_id: RagDatasetId = Field(alias="datasetId")
+    schema_version: Literal[1] = Field(default=1, alias="schemaVersion")
+    chunk_strategy_version: Literal["markdown-section-v1"] = Field(
+        default="markdown-section-v1", alias="chunkStrategyVersion"
+    )
+    state: RagIndexState
+    document_count: int = Field(alias="documentCount", ge=0)
+    chunk_count: int = Field(alias="chunkCount", ge=0)
+    index_revision: str | None = Field(default=None, alias="indexRevision")
+    source_hash: str | None = Field(default=None, alias="sourceHash")
+
+
+class RagChunkResult(ApiModel):
+    rank: int = Field(ge=1)
+    bm25_score: float = Field(alias="bm25Score")
+    chunk_id: str = Field(alias="chunkId")
+    document_id: str = Field(alias="documentId")
+    source_id: str = Field(alias="sourceId")
+    locator_id: str = Field(alias="locatorId")
+    locator_label: str = Field(alias="locatorLabel")
+    excerpt: str
+
+
+class RagSearchResponse(ApiModel):
+    dataset_id: RagDatasetId = Field(alias="datasetId")
+    query: str
+    top_k: int = Field(alias="topK")
+    index_revision: str = Field(alias="indexRevision", min_length=64, max_length=64)
+    results: list[RagChunkResult]
+
+
+class RagEvidence(ApiModel):
+    chunk_id: str = Field(alias="chunkId")
+    document_id: str = Field(alias="documentId")
+    source_id: str = Field(alias="sourceId")
+    locator_id: str = Field(alias="locatorId")
+    locator_label: str = Field(alias="locatorLabel")
+    text: str
+
+
+class RagPreview(ApiModel):
+    dataset_id: RagDatasetId = Field(alias="datasetId")
+    query: str
+    top_k: int = Field(alias="topK")
+    index_revision: str = Field(alias="indexRevision")
+    retrieval_results: list[RagChunkResult] = Field(alias="retrievalResults")
+    candidate_evidence: list[RagEvidence] = Field(alias="candidateEvidence")
+    budget: TokenBudget
+    warnings: list[str]
+    context_fingerprint: str = Field(alias="contextFingerprint", min_length=64, max_length=64)
+    approval_token: str = Field(alias="approvalToken")
+
+
+class RagCompressedEvidence(ApiModel):
+    chunk_id: str = Field(alias="chunkId")
+    summary: str
+    preserved_facts: list[str] = Field(alias="preservedFacts")
+    uncertainty: list[str]
+
+
+class RagContextCompression(ApiModel):
+    evidence: list[RagCompressedEvidence]
+    missing_information: list[str] = Field(alias="missingInformation")
+
+
+class RagClaim(ApiModel):
+    text: str = Field(min_length=1)
+    chunk_ids: list[str] = Field(alias="chunkIds", min_length=1)
+
+
+class RagGroundedAnswer(ApiModel):
+    answer: str = Field(min_length=1)
+    claims: list[RagClaim] = Field(min_length=1)
+    missing_information: list[str] = Field(alias="missingInformation")
+    disclaimer: str = Field(min_length=1)
+
+
+class RagRun(ApiModel):
+    preview: RagPreview
+    compressed_context: RagContextCompression = Field(alias="compressedContext")
+    result: RagGroundedAnswer
+    context_stage: StageResult = Field(alias="contextStage")
+    inference_stage: StageResult = Field(alias="inferenceStage")
+
+
+class RagEvaluationCase(ApiModel):
+    id: str
+    query: str
+    expected_chunk_id: str = Field(alias="expectedChunkId")
+    actual_chunk_ids: list[str] = Field(alias="actualChunkIds")
+    expected_rank: int | None = Field(alias="expectedRank")
+    passed: bool
+
+
+class RagRetrievalMetrics(ApiModel):
+    hit_at_1: float = Field(alias="hitAt1", ge=0, le=1)
+    recall_at_3: float = Field(alias="recallAt3", ge=0, le=1)
+    mrr_at_3: float = Field(alias="mrrAt3", ge=0, le=1)
+    ndcg_at_3: float = Field(alias="ndcgAt3", ge=0, le=1)
+
+
+class RagEvaluationGates(ApiModel):
+    context_coverage: float = Field(alias="contextCoverage", ge=0, le=1)
+    citation_validity: float = Field(alias="citationValidity", ge=0, le=1)
+    expected_citation_coverage: float = Field(alias="expectedCitationCoverage", ge=0, le=1)
+    stale_residual_count: int = Field(alias="staleResidualCount", ge=0)
+
+
+class RagEvaluationReport(ApiModel):
+    suite_version: str = Field(alias="suiteVersion")
+    dataset_id: RagDatasetId = Field(alias="datasetId")
+    cases: list[RagEvaluationCase]
+    metrics: RagRetrievalMetrics
+    gates: RagEvaluationGates
+    status: Literal["PASS", "FAIL"]

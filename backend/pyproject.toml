@@ -1,0 +1,33 @@
+[project]
+name = "frag-harness-backend"
+version = "1.0.0"
+description = "Local governed retrieval and two-stage LLM harness"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi>=0.116,<1",
+  "httpx>=0.28,<1",
+  "openai>=2,<3",
+  "beautifulsoup4>=4.13,<5",
+  "openpyxl>=3.1,<4",
+  "pydantic>=2.11,<3",
+  "pypdf>=6,<7",
+  "python-docx>=1.2,<2",
+  "python-dotenv>=1,<2",
+  "uvicorn>=0.35,<1",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4,<9",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["frag_api"]

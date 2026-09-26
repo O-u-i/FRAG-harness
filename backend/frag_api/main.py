@@ -1,0 +1,123 @@
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError, ResponseValidationError
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHttpException
+
+from frag_api.errors import (
+    HarnessSourceError, PluginValidationError, RagFingerprintError, RagIndexBuildError,
+    RagIndexNotReadyError, RagIndexStaleError, RagNotReadyError, RagOutputError,
+    RagProviderError, RequestContractError,
+)
+from frag_api.http import BodyLimitMiddleware, error_response, issue_path
+from frag_api.plugin_host import DEFAULT_PLUGIN_ROOT, load_plugin
+from frag_api.routers.context_sources import router as sources_router
+from frag_api.routers.harness import router as harness_router
+from frag_api.routers.health import router as health_router
+from frag_api.routers.plugins import router as plugins_router
+from frag_api.routers.rag import router as rag_router
+from frag_api.services.context_source_service import ContextSourceService
+from frag_api.services.harness_service import HarnessService
+from frag_api.services.rag_service import RagService, create_rag_service
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+
+def create_app(
+    *,
+    context_source_root: str | Path | None = None,
+    rag_service: RagService | None = None,
+    harness_service: HarnessService | None = None,
+    rag_index_path: str | Path | None = None,
+    rag_source_root: str | Path | None = None,
+    rag_eval_path: str | Path | None = None,
+    plugin_root: str | Path = DEFAULT_PLUGIN_ROOT,
+) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        source_service = ContextSourceService(
+            context_source_root or Path(__file__).resolve().parents[2] / "local-sources"
+        )
+        app.state.context_source_service = source_service
+        app.state.harness_service = harness_service or HarnessService(source_service, plugin=plugin)
+        app.state.rag_service = rag_service or create_rag_service(
+            **({"index_path": rag_index_path} if rag_index_path is not None else {}),
+            source_root=rag_source_root,
+            eval_path=rag_eval_path,
+        )
+        yield
+
+    app = FastAPI(title="FRAG-harness API", version="1.0.0", lifespan=lifespan)
+    app.add_middleware(BodyLimitMiddleware)
+    plugin = None
+    plugin_error = False
+    try:
+        plugin = load_plugin(Path(plugin_root))
+    except PluginValidationError:
+        plugin_error = True
+    app.state.plugin = plugin
+    app.state.plugin_error = plugin_error
+    app.include_router(health_router)
+    app.include_router(sources_router)
+    app.include_router(harness_router)
+    app.include_router(rag_router)
+    app.include_router(plugins_router)
+    if plugin is not None:
+        app.include_router(plugin.router)
+        @app.get("/plugins/finance-core/ui.js", include_in_schema=False)
+        def plugin_ui() -> FileResponse:
+            return FileResponse(plugin.directory / "ui.js", media_type="text/javascript")
+
+    @app.exception_handler(RequestContractError)
+    async def contract_error(_request: Request, error: RequestContractError) -> JSONResponse:
+        return error_response(422, "INVALID_REQUEST", "The request does not match its contract.", error.issues)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(_request: Request, error: RequestValidationError) -> JSONResponse:
+        if any(item.get("type") == "json_invalid" for item in error.errors()):
+            return error_response(400, "MALFORMED_JSON", "Request body contains malformed JSON.")
+        issues = [{"path": issue_path(tuple(item.get("loc", ()))), "message": str(item.get("msg", "Invalid value."))}
+                  for item in error.errors()]
+        return error_response(422, "INVALID_REQUEST", "The request does not match its contract.", issues)
+
+    @app.exception_handler(ResponseValidationError)
+    async def response_error(_request: Request, _error: ResponseValidationError) -> JSONResponse:
+        return error_response(500, "INVALID_SERVER_DATA", "The service returned invalid data.")
+
+    failures = {
+        HarnessSourceError: (422, "HARNESS_SOURCE_INVALID", "Selected evidence is unavailable or exceeds the budget."),
+        RagIndexNotReadyError: (409, "RAG_INDEX_NOT_READY", "Build the demo index before searching."),
+        RagIndexStaleError: (409, "RAG_INDEX_STALE", "The source changed; rebuild the index."),
+        RagIndexBuildError: (500, "RAG_INDEX_BUILD_FAILED", "The index could not be built."),
+        RagFingerprintError: (409, "CONTEXT_CHANGED", "The preview changed or its approval was already used."),
+        RagNotReadyError: (503, "LLM_NOT_CONFIGURED", "Both model routes must be configured."),
+        RagProviderError: (502, "LLM_PROVIDER_FAILED", "A model provider failed."),
+        RagOutputError: (502, "INVALID_LLM_OUTPUT", "A model result failed validation."),
+    }
+    for error_type, (status, code, message) in failures.items():
+        async def handler(_request: Request, _error: Exception, s=status, c=code, m=message):
+            return error_response(s, c, m)
+        app.add_exception_handler(error_type, handler)
+
+    @app.exception_handler(StarletteHttpException)
+    async def http_error(_request: Request, error: StarletteHttpException) -> JSONResponse:
+        if error.status_code == 405:
+            return error_response(405, "METHOD_NOT_ALLOWED", "Method is not allowed.",
+                                  headers={"Allow": error.headers.get("Allow", "") if error.headers else ""})
+        if error.status_code == 404:
+            return error_response(404, "NOT_FOUND", "Endpoint was not found.")
+        return error_response(error.status_code, "HTTP_ERROR", "Request could not be completed.")
+
+    @app.exception_handler(Exception)
+    async def internal_error(_request: Request, _error: Exception) -> JSONResponse:
+        return error_response(500, "INTERNAL_SERVER_ERROR", "The server could not complete the request.")
+
+    return app
+
+
+app = create_app()
