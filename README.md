@@ -6,42 +6,31 @@ FRAG-harness is a local application for governed evidence retrieval and two mode
 
 The React interface offers Harness, RAG Lab, and Plugins. The FastAPI backend owns local source parsing, exact outbound previews, single-use approval tokens for each model stage, the two model routes, citation validation, and a rebuildable SQLite FTS5 index for a bundled synthetic RAG dataset. Fake model providers work offline. Real model API credentials live only in `backend/.env`.
 
-```mermaid
-flowchart LR
-    Browser[React interface] --> API[Local FastAPI host]
-    API --> Sources[Explicit local source selection]
-    API --> Index[Synthetic FTS5 RAG index]
-    Sources --> Preview[Redaction and exact preview]
-    Index --> Preview
-    Preview --> Approval[Approve Context input once]
-    Approval --> Context[Context LLM API]
-    Context --> Validation[Validate compressed evidence]
-    Validation --> SecondPreview[Preview exact Inference input]
-    SecondPreview --> SecondApproval[Approve Inference input once]
-    SecondApproval --> Inference[Inference LLM API]
-    Inference --> Review[Human review]
-```
+## Architecture review diagrams
 
-Search and preview do not call a model. The first `/run` call executes only the Context stage and returns its validated compression plus the exact Inference instructions and input JSON for a second approval. `/inference/run` executes the Inference stage after that approval. Each approval is single-use, expires after ten minutes, and is bound to the displayed input and source revision. Source changes, changed selection, and reused tokens are rejected. The browser sees provider status but no model credentials.
+These static SVG exports summarize the current host code. Each has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration.
 
-```mermaid
-flowchart TD
-    Select[Choose file and locators or a bounded plugin scope] --> Retrieve[Read only selected evidence]
-    Retrieve --> Redact[Deterministic redaction and budget]
-    Redact --> Show[Display exact Context input]
-    Show --> Decision{Human approves Context?}
-    Decision -- No --> Stop[No model call]
-    Decision -- Yes --> Recheck[Re-read and compare fingerprint]
-    Recheck -- Changed --> Stop
-    Recheck -- Same --> Compress[Context LLM compression]
-    Compress --> Check[Check evidence IDs and structure]
-    Check --> InferPreview[Display exact Inference input]
-    InferPreview --> InferDecision{Human approves Inference?}
-    InferDecision -- No --> Stop
-    InferDecision -- Yes --> Answer[Inference LLM answer]
-    Answer --> Cite[Validate citations against selected IDs]
-    Cite --> Human[Human reviews result]
-```
+### Harness
+
+The Harness path assembles only explicitly selected local excerpts or optional, bounded Finance Core records. The host controls redaction, exact outbound previews, approvals, and validation around the two model APIs. [Explore the Harness data flow](docs/architecture/harness/dataflow.html).
+
+![Harness data flow from selected evidence through the Context and Inference gates to human review](docs/architecture/harness/dataflow.svg)
+
+Each stage requires a separate exact-input preview and a single-use approval. The host re-reads evidence and checks the fingerprint before a call; invalid approval stops that stage. [Explore the Harness approval lifecycle](docs/architecture/harness/lifecycle.html).
+
+![Harness lifecycle with separate Context and Inference approval gates and human review](docs/architecture/harness/lifecycle.svg)
+
+### RAG Lab
+
+RAG Lab indexes only the bundled synthetic Markdown file after an explicit Build action. Section chunks enter a separate SQLite FTS5 index; source changes make it stale until a rebuild. Query search ranks keyword matches, and Search and Preview make no model call. [Explore the RAG index and retrieval flow](docs/architecture/rag-lab/dataflow.html).
+
+![RAG Lab flow from explicit synthetic indexing through FTS5 retrieval to an exact Context preview](docs/architecture/rag-lab/dataflow.svg)
+
+The RAG query path needs a ready index and retrieved evidence before Context Run. Its Context and Inference calls have independent one-time approvals; compressed evidence IDs and answer citations are checked before human review. [Explore the RAG query and approval lifecycle](docs/architecture/rag-lab/lifecycle.html).
+
+![RAG Lab lifecycle from a ready-index query through two approvals and citation checks to human review](docs/architecture/rag-lab/lifecycle.svg)
+
+Preview never calls a model. The first Run executes only the Context stage and returns validated compression plus the exact Inference instructions and input JSON for a second approval. Inference Run executes the second stage after approval. Tokens expire after ten minutes, are consumed once, and bind the displayed input to its source or index revision. Changed inputs and reused tokens are rejected. Provider credentials stay in the backend.
 
 ## Start locally
 
@@ -55,7 +44,7 @@ npm run dev
 
 Open `http://localhost:5173`; the backend listens on `http://127.0.0.1:8787`. To configure either model, copy `backend/.env.example` to the Git ignored `backend/.env` and set provider, model, and backend-only credentials. `fake` is the default for both stages. Put supported `.md`, `.txt`, `.html`, `.pdf`, `.docx`, `.csv`, or `.xlsx` files under `local-sources/`; the folder is ignored except for instructions and placeholders. Files are never automatically indexed by the product.
 
-The RAG Lab indexes only `shared/demo/rag/synthetic-risk-review.md` after an explicit Build action. It uses section chunks and SQLite FTS5. Source changes make the index stale until an explicit rebuild. It has no embedding or vector retrieval in v1.0.0.
+The RAG Lab source is `shared/demo/rag/synthetic-risk-review.md`. It has no embedding or vector retrieval in v1.0.0.
 
 ## Optional Finance Core plugin
 
@@ -107,3 +96,5 @@ npm run test:python
 Tests use synthetic sources and temporary indexes. Backend-only keys and optional FC tokens must never enter browser assets, prompts, logs, tracked files, or error responses. Model answers require human review. FRAG does not connect to trading, banking, payment, or live-market APIs. The [plugin handoff](docs/finance-core-plugin-handoff.md) defines the optional FC integration boundary.
 
 LangGraph is installed in the backend development dependency group for isolated orchestration experiments. The FRAG runtime does not import it; a production environment can use `uv sync --project backend --no-dev`. Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
+
+Thanks to [Archify](https://github.com/tt-a1i/archify) for the diagram tooling.

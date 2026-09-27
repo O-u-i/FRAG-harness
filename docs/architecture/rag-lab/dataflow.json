@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "FRAG RAG Lab Index and Retrieval Data Flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1400, 640]
+  },
+  "stages": [
+    { "label": "Source and action" },
+    { "label": "Build" },
+    { "label": "Index and query" },
+    { "label": "Retrieve" },
+    { "label": "Preview" }
+  ],
+  "nodes": [
+    { "id": "buildAction", "type": "frontend", "label": "Explicit Build", "stage": 0, "row": 0 },
+    { "id": "syntheticFile", "type": "database", "label": "Synthetic Markdown", "stage": 0, "row": 2 },
+    { "id": "sectionChunking", "type": "backend", "label": "Section chunking", "stage": 1, "row": 1 },
+    { "id": "query", "type": "frontend", "label": "RAG Lab query", "stage": 2, "row": 0 },
+    { "id": "ftsIndex", "type": "database", "label": "SQLite FTS5 index", "stage": 2, "row": 2 },
+    { "id": "search", "type": "backend", "label": "Ranked search", "stage": 3, "row": 1 },
+    { "id": "contextPreview", "type": "security", "label": "Context preview", "stage": 4, "row": 1 }
+  ],
+  "flows": [
+    { "id": "buildRequest", "from": "buildAction", "to": "sectionChunking", "label": "explicit rebuild", "variant": "emphasis" },
+    { "id": "sourceSections", "from": "syntheticFile", "to": "sectionChunking", "label": "sections + source hash", "variant": "default" },
+    { "id": "indexedChunks", "from": "sectionChunking", "to": "ftsIndex", "label": "chunks + revision", "variant": "emphasis" },
+    { "id": "queryTerms", "from": "query", "to": "search", "label": "query + topK", "variant": "default" },
+    { "id": "rankedRows", "from": "ftsIndex", "to": "search", "label": "FTS5 ranked rows", "variant": "emphasis" },
+    { "id": "candidateEvidence", "from": "search", "to": "contextPreview", "label": "evidence + index revision", "variant": "security", "labelAt": [853, 314] }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Index boundary", "items": [
+      "Only the bundled synthetic Markdown file enters this index after Build.",
+      "A changed source makes the index stale until another explicit rebuild."
+    ] },
+    { "dot": "amber", "title": "Retrieval boundary", "items": [
+      "Search uses SQLite FTS5 keyword ranking; there are no embeddings or vectors.",
+      "Search and Preview make no model call. Context Run needs a fresh one-time approval."
+    ] }
+  ]
+}

@@ -5,6 +5,7 @@ backend/.venv/
 # Build outputs
 dist/
 .tmp/
+docs/architecture/*/*.visual-check.*
 backend/.pytest_cache/
 backend/**/__pycache__/
 tmp/
@@ -107,6 +108,8 @@ APIKey*
 *.tiff
 *.heic
 *.svg
+!docs/architecture/harness/*.svg
+!docs/architecture/rag-lab/*.svg
 *.zip
 *.7z
 *.rar

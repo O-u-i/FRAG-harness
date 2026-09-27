@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "FRAG RAG Lab Query and Approval Lifecycle",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 566]
+  },
+  "lanes": [
+    { "id": "main", "label": "Ready-index path" },
+    { "id": "terminal", "label": "Exit or review" }
+  ],
+  "states": [
+    { "id": "readyQuery", "type": "start", "label": "Ready-index query", "sublabel": "query + topK", "lane": "main", "col": 0, "step": "01" },
+    { "id": "ragPreview", "type": "waiting", "label": "RAG preview", "sublabel": "ranked chunks + token", "lane": "main", "col": 1, "step": "02" },
+    { "id": "ragContext", "type": "active", "label": "Context call", "sublabel": "evidence IDs checked", "lane": "main", "col": 2, "step": "03" },
+    { "id": "ragInferencePreview", "type": "waiting", "label": "Inference preview", "sublabel": "exact input + token", "lane": "main", "col": 3, "step": "04" },
+    { "id": "ragInference", "type": "active", "label": "Inference call", "sublabel": "citations checked", "lane": "main", "col": 4, "step": "05" },
+    { "id": "noContext", "type": "failure", "label": "No Context call", "sublabel": "invalid approval", "lane": "terminal", "col": 0, "yOffset": -80 },
+    { "id": "noInference", "type": "failure", "label": "No Inference call", "sublabel": "invalid or stale", "lane": "terminal", "col": 1, "yOffset": -80 },
+    { "id": "ragReview", "type": "success", "label": "Human review", "sublabel": "grounded answer", "lane": "terminal", "col": 2, "yOffset": -80 }
+  ],
+  "transitions": [
+    { "id": "retrieveAndPreview", "from": "readyQuery", "to": "ragPreview", "label": "FTS5 search + preview", "labelAt": [171, 202] },
+    { "id": "approveRagContext", "from": "ragPreview", "to": "ragContext", "label": "approve once; re-search", "variant": "security", "route": "straight", "labelAt": [325, 110] },
+    { "id": "prepareRagInference", "from": "ragContext", "to": "ragInferencePreview", "label": "validated compression", "labelAt": [479, 202] },
+    { "id": "approveRagInference", "from": "ragInferencePreview", "to": "ragInference", "label": "approve once; re-check", "variant": "security", "labelAt": [633, 202] },
+    { "id": "validateRagCitations", "from": "ragInference", "to": "ragReview", "label": "cited chunk IDs valid", "variant": "emphasis", "labelAt": [710, 260] },
+    { "id": "rejectRagContext", "from": "ragPreview", "to": "noContext", "label": "expired or changed", "variant": "security" },
+    { "id": "rejectRagInference", "from": "ragInferencePreview", "to": "noInference", "label": "expired or changed", "variant": "security", "labelAt": [556, 260] }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "Entry and approval gates", "items": [
+      "Not-built or stale indexes block search; zero hits block Context Run.",
+      "Each model stage requires its own exact preview and one-time approval."
+    ] },
+    { "dot": "emerald", "title": "Output checks", "items": [
+      "Context output must retain exactly the retrieved chunk IDs within budget.",
+      "Inference claims must cite retrieved chunk IDs before human review."
+    ] }
+  ]
+}

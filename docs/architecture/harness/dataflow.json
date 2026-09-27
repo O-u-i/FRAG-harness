@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "FRAG Harness Data Flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1400, 640]
+  },
+  "stages": [
+    { "label": "Selection" },
+    { "label": "Evidence" },
+    { "label": "Context stage" },
+    { "label": "Inference gate" },
+    { "label": "Result" }
+  ],
+  "nodes": [
+    { "id": "browser", "type": "frontend", "label": "Harness UI", "stage": 0, "row": 1 },
+    { "id": "files", "type": "database", "label": "Local files", "stage": 1, "row": 0 },
+    { "id": "fc", "type": "external", "label": "Finance Core API", "stage": 1, "row": 2 },
+    { "id": "contextGate", "type": "security", "label": "FRAG Context gate", "stage": 2, "row": 1 },
+    { "id": "contextModel", "type": "external", "label": "Context LLM", "stage": 2, "row": 0 },
+    { "id": "inferenceGate", "type": "security", "label": "FRAG Inference gate", "stage": 3, "row": 1 },
+    { "id": "inferenceModel", "type": "external", "label": "Inference LLM", "stage": 4, "row": 0 },
+    { "id": "review", "type": "frontend", "label": "Human review", "stage": 4, "row": 2 }
+  ],
+  "flows": [
+    { "id": "selection", "from": "browser", "to": "contextGate", "label": "goal + selected IDs", "classification": "browser request", "variant": "default" },
+    { "id": "localEvidence", "from": "files", "to": "contextGate", "label": "selected excerpts + hashes", "classification": "local evidence", "variant": "security" },
+    { "id": "fcEvidence", "from": "fc", "to": "contextGate", "label": "Workspace-scoped records", "classification": "optional read-only", "variant": "security" },
+    { "id": "contextOutbound", "from": "contextGate", "to": "contextModel", "label": "approved exact input", "classification": "model outbound", "variant": "security", "labelAt": [530, 360] },
+    { "id": "compression", "from": "contextModel", "to": "inferenceGate", "label": "compressed evidence", "classification": "validated model output", "variant": "emphasis" },
+    { "id": "inferenceOutbound", "from": "inferenceGate", "to": "inferenceModel", "label": "approved exact input", "classification": "model outbound", "variant": "security" },
+    { "id": "answer", "from": "inferenceModel", "to": "review", "label": "answer + claim IDs", "classification": "validated result", "variant": "emphasis", "labelAt": [960, 200] }
+  ],
+  "cards": [
+    { "dot": "rose", "title": "Host-owned boundaries", "items": [
+      "FRAG re-reads selected evidence before each model stage and binds approvals to fingerprints.",
+      "Provider and Finance Core credentials remain backend-only."
+    ] },
+    { "dot": "emerald", "title": "Scope", "items": [
+      "Finance Core is optional; its adapter reads selected Workspace records, at most ten.",
+      "RAG Lab uses a separate synthetic FTS5 index and is not this Harness path."
+    ] }
+  ]
+}
