@@ -46,6 +46,8 @@ Open `http://localhost:5173`; the backend listens on `http://127.0.0.1:8787`. To
 
 The RAG Lab source is `shared/demo/rag/synthetic-risk-review.md`. It has no embedding or vector retrieval in v1.0.0.
 
+Local caches, browser review profiles, and disposable test evidence under `.tmp/` have different retention rules. See the [temporary workspace guide](docs/tmp-workspace.md) before moving or cleaning them.
+
 ## Optional Finance Core plugin
 
 The core has no Finance Core routes or navigation while the plugin is absent or disabled. A trusted plugin archive contains exactly `manifest.json`, `adapter.py`, and `ui.js`. Its manifest declares `id: finance-core`, `protocolVersion: 1`, its semantic version, `minHostVersion: 1.0.0`, `fcApiVersion: 3.1.1`, and SHA-256 hashes for both code files. The installer checks the pinned archive hash, bounded entry sizes, file hashes, and compatibility before activation. Installed code executes in the local backend, so install only a trusted release. Finance Core distributes the optional archive separately; synthetic tests verify the host without FC credentials or a live Vault.
