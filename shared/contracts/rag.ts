@@ -12,6 +12,15 @@ export const ragRunRequestSchema = ragQueryRequestSchema.extend({
   approvalToken: z.string().min(32),
   approved: z.literal(true),
 }).strict();
+export const inferenceRunRequestSchema = z.object({
+  contextFingerprint: z.string().length(64), inferenceFingerprint: z.string().length(64),
+  approvalToken: z.string().min(32), approved: z.literal(true),
+}).strict();
+export const inferencePreviewSchema = z.object({
+  provider: z.string(), model: z.string(), instructions: z.string(), input: z.string(),
+  maxOutputTokens: z.number().int().positive(), inferenceFingerprint: z.string().length(64),
+  approvalToken: z.string().min(32),
+}).strict();
 
 export const ragIndexStatusSchema = z.object({
   datasetId: ragDatasetIdSchema,
@@ -55,6 +64,7 @@ export const ragPreviewSchema = z.object({
   indexRevision: z.string().length(64),
   retrievalResults: z.array(ragChunkResultSchema),
   candidateEvidence: z.array(ragEvidenceSchema),
+  instructions: z.string(), input: z.string(),
   budget: tokenBudgetSchema,
   warnings: z.array(z.string()),
   contextFingerprint: z.string().length(64),
@@ -82,6 +92,10 @@ export const ragRunSchema = z.object({
   contextStage: stageResultSchema,
   inferenceStage: stageResultSchema,
 }).strict();
+export const ragContextRunSchema = z.object({
+  preview: ragPreviewSchema, compressedContext: ragContextCompressionSchema,
+  contextStage: stageResultSchema, inferencePreview: inferencePreviewSchema,
+}).strict();
 
 export const ragEvaluationCaseSchema = z.object({
   id: z.string(), query: z.string(), expectedChunkId: z.string(), actualChunkIds: z.array(z.string()),
@@ -104,8 +118,11 @@ export const ragEvaluationReportSchema = z.object({
 export type RagDatasetRequest = z.infer<typeof ragDatasetRequestSchema>;
 export type RagQueryRequest = z.infer<typeof ragQueryRequestSchema>;
 export type RagRunRequest = z.infer<typeof ragRunRequestSchema>;
+export type InferenceRunRequest = z.infer<typeof inferenceRunRequestSchema>;
+export type InferencePreview = z.infer<typeof inferencePreviewSchema>;
 export type RagIndexStatus = z.infer<typeof ragIndexStatusSchema>;
 export type RagSearchResponse = z.infer<typeof ragSearchResponseSchema>;
 export type RagPreview = z.infer<typeof ragPreviewSchema>;
 export type RagRun = z.infer<typeof ragRunSchema>;
+export type RagContextRun = z.infer<typeof ragContextRunSchema>;
 export type RagEvaluationReport = z.infer<typeof ragEvaluationReportSchema>;

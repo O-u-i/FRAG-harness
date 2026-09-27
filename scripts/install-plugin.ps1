@@ -13,7 +13,20 @@ $installBase = if ($InstallRoot) { [System.IO.Path]::GetFullPath($InstallRoot) }
 if ($installBase -ne $projectRoot -and -not $installBase.StartsWith($projectRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
     throw 'InstallRoot must stay within the FRAG repository.'
 }
+function Assert-NoReparsePoint([string]$path) {
+    $candidate = $path
+    while ($candidate -ne $projectRoot) {
+        if (Test-Path -LiteralPath $candidate) {
+            $item = Get-Item -LiteralPath $candidate -Force
+            if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+                throw 'Plugin installation path cannot contain a junction or symbolic link.'
+            }
+        }
+        $candidate = Split-Path -Path $candidate -Parent
+    }
+}
 $pluginRoot = Join-Path $installBase 'finance-core'
+Assert-NoReparsePoint $pluginRoot
 $currentPath = Join-Path $pluginRoot 'current.json'
 
 function Get-Sha256([string]$path) {
@@ -47,6 +60,7 @@ if ($PSCmdlet.ParameterSetName -eq 'Release') {
     $archive = (Resolve-Path -LiteralPath $ArchivePath).Path
 }
 
+if ((Get-Item -LiteralPath $archive).Length -gt 20MB) { throw 'Archive exceeds the 20 MiB size limit.' }
 $actualHash = Get-Sha256 $archive
 if ($actualHash -ne $ExpectedSha256.ToLowerInvariant()) { throw 'Archive SHA-256 does not match the pinned value.' }
 
@@ -56,6 +70,10 @@ try {
     $names = @($zip.Entries | ForEach-Object { $_.FullName })
     if ($names.Count -ne 3 -or @($names | Where-Object { $_ -notin @('manifest.json', 'adapter.py', 'ui.js') }).Count -ne 0) {
         throw 'Archive must contain only manifest.json, adapter.py, and ui.js at its root.'
+    }
+    $limits = @{ 'manifest.json' = 64KB; 'adapter.py' = 2MB; 'ui.js' = 5MB }
+    foreach ($entry in $zip.Entries) {
+        if ($entry.Length -gt $limits[$entry.FullName]) { throw "Archive entry exceeds its size limit: $($entry.FullName)" }
     }
     $manifestEntry = $zip.GetEntry('manifest.json')
     $reader = [System.IO.StreamReader]::new($manifestEntry.Open())
@@ -79,6 +97,7 @@ try {
         if ($actual -ne $expected.ToLowerInvariant()) { throw "File hash mismatch for $name." }
     }
     $versionDir = Join-Path $pluginRoot "versions\$($manifest.version)"
+    Assert-NoReparsePoint $versionDir
     if (Test-Path -LiteralPath $versionDir) { throw 'This plugin version is already installed; use a new version.' }
     New-Item -ItemType Directory -Path $versionDir -Force | Out-Null
     foreach ($name in $names) {

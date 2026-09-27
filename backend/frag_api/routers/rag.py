@@ -5,6 +5,8 @@ from fastapi import APIRouter, Body, Depends, Request
 from frag_api.http import reject_body, reject_query
 from frag_api.schemas.rag import (
     RagDatasetRequest,
+    RagContextRun,
+    InferenceRunRequest,
     RagEvaluationReport,
     RagIndexStatus,
     RagPreview,
@@ -69,14 +71,26 @@ def preview(
 
 @router.post(
     "/run",
-    response_model=RagRun,
+    response_model=RagContextRun,
     response_model_by_alias=True,
     dependencies=[Depends(reject_query)],
 )
 def run(
     request: Request, input_data: Annotated[RagRunRequest, Body()]
-) -> RagRun:
+) -> RagContextRun:
     return service(request).run(input_data)
+
+
+@router.post(
+    "/inference/run",
+    response_model=RagRun,
+    response_model_by_alias=True,
+    dependencies=[Depends(reject_query)],
+)
+def run_inference(
+    request: Request, input_data: Annotated[InferenceRunRequest, Body()]
+) -> RagRun:
+    return service(request).run_inference(input_data)
 
 
 @router.post(

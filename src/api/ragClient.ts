@@ -5,6 +5,8 @@ import {
   ragPreviewSchema,
   ragQueryRequestSchema,
   ragRunRequestSchema,
+  ragContextRunSchema,
+  inferenceRunRequestSchema,
   ragRunSchema,
   ragSearchResponseSchema,
   type RagDatasetRequest,
@@ -13,7 +15,9 @@ import {
   type RagPreview,
   type RagQueryRequest,
   type RagRun,
+  type RagContextRun,
   type RagRunRequest,
+  type InferenceRunRequest,
   type RagSearchResponse,
 } from '../../shared/contracts/rag';
 import { createApiRequestError } from './apiRequestError';
@@ -69,9 +73,14 @@ export async function previewRag(input: RagQueryRequest): Promise<RagPreview> {
   return parse(ragPreviewSchema, await request('/api/rag/preview', json(body)), 'preview');
 }
 
-export async function runRag(input: RagRunRequest): Promise<RagRun> {
+export async function runRag(input: RagRunRequest): Promise<RagContextRun> {
   const body = ragRunRequestSchema.parse(input);
-  return parse(ragRunSchema, await request('/api/rag/run', json(body)), 'run');
+  return parse(ragContextRunSchema, await request('/api/rag/run', json(body)), 'context run');
+}
+
+export async function runRagInference(input: InferenceRunRequest): Promise<RagRun> {
+  const body = inferenceRunRequestSchema.parse(input);
+  return parse(ragRunSchema, await request('/api/rag/inference/run', json(body)), 'inference run');
 }
 
 export async function evaluateRag(input: RagDatasetRequest): Promise<RagEvaluationReport> {

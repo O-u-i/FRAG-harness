@@ -135,20 +135,38 @@ class OpenAICompatibleProvider:
             raise RagProviderError() from error
 
     def generate_rag_context(self, evidence: list[RagEvidence], max_output_tokens: int) -> LlmCallResult:
+        instructions, payload = context_input(evidence)
         return self._generate(
-            "Compress only supplied evidence. Preserve each chunkId and qualifier. Do not invent sources.",
-            {"evidence": [item.model_dump(by_alias=True) for item in evidence],
-             "outputSchema": RagContextCompression.model_json_schema(by_alias=True)},
+            instructions,
+            payload,
             RagContextCompression, max_output_tokens,
         )
 
     def generate_rag_answer(self, compressed: RagContextCompression, query: str, max_output_tokens: int) -> LlmCallResult:
+        instructions, payload = inference_input(compressed, query)
         return self._generate(
-            "Answer only from supplied evidence. Every claim must cite supplied chunkIds. State uncertainty and missing information.",
-            {"query": query, "context": compressed.model_dump(by_alias=True),
-             "outputSchema": RagGroundedAnswer.model_json_schema(by_alias=True)},
+            instructions,
+            payload,
             RagGroundedAnswer, max_output_tokens,
         )
+
+
+def context_input(evidence: list[RagEvidence]) -> tuple[str, dict]:
+    """The exact instructions and JSON payload passed to the Context provider."""
+    return (
+        "Compress only supplied evidence. Preserve each chunkId and qualifier. Do not invent sources.",
+        {"evidence": [item.model_dump(by_alias=True) for item in evidence],
+         "outputSchema": RagContextCompression.model_json_schema(by_alias=True)},
+    )
+
+
+def inference_input(compressed: RagContextCompression, query: str) -> tuple[str, dict]:
+    """The exact instructions and JSON payload passed to the inference provider."""
+    return (
+        "Answer only from supplied evidence. Every claim must cite supplied chunkIds. State uncertainty and missing information.",
+        {"query": query, "context": compressed.model_dump(by_alias=True),
+         "outputSchema": RagGroundedAnswer.model_json_schema(by_alias=True)},
+    )
 
 
 def provider_for(settings: LlmStageSettings) -> LlmProvider:

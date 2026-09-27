@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ragContextCompressionSchema, ragEvidenceSchema, ragGroundedAnswerSchema } from './rag';
+import { inferencePreviewSchema, ragContextCompressionSchema, ragEvidenceSchema, ragGroundedAnswerSchema } from './rag';
 import { stageConfigSchema, stageResultSchema, tokenBudgetSchema } from './modelStages';
 
 export const harnessConfigSchema = z.object({
@@ -19,11 +19,16 @@ export const harnessRunRequestSchema = harnessRequestSchema.extend({
 }).strict();
 export const harnessPreviewSchema = z.object({
   goal: z.string(), candidateEvidence: z.array(ragEvidenceSchema), budget: tokenBudgetSchema,
+  instructions: z.string(), input: z.string(),
   warnings: z.array(z.string()), contextFingerprint: z.string().length(64), approvalToken: z.string(),
 }).strict();
 export const harnessRunSchema = z.object({
   preview: harnessPreviewSchema, compressedContext: ragContextCompressionSchema,
   result: ragGroundedAnswerSchema, contextStage: stageResultSchema, inferenceStage: stageResultSchema,
+}).strict();
+export const harnessContextRunSchema = z.object({
+  preview: harnessPreviewSchema, compressedContext: ragContextCompressionSchema,
+  contextStage: stageResultSchema, inferencePreview: inferencePreviewSchema,
 }).strict();
 
 export type HarnessConfig = z.infer<typeof harnessConfigSchema>;
@@ -31,3 +36,4 @@ export type HarnessRequest = z.infer<typeof harnessRequestSchema>;
 export type HarnessPreview = z.infer<typeof harnessPreviewSchema>;
 export type HarnessRunRequest = z.infer<typeof harnessRunRequestSchema>;
 export type HarnessRun = z.infer<typeof harnessRunSchema>;
+export type HarnessContextRun = z.infer<typeof harnessContextRunSchema>;

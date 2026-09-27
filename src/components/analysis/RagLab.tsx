@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
-  RagEvaluationReport, RagIndexStatus, RagPreview, RagRun, RagSearchResponse,
+  RagContextRun, RagEvaluationReport, RagIndexStatus, RagPreview, RagRun, RagSearchResponse,
 } from '../../../shared/contracts/rag';
 import type { HarnessConfig } from '../../../shared/contracts/harness';
 import {
-  evaluateRag, fetchRagStatus, previewRag, rebuildRagIndex, runRag, searchRag,
+  evaluateRag, fetchRagStatus, previewRag, rebuildRagIndex, runRag, runRagInference, searchRag,
 } from '../../api/ragClient';
 import { PanelHeading } from '../common';
 
@@ -24,7 +24,9 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
   const [topK, setTopK] = useState(3);
   const [search, setSearch] = useState<RagSearchResponse>();
   const [preview, setPreview] = useState<RagPreview>();
+  const [contextRun, setContextRun] = useState<RagContextRun>();
   const [run, setRun] = useState<RagRun>();
+  const requestVersion = useRef(0);
   const [evaluation, setEvaluation] = useState<RagEvaluationReport>();
   const [busy, setBusy] = useState('status');
   const [error, setError] = useState('');
@@ -40,46 +42,64 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
 
 
   const resetQueryOutput = () => {
-    setSearch(undefined); setPreview(undefined); setRun(undefined); setError('');
+    requestVersion.current += 1;
+    setSearch(undefined); setPreview(undefined); setContextRun(undefined); setRun(undefined); setError('');
+    setBusy('');
   };
   const input = { ...dataset, query, topK };
   const ready = status?.state === 'ready';
   const modelsReady = config?.context.ready && config.inference.ready;
 
   const rebuild = async () => {
-    setBusy('rebuild'); setError(''); setEvaluation(undefined); resetQueryOutput();
+    setError(''); setEvaluation(undefined); resetQueryOutput(); setBusy('rebuild');
     try { setStatus(await rebuildRagIndex(dataset)); }
     catch (caught) { setError(safeMessage(caught)); }
     finally { setBusy(''); }
   };
   const retrieve = async () => {
-    setBusy('search'); resetQueryOutput();
-    try { setSearch(await searchRag(input)); }
-    catch (caught) { setError(safeMessage(caught)); }
-    finally { setBusy(''); }
+    resetQueryOutput(); setBusy('search');
+    const version = requestVersion.current;
+    try { const value = await searchRag(input); if (version === requestVersion.current) setSearch(value); }
+    catch (caught) { if (version === requestVersion.current) setError(safeMessage(caught)); }
+    finally { if (version === requestVersion.current) setBusy(''); }
   };
   const buildPreview = async () => {
-    setBusy('preview'); setError(''); setRun(undefined);
+    resetQueryOutput();
+    const version = requestVersion.current;
+    setBusy('preview');
     try {
       const value = await previewRag(input);
-      setPreview(value);
+      if (version === requestVersion.current) { setPreview(value);
       setSearch({
         datasetId: value.datasetId, query: value.query, topK: value.topK,
         indexRevision: value.indexRevision, results: value.retrievalResults,
-      });
-    } catch (caught) { setError(safeMessage(caught)); }
-    finally { setBusy(''); }
+      }); }
+    } catch (caught) { if (version === requestVersion.current) setError(safeMessage(caught)); }
+    finally { if (version === requestVersion.current) setBusy(''); }
   };
   const generate = async () => {
     if (!preview) return;
     const approved = window.confirm(
-      `Send ${preview.candidateEvidence.length} displayed chunks to ${config?.context.provider} and ${config?.inference.provider} for this run?`,
+      `Send ${preview.candidateEvidence.length} displayed chunks to the ${config?.context.provider} Context model?`,
     );
     if (!approved) return;
+    const version = requestVersion.current;
     setBusy('run'); setError('');
-    try { setRun(await runRag({ ...input, contextFingerprint: preview.contextFingerprint, approvalToken: preview.approvalToken, approved: true })); setPreview(undefined); }
-    catch (caught) { setError(safeMessage(caught)); }
-    finally { setBusy(''); }
+    try { const value = await runRag({ ...input, contextFingerprint: preview.contextFingerprint, approvalToken: preview.approvalToken, approved: true });
+      if (version === requestVersion.current) { setContextRun(value); setPreview(undefined); } }
+    catch (caught) { if (version === requestVersion.current) setError(safeMessage(caught)); }
+    finally { if (version === requestVersion.current) setBusy(''); }
+  };
+  const generateInference = async () => {
+    if (!contextRun || !window.confirm(`Send the displayed compressed context to the ${contextRun.inferencePreview.provider} Inference model?`)) return;
+    const version = requestVersion.current;
+    setBusy('inference'); setError('');
+    try { const value = await runRagInference({ contextFingerprint: contextRun.preview.contextFingerprint,
+      inferenceFingerprint: contextRun.inferencePreview.inferenceFingerprint,
+      approvalToken: contextRun.inferencePreview.approvalToken, approved: true });
+      if (version === requestVersion.current) { setRun(value); setContextRun(undefined); } }
+    catch (caught) { if (version === requestVersion.current) setError(safeMessage(caught)); }
+    finally { if (version === requestVersion.current) setBusy(''); }
   };
   const evaluate = async () => {
     setBusy('eval'); setError('');
@@ -123,7 +143,7 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
           {busy === 'preview' ? 'Building Preview…' : '2. Preview Exact Context'}
         </button>
         <button type="button" className="primary-button" disabled={!preview || preview.candidateEvidence.length === 0 || !modelsReady || busy !== ''} onClick={() => void generate()}>
-          {busy === 'run' ? 'Generating…' : '3. Approve Once and Generate'}
+          {busy === 'run' ? 'Running Context…' : '3. Approve Context Input'}
         </button>
       </div>
     </section>
@@ -140,12 +160,25 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
     </section>}
 
     {preview && <section className="rag-section">
-      <div className="rag-section-heading"><h3>Exact Outbound Context</h3><small>{preview.budget.estimatedInputTokens} estimated tokens</small></div>
+      <div className="rag-section-heading"><h3>Context Input Preview</h3><small>{preview.budget.estimatedInputTokens} estimated tokens</small></div>
       <div className="rag-result-list">{preview.candidateEvidence.map((item) => <article key={item.chunkId}>
         <strong>{item.chunkId} · {item.locatorLabel}</strong><pre>{item.text}</pre>
       </article>)}</div>
+      <div className="inference-preview"><strong>Context instructions</strong><pre>{preview.instructions}</pre>
+        <strong>Context input JSON</strong><pre>{preview.input}</pre></div>
       <ul>{preview.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
       <code className="sandbox-fingerprint">{preview.contextFingerprint}</code>
+    </section>}
+
+    {contextRun && <section className="rag-section inference-preview">
+      <div className="rag-section-heading"><h3>Inference Input Preview</h3><small>Second approval · expires in 10 minutes</small></div>
+      <p>Review the Context output before the second model call.</p>
+      <p>{contextRun.inferencePreview.provider} · {contextRun.inferencePreview.model}</p>
+      <strong>Instructions</strong><pre>{contextRun.inferencePreview.instructions}</pre>
+      <strong>Input JSON</strong><pre>{contextRun.inferencePreview.input}</pre>
+      <button type="button" className="primary-button" disabled={busy !== '' || !modelsReady} onClick={() => void generateInference()}>
+        {busy === 'inference' ? 'Running Inference…' : '4. Approve Inference Input'}
+      </button>
     </section>}
 
     {run && <section className="rag-section rag-answer">

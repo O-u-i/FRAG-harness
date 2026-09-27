@@ -78,8 +78,25 @@ def test_protocol_and_host_version_rejection(tmp_path: Path):
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
 
+def test_plugin_rejects_websocket_routes(tmp_path: Path):
+    install_synthetic(tmp_path)
+    directory = tmp_path / "finance-core" / "versions" / "1.0.0"
+    adapter = directory / "adapter.py"
+    adapter.write_text(ADAPTER.replace("    return router", "    @router.websocket('/api/plugins/finance-core/stream')\n"
+                       "    async def stream(_websocket):\n        pass\n    return router"), encoding="utf-8")
+    manifest = directory / "manifest.json"
+    value = json.loads(manifest.read_text(encoding="utf-8"))
+    value["files"]["adapter.py"] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    manifest.write_text(json.dumps(value), encoding="utf-8")
+    with pytest.raises(PluginValidationError):
+        load_plugin(tmp_path)
+
+
 def test_plugin_dashboard_and_bounded_evidence(tmp_path: Path):
     install_synthetic(tmp_path)
+    assert load_plugin(tmp_path) is not None
+    assert load_plugin(tmp_path) is not None
+    assert not (tmp_path / "finance-core" / "versions" / "1.0.0" / "__pycache__").exists()
     with TestClient(create_app(plugin_root=tmp_path, rag_index_path=tmp_path / "rag.sqlite3"), raise_server_exceptions=False) as client:
         assert client.get("/api/plugins/finance-core/dashboard").json() == {
             "workspaceId": "synthetic-workspace", "balance": "12.00", "readOnly": True,
@@ -98,6 +115,9 @@ def test_plugin_dashboard_and_bounded_evidence(tmp_path: Path):
         run = client.post("/api/harness/run", json={**body, "contextFingerprint": preview.json()["contextFingerprint"],
                                                         "approvalToken": preview.json()["approvalToken"], "approved": True})
         assert run.status_code == 200, run.text
+        second = run.json()["inferencePreview"]
+        assert client.post("/api/harness/inference/run", json={"contextFingerprint": preview.json()["contextFingerprint"],
+            "inferenceFingerprint": second["inferenceFingerprint"], "approvalToken": second["approvalToken"], "approved": True}).status_code == 200
         assert client.post("/api/harness/preview", json={**body, "pluginSelection": {**body["pluginSelection"], "workspaceId": "other"}}).status_code == 422
         assert client.post("/api/harness/preview", json={**body, "pluginSelection": {**body["pluginSelection"], "recordIds": ["record-1"] * 11}}).status_code == 422
 
@@ -132,6 +152,20 @@ def test_powershell_installer_hash_activation_and_disable(tmp_path: Path):
     incompatible[incompatible.index("0" * 64)] = hashlib.sha256(incompatible_archive.read_bytes()).hexdigest()
     rejected_version = subprocess.run(incompatible, cwd=repo, capture_output=True, text=True, check=False)
     assert rejected_version.returncode != 0
+    assert not (install_root / "finance-core" / "current.json").exists()
+    oversized_archive = tmp_path / "oversized.zip"
+    oversized_ui = "x" * (5 * 1024 * 1024 + 1)
+    oversized_manifest = {**manifest, "files": {**manifest["files"],
+        "ui.js": hashlib.sha256(oversized_ui.encode()).hexdigest()}}
+    with zipfile.ZipFile(oversized_archive, "w") as package:
+        package.writestr("manifest.json", json.dumps(oversized_manifest))
+        package.writestr("adapter.py", ADAPTER)
+        package.writestr("ui.js", oversized_ui)
+    oversized_command = command.copy()
+    oversized_command[oversized_command.index(str(archive))] = str(oversized_archive)
+    oversized_command[oversized_command.index("0" * 64)] = hashlib.sha256(oversized_archive.read_bytes()).hexdigest()
+    oversized = subprocess.run(oversized_command, cwd=repo, capture_output=True, text=True, check=False)
+    assert oversized.returncode != 0
     assert not (install_root / "finance-core" / "current.json").exists()
     command[command.index("0" * 64)] = hashlib.sha256(archive.read_bytes()).hexdigest()
     installed = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)

@@ -15,7 +15,7 @@ from frag_api.errors import (
     RagProviderError,
     RequestContractError,
 )
-from frag_api.providers.llm import FakeLlmProvider, LlmProvider, LlmSettings, provider_for
+from frag_api.providers.llm import FakeLlmProvider, LlmProvider, LlmSettings, context_input, inference_input, provider_for
 from frag_api.repositories.rag_index_repository import (
     DEFAULT_RAG_INDEX_PATH,
     IndexChunk,
@@ -27,6 +27,7 @@ from frag_api.schemas.context_source import ParsedLocalFile
 from frag_api.schemas.common import StageResult, TokenBudget
 from frag_api.schemas.rag import (
     RagChunkResult,
+    RagContextRun,
     RagContextCompression,
     RagDatasetRequest,
     RagEvaluationCase,
@@ -34,6 +35,8 @@ from frag_api.schemas.rag import (
     RagEvaluationReport,
     RagEvidence,
     RagGroundedAnswer,
+    InferencePreview,
+    InferenceRunRequest,
     RagIndexStatus,
     RagPreview,
     RagQueryRequest,
@@ -43,7 +46,7 @@ from frag_api.schemas.rag import (
     RagSearchResponse,
 )
 from frag_api.services.context_source_service import ContextSourceError, ContextSourceService
-from frag_api.services.approval import ApprovalRegistry
+from frag_api.services.approval import ApprovalRegistry, PendingInferenceRegistry
 from frag_api.services.governed_context import (
     CONTEXT_OUTPUT_LIMIT,
     INFERENCE_OUTPUT_LIMIT,
@@ -97,6 +100,7 @@ class RagService:
         self.inference_provider = inference_provider or provider_for(settings.inference)
         self.eval_path = Path(eval_path) if eval_path else Path(source_service.root) / "eval-cases.json"
         self.approvals = ApprovalRegistry()
+        self.pending_inference = PendingInferenceRegistry()
 
     def status(self) -> RagIndexStatus:
         source_hash = self._source_hash()
@@ -173,6 +177,7 @@ class RagService:
         ]
         if not evidence:
             warnings.append("No matching chunks were retrieved; Run is unavailable.")
+        context_instructions, context_payload = context_input(evidence)
         return RagPreview(
             datasetId=request.dataset_id,
             query=request.query,
@@ -180,6 +185,7 @@ class RagService:
             indexRevision=search.index_revision,
             retrievalResults=search.results,
             candidateEvidence=evidence,
+            instructions=context_instructions, input=json.dumps(context_payload, ensure_ascii=False),
             budget=TokenBudget(
                 estimatedInputTokens=estimate,
                 inputBudget=INPUT_BUDGET,
@@ -192,7 +198,7 @@ class RagService:
             approvalToken=self.approvals.issue(context_fingerprint) if issue_approval else "",
         )
 
-    def run(self, request: RagRunRequest) -> RagRun:
+    def run(self, request: RagRunRequest) -> RagContextRun:
         query_request = RagQueryRequest.model_validate(
             request.model_dump(exclude={"context_fingerprint", "approval_token", "approved"})
         )
@@ -221,17 +227,43 @@ class RagService:
         returned = {item.chunk_id for item in compressed.evidence}
         if returned != allowed or estimated_tokens(compressed.model_dump(by_alias=True)) > CONTEXT_OUTPUT_LIMIT:
             raise RagOutputError()
-        try:
-            inference_call = self.inference_provider.generate_rag_answer(
-                compressed, request.query, INFERENCE_OUTPUT_LIMIT
-            )
-        except RagOutputError as error:
-            raise RagOutputError() from error
-        except RagProviderError as error:
-            raise RagProviderError() from error
+        instructions, payload = inference_input(compressed, request.query)
+        outbound = json.dumps(payload, ensure_ascii=False)
+        inference_fingerprint = fingerprint({"instructions": instructions, "input": outbound,
+                                             "provider": self.settings.inference.provider,
+                                             "model": self.settings.inference.model,
+                                             "maxOutputTokens": INFERENCE_OUTPUT_LIMIT,
+                                             "contextFingerprint": preview.context_fingerprint})
+        token = self.pending_inference.issue(
+            inference_fingerprint, (query_request, preview, compressed, context_call.usage)
+        )
+        return RagContextRun(
+            preview=preview, compressedContext=compressed,
+            contextStage=StageResult(provider=self.settings.context.provider,
+                                     model=self.settings.context.model, usage=context_call.usage),
+            inferencePreview=InferencePreview(provider=self.settings.inference.provider,
+                                              model=self.settings.inference.model, instructions=instructions,
+                                              input=outbound, maxOutputTokens=INFERENCE_OUTPUT_LIMIT,
+                                              inferenceFingerprint=inference_fingerprint, approvalToken=token),
+        )
+
+    def run_inference(self, request: InferenceRunRequest) -> RagRun:
+        state = self.pending_inference.consume(request.approval_token, request.inference_fingerprint)
+        if state is None:
+            raise RagFingerprintError()
+        query_request, preview, compressed, context_usage = state
+        if request.context_fingerprint != preview.context_fingerprint:
+            raise RagFingerprintError()
+        current = self.preview(query_request, issue_approval=False)
+        if current.context_fingerprint != preview.context_fingerprint:
+            raise RagFingerprintError()
+        inference_call = self.inference_provider.generate_rag_answer(
+            compressed, query_request.query, INFERENCE_OUTPUT_LIMIT
+        )
         result = inference_call.output
         if not isinstance(result, RagGroundedAnswer):
             raise RagOutputError()
+        returned = {item.chunk_id for item in compressed.evidence}
         cited = {chunk_id for claim in result.claims for chunk_id in claim.chunk_ids}
         if not cited.issubset(returned) or not cited:
             raise RagOutputError()
@@ -242,7 +274,7 @@ class RagService:
             contextStage=StageResult(
                 provider=self.settings.context.provider,
                 model=self.settings.context.model,
-                usage=context_call.usage,
+                usage=context_usage,
             ),
             inferenceStage=StageResult(
                 provider=self.settings.inference.provider,

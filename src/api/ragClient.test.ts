@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RagPreview, RagRun } from '../../shared/contracts/rag';
 import { ApiRequestError } from './apiRequestError';
 import {
-  evaluateRag, fetchRagStatus, previewRag, rebuildRagIndex, runRag, searchRag,
+  evaluateRag, fetchRagStatus, previewRag, rebuildRagIndex, runRag, runRagInference, searchRag,
 } from './ragClient';
 
 const dataset = { datasetId: 'synthetic-risk-review-v1' } as const;
@@ -24,6 +24,7 @@ const preview: RagPreview = {
     chunkId: chunk.chunkId, documentId: chunk.documentId, sourceId: chunk.sourceId,
     locatorId: chunk.locatorId, locatorLabel: chunk.locatorLabel, text: '# Regulatory Risk\nRestrictions increased.',
   }],
+  instructions: 'Compress evidence.', input: '{}',
   budget: {
     estimatedInputTokens: 100, inputBudget: 6000, reservedPercent: 25,
     contextOutputLimit: 1500, inferenceOutputLimit: 2000, approximate: true,
@@ -43,6 +44,9 @@ const run: RagRun = {
   contextStage: { provider: 'fake', model: 'fake-context-v1', usage: { inputTokens: 10, outputTokens: 8 } },
   inferenceStage: { provider: 'fake', model: 'fake-inference-v1', usage: { inputTokens: 8, outputTokens: 6 } },
 };
+const context = { preview, compressedContext: run.compressedContext, contextStage: run.contextStage,
+  inferencePreview: { provider: 'fake', model: 'fake-inference-v1', instructions: 'Answer.', input: '{}',
+    maxOutputTokens: 2000, inferenceFingerprint: 'd'.repeat(64), approvalToken: 'e'.repeat(48) } };
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -64,12 +68,16 @@ describe('RAG client', () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json(search))
       .mockResolvedValueOnce(Response.json(preview))
+      .mockResolvedValueOnce(Response.json(context))
       .mockResolvedValueOnce(Response.json(run));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(searchRag(request)).resolves.toEqual(search);
     await expect(previewRag(request)).resolves.toEqual(preview);
-    await expect(runRag({ ...request, contextFingerprint: fingerprint, approvalToken: preview.approvalToken, approved: true })).resolves.toEqual(run);
+    await expect(runRag({ ...request, contextFingerprint: fingerprint, approvalToken: preview.approvalToken, approved: true })).resolves.toEqual(context);
+    await expect(runRagInference({ contextFingerprint: fingerprint,
+      inferenceFingerprint: context.inferencePreview.inferenceFingerprint,
+      approvalToken: context.inferencePreview.approvalToken, approved: true })).resolves.toEqual(run);
   });
 
   it('validates the deterministic evaluation report', async () => {

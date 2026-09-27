@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 
 from frag_api.errors import HarnessSourceError, RagFingerprintError, RagNotReadyError, RagOutputError
 from frag_api.plugin_host import LoadedPlugin
-from frag_api.providers.llm import LlmProvider, LlmSettings, provider_for
+from frag_api.providers.llm import LlmProvider, LlmSettings, context_input, inference_input, provider_for
 from frag_api.schemas.common import HarnessConfig, StageConfig, StageResult, TokenBudget
-from frag_api.schemas.harness import HarnessPreview, HarnessRequest, HarnessRun, HarnessRunRequest
-from frag_api.schemas.rag import RagContextCompression, RagEvidence, RagGroundedAnswer
-from frag_api.services.approval import ApprovalRegistry
+from frag_api.schemas.harness import HarnessContextRun, HarnessPreview, HarnessRequest, HarnessRun, HarnessRunRequest
+from frag_api.schemas.rag import InferencePreview, InferenceRunRequest, RagContextCompression, RagEvidence, RagGroundedAnswer
+from frag_api.services.approval import ApprovalRegistry, PendingInferenceRegistry
 from frag_api.services.context_source_service import ContextSourceError, ContextSourceService
 from frag_api.services.governed_context import (
     CONTEXT_OUTPUT_LIMIT, INFERENCE_OUTPUT_LIMIT, INPUT_BUDGET,
@@ -38,6 +39,7 @@ class HarnessService:
         self.context_provider = context_provider or provider_for(self.settings.context)
         self.inference_provider = inference_provider or provider_for(self.settings.inference)
         self.approvals = ApprovalRegistry()
+        self.pending_inference = PendingInferenceRegistry()
         self.plugin = plugin
 
     def config(self) -> HarnessConfig:
@@ -116,22 +118,25 @@ class HarnessService:
         if estimate > INPUT_BUDGET * (100 - RESERVED_PERCENT) // 100:
             raise HarnessSourceError()
         context_fingerprint = fingerprint(payload)
+        context_instructions, context_payload = context_input(evidence)
         return HarnessPreview(
             goal=request.goal, candidateEvidence=evidence,
+            instructions=context_instructions, input=json.dumps(context_payload, ensure_ascii=False),
             budget=TokenBudget(
                 estimatedInputTokens=estimate, inputBudget=INPUT_BUDGET,
                 reservedPercent=RESERVED_PERCENT, contextOutputLimit=CONTEXT_OUTPUT_LIMIT,
                 inferenceOutputLimit=INFERENCE_OUTPUT_LIMIT,
             ),
-            warnings=["Check every exact excerpt before approving this model run.",
+            warnings=["Check every exact excerpt before approving the Context call.",
                       "Automatic redaction cannot identify every private value."],
             contextFingerprint=context_fingerprint,
             approvalToken=self.approvals.issue(context_fingerprint) if issue_approval else "",
         )
 
-    def run(self, request: HarnessRunRequest) -> HarnessRun:
-        preview = self.preview(HarnessRequest(goal=request.goal, fileSelections=request.file_selections,
-                                              pluginSelection=request.plugin_selection), issue_approval=False)
+    def run(self, request: HarnessRunRequest) -> HarnessContextRun:
+        source_request = HarnessRequest(goal=request.goal, fileSelections=request.file_selections,
+                                        pluginSelection=request.plugin_selection)
+        preview = self.preview(source_request, issue_approval=False)
         if request.context_fingerprint != preview.context_fingerprint:
             raise RagFingerprintError()
         if not self.settings.context.ready or not self.settings.inference.ready:
@@ -147,17 +152,47 @@ class HarnessService:
         returned = {item.chunk_id for item in compressed.evidence}
         if returned != allowed or estimated_tokens(compressed.model_dump(by_alias=True)) > CONTEXT_OUTPUT_LIMIT:
             raise RagOutputError()
-        inference_call = self.inference_provider.generate_rag_answer(compressed, request.goal, INFERENCE_OUTPUT_LIMIT)
+        instructions, payload = inference_input(compressed, request.goal)
+        outbound = json.dumps(payload, ensure_ascii=False)
+        inference_fingerprint = fingerprint({"instructions": instructions, "input": outbound,
+                                             "provider": self.settings.inference.provider,
+                                             "model": self.settings.inference.model,
+                                             "maxOutputTokens": INFERENCE_OUTPUT_LIMIT,
+                                             "contextFingerprint": preview.context_fingerprint})
+        state = (source_request, preview, compressed, context_call.usage)
+        token = self.pending_inference.issue(inference_fingerprint, state)
+        return HarnessContextRun(
+            preview=preview, compressedContext=compressed,
+            contextStage=StageResult(provider=self.settings.context.provider,
+                                     model=self.settings.context.model, usage=context_call.usage),
+            inferencePreview=InferencePreview(provider=self.settings.inference.provider,
+                                              model=self.settings.inference.model, instructions=instructions,
+                                              input=outbound, maxOutputTokens=INFERENCE_OUTPUT_LIMIT,
+                                              inferenceFingerprint=inference_fingerprint, approvalToken=token),
+        )
+
+    def run_inference(self, request: InferenceRunRequest) -> HarnessRun:
+        state = self.pending_inference.consume(request.approval_token, request.inference_fingerprint)
+        if state is None:
+            raise RagFingerprintError()
+        source_request, preview, compressed, context_usage = state
+        if request.context_fingerprint != preview.context_fingerprint:
+            raise RagFingerprintError()
+        current = self.preview(source_request, issue_approval=False)
+        if current.context_fingerprint != preview.context_fingerprint:
+            raise RagFingerprintError()
+        inference_call = self.inference_provider.generate_rag_answer(compressed, source_request.goal, INFERENCE_OUTPUT_LIMIT)
         result = inference_call.output
         if not isinstance(result, RagGroundedAnswer):
             raise RagOutputError()
+        returned = {item.chunk_id for item in compressed.evidence}
         cited = {item for claim in result.claims for item in claim.chunk_ids}
         if not cited or not cited.issubset(returned):
             raise RagOutputError()
         return HarnessRun(
             preview=preview, compressedContext=compressed, result=result,
             contextStage=StageResult(provider=self.settings.context.provider,
-                                     model=self.settings.context.model, usage=context_call.usage),
+                                     model=self.settings.context.model, usage=context_usage),
             inferenceStage=StageResult(provider=self.settings.inference.provider,
                                        model=self.settings.inference.model, usage=inference_call.usage),
         )

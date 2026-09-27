@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { previewHarness, runHarness } from './harnessClient';
+import { previewHarness, runHarness, runHarnessInference } from './harnessClient';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -18,26 +18,34 @@ describe('harness client', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('sends an explicit one-time approval token to Run', async () => {
+  it('requires separate approved Context and Inference requests', async () => {
     const evidence = { chunkId: 'chunk', documentId: 'doc', sourceId: 'source',
       locatorId: 'section-1', locatorLabel: 'Finding', text: 'Synthetic fact' };
-    const preview = { goal: selection.goal, candidateEvidence: [evidence],
+    const preview = { goal: selection.goal, candidateEvidence: [evidence], instructions: 'Compress evidence.', input: '{}',
       budget: { estimatedInputTokens: 80, inputBudget: 6000, reservedPercent: 25,
         contextOutputLimit: 1500, inferenceOutputLimit: 2000, approximate: true },
       warnings: [], contextFingerprint: 'a'.repeat(64), approvalToken: 'b'.repeat(48) };
-    const run = { preview, compressedContext: { evidence: [{chunkId: 'chunk', summary: 'Synthetic fact',
+    const context = { preview, compressedContext: { evidence: [{chunkId: 'chunk', summary: 'Synthetic fact',
       preservedFacts: ['Synthetic fact'], uncertainty: []}], missingInformation: [] },
+      contextStage: { provider: 'fake', model: 'fake-context-v1', usage: {inputTokens: 1, outputTokens: 1} },
+      inferencePreview: { provider: 'fake', model: 'fake-inference-v1', instructions: 'Answer.', input: '{}',
+        maxOutputTokens: 2000, inferenceFingerprint: 'c'.repeat(64), approvalToken: 'd'.repeat(48) } };
+    const run = { preview, compressedContext: context.compressedContext, contextStage: context.contextStage,
       result: { answer: 'Synthetic fact', claims: [{text: 'Synthetic fact', chunkIds: ['chunk']}],
         missingInformation: [], disclaimer: 'Review first.' },
-      contextStage: { provider: 'fake', model: 'fake-context-v1', usage: {inputTokens: 1, outputTokens: 1} },
       inferenceStage: { provider: 'fake', model: 'fake-inference-v1', usage: {inputTokens: 1, outputTokens: 1} } };
-    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(preview)).mockResolvedValueOnce(Response.json(run));
+    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(preview)).mockResolvedValueOnce(Response.json(context))
+      .mockResolvedValueOnce(Response.json(run));
     vi.stubGlobal('fetch', fetchMock);
     await expect(previewHarness(selection)).resolves.toEqual(preview);
     await expect(runHarness({ ...selection, contextFingerprint: preview.contextFingerprint,
-      approvalToken: preview.approvalToken, approved: true })).resolves.toEqual(run);
+      approvalToken: preview.approvalToken, approved: true })).resolves.toEqual(context);
+    await expect(runHarnessInference({ contextFingerprint: preview.contextFingerprint,
+      inferenceFingerprint: context.inferencePreview.inferenceFingerprint,
+      approvalToken: context.inferencePreview.approvalToken, approved: true })).resolves.toEqual(run);
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({
       approved: true, approvalToken: preview.approvalToken, contextFingerprint: preview.contextFingerprint,
     });
+    expect(fetchMock.mock.calls[2][0]).toBe('/api/harness/inference/run');
   });
 });

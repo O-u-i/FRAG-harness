@@ -6,7 +6,7 @@ from pydantic import Field, model_validator
 
 from frag_api.schemas.common import ApiModel, HarnessConfig, StageResult, TokenBudget
 from frag_api.schemas.context_source import FileSourceSelection
-from frag_api.schemas.rag import RagContextCompression, RagEvidence, RagGroundedAnswer
+from frag_api.schemas.rag import InferencePreview, RagContextCompression, RagEvidence, RagGroundedAnswer
 
 
 class PluginEvidenceSelection(ApiModel):
@@ -36,6 +36,8 @@ class HarnessRunRequest(HarnessRequest):
 class HarnessPreview(ApiModel):
     goal: str
     candidate_evidence: list[RagEvidence] = Field(alias="candidateEvidence")
+    instructions: str
+    input: str
     budget: TokenBudget
     warnings: list[str]
     context_fingerprint: str = Field(alias="contextFingerprint")
@@ -48,6 +50,13 @@ class HarnessRun(ApiModel):
     result: RagGroundedAnswer
     context_stage: StageResult = Field(alias="contextStage")
     inference_stage: StageResult = Field(alias="inferenceStage")
+
+
+class HarnessContextRun(ApiModel):
+    preview: HarnessPreview
+    compressed_context: RagContextCompression = Field(alias="compressedContext")
+    context_stage: StageResult = Field(alias="contextStage")
+    inference_preview: InferencePreview = Field(alias="inferencePreview")
 
 
 __all__ = ["HarnessConfig", "HarnessRequest", "HarnessRunRequest", "HarnessPreview", "HarnessRun"]

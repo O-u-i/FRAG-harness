@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import json
 import re
+from types import ModuleType
 from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import APIRouter
+from fastapi.routing import APIRoute
 
 from frag_api.errors import PluginValidationError
 
@@ -45,6 +46,8 @@ def load_plugin(root: Path = DEFAULT_PLUGIN_ROOT) -> LoadedPlugin | None:
     current_path = root / PLUGIN_ID / "current.json"
     if not current_path.is_file():
         return None
+    if current_path.is_symlink() or current_path.stat().st_size > 16 * 1024:
+        raise PluginValidationError()
     current = _read_json(current_path)
     if current.get("enabled") is False:
         return None
@@ -54,7 +57,13 @@ def load_plugin(root: Path = DEFAULT_PLUGIN_ROOT) -> LoadedPlugin | None:
     directory = (root / PLUGIN_ID / "versions" / version).resolve()
     if not directory.is_relative_to(root.resolve()) or not directory.is_dir():
         raise PluginValidationError()
-    if {item.name for item in directory.iterdir() if item.is_file()} != {"manifest.json", "adapter.py", "ui.js"}:
+    entries = list(directory.iterdir())
+    if any(item.is_symlink() or not item.is_file() for item in entries):
+        raise PluginValidationError()
+    if {item.name for item in entries} != {"manifest.json", "adapter.py", "ui.js"}:
+        raise PluginValidationError()
+    limits = {"manifest.json": 64 * 1024, "adapter.py": 2 * 1024 * 1024, "ui.js": 5 * 1024 * 1024}
+    if any(item.stat().st_size > limits[item.name] for item in entries):
         raise PluginValidationError()
     manifest = _read_json(directory / "manifest.json")
     if manifest.get("id") != PLUGIN_ID or manifest.get("protocolVersion") != PLUGIN_PROTOCOL:
@@ -72,12 +81,11 @@ def load_plugin(root: Path = DEFAULT_PLUGIN_ROOT) -> LoadedPlugin | None:
             raise PluginValidationError()
         if hashlib.sha256(path.read_bytes()).hexdigest() != expected.lower():
             raise PluginValidationError()
-    spec = importlib.util.spec_from_file_location(f"frag_plugin_{PLUGIN_ID.replace('-', '_')}", directory / "adapter.py")
-    if spec is None or spec.loader is None:
-        raise PluginValidationError()
-    module = importlib.util.module_from_spec(spec)
+    adapter_path = directory / "adapter.py"
+    module = ModuleType(f"frag_plugin_{PLUGIN_ID.replace('-', '_')}")
+    module.__file__ = str(adapter_path)
     try:
-        spec.loader.exec_module(module)
+        exec(compile(adapter_path.read_bytes(), str(adapter_path), "exec"), module.__dict__)
         router = module.create_router()
         reader = module.read_evidence
     except Exception as error:
@@ -87,8 +95,8 @@ def load_plugin(root: Path = DEFAULT_PLUGIN_ROOT) -> LoadedPlugin | None:
     if not callable(reader):
         raise PluginValidationError()
     for route in router.routes:
-        if not route.path.startswith(f"/api/plugins/{PLUGIN_ID}/"):
+        if not isinstance(route, APIRoute) or not route.path.startswith(f"/api/plugins/{PLUGIN_ID}/"):
             raise PluginValidationError()
-        if not getattr(route, "methods", set()).issubset({"GET", "HEAD"}):
+        if not route.methods or not route.methods.issubset({"GET", "HEAD"}):
             raise PluginValidationError()
     return LoadedPlugin(version=version, directory=directory, router=router, read_evidence=reader)

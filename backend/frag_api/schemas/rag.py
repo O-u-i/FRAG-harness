@@ -25,6 +25,23 @@ class RagRunRequest(RagQueryRequest):
     approved: Literal[True]
 
 
+class InferenceRunRequest(ApiModel):
+    context_fingerprint: str = Field(alias="contextFingerprint", min_length=64, max_length=64)
+    inference_fingerprint: str = Field(alias="inferenceFingerprint", min_length=64, max_length=64)
+    approval_token: str = Field(alias="approvalToken", min_length=32)
+    approved: Literal[True]
+
+
+class InferencePreview(ApiModel):
+    provider: str
+    model: str
+    instructions: str
+    input: str
+    max_output_tokens: int = Field(alias="maxOutputTokens")
+    inference_fingerprint: str = Field(alias="inferenceFingerprint")
+    approval_token: str = Field(alias="approvalToken")
+
+
 class RagIndexStatus(ApiModel):
     dataset_id: RagDatasetId = Field(alias="datasetId")
     schema_version: Literal[1] = Field(default=1, alias="schemaVersion")
@@ -73,6 +90,8 @@ class RagPreview(ApiModel):
     index_revision: str = Field(alias="indexRevision")
     retrieval_results: list[RagChunkResult] = Field(alias="retrievalResults")
     candidate_evidence: list[RagEvidence] = Field(alias="candidateEvidence")
+    instructions: str
+    input: str
     budget: TokenBudget
     warnings: list[str]
     context_fingerprint: str = Field(alias="contextFingerprint", min_length=64, max_length=64)
@@ -109,6 +128,13 @@ class RagRun(ApiModel):
     result: RagGroundedAnswer
     context_stage: StageResult = Field(alias="contextStage")
     inference_stage: StageResult = Field(alias="inferenceStage")
+
+
+class RagContextRun(ApiModel):
+    preview: RagPreview
+    compressed_context: RagContextCompression = Field(alias="compressedContext")
+    context_stage: StageResult = Field(alias="contextStage")
+    inference_preview: InferencePreview = Field(alias="inferencePreview")
 
 
 class RagEvaluationCase(ApiModel):

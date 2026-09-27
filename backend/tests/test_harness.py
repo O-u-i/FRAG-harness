@@ -38,10 +38,19 @@ def test_preview_redacts_and_approval_is_single_use(client: TestClient, source_r
     run = client.post("/api/harness/run", json=run_body)
     assert run.status_code == 200, run.text
     assert run.json()["contextStage"]["provider"] == "fake"
-    assert run.json()["inferenceStage"]["provider"] == "fake"
+    assert "inferenceStage" not in run.json()
+    second = run.json()["inferencePreview"]
+    assert "[REDACTED_SECRET]" in second["input"]
+    assert "do-not-send" not in second["input"]
+    inference_body = {"contextFingerprint": value["contextFingerprint"], "inferenceFingerprint": second["inferenceFingerprint"],
+                      "approvalToken": second["approvalToken"], "approved": True}
+    final = client.post("/api/harness/inference/run", json=inference_body)
+    assert final.status_code == 200, final.text
+    assert final.json()["inferenceStage"]["provider"] == "fake"
     allowed = {e["chunkId"] for e in value["candidateEvidence"]}
-    assert {c for claim in run.json()["result"]["claims"] for c in claim["chunkIds"]} <= allowed
+    assert {c for claim in final.json()["result"]["claims"] for c in claim["chunkIds"]} <= allowed
     assert client.post("/api/harness/run", json=run_body).status_code == 409
+    assert client.post("/api/harness/inference/run", json=inference_body).status_code == 409
 
 
 def test_changed_source_rejects_previous_approval(client: TestClient, source_root: Path):
@@ -65,7 +74,22 @@ def test_foreign_citation_is_rejected(client: TestClient):
     client.app.state.harness_service.inference_provider = InvalidInference()
     body = selection(client)
     preview = client.post("/api/harness/preview", json=body).json()
-    run = client.post("/api/harness/run", json={**body, "contextFingerprint": preview["contextFingerprint"],
-                                                  "approvalToken": preview["approvalToken"], "approved": True})
+    context = client.post("/api/harness/run", json={**body, "contextFingerprint": preview["contextFingerprint"],
+                                                      "approvalToken": preview["approvalToken"], "approved": True}).json()
+    second = context["inferencePreview"]
+    run = client.post("/api/harness/inference/run", json={"contextFingerprint": preview["contextFingerprint"],
+        "inferenceFingerprint": second["inferenceFingerprint"], "approvalToken": second["approvalToken"], "approved": True})
     assert run.status_code == 502
     assert run.json()["error"]["code"] == "INVALID_LLM_OUTPUT"
+
+
+def test_changed_source_blocks_second_stage(client: TestClient, source_root: Path):
+    body = selection(client)
+    preview = client.post("/api/harness/preview", json=body).json()
+    context = client.post("/api/harness/run", json={**body, "contextFingerprint": preview["contextFingerprint"],
+        "approvalToken": preview["approvalToken"], "approved": True}).json()
+    (source_root / "evidence.md").write_text("# Finding\nChanged after Context.", encoding="utf-8")
+    second = context["inferencePreview"]
+    result = client.post("/api/harness/inference/run", json={"contextFingerprint": preview["contextFingerprint"],
+        "inferenceFingerprint": second["inferenceFingerprint"], "approvalToken": second["approvalToken"], "approved": True})
+    assert result.status_code == 409

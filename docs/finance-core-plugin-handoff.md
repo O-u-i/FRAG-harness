@@ -1,6 +1,8 @@
 # Finance Core plugin handoff
 
-The FRAG host and synthetic package are implemented in this repository. The official artifact requires a separately authorized Finance Core repository task. Its initial API target is Finance Core 3.1.1 with no FC HTTP contract change, pending a read-contract audit.
+The FRAG host and synthetic package are implemented in this repository. Finance Core has produced a local optional v1.0.0 archive with SHA-256 `d9faa77f88d414b75f3db21811567f1e5a8a342c52327a54c50d30e3e41faf25`. FRAG verified and installed that archive against plugin protocol 1 and FC API 3.1.1. Host and adapter checks use synthetic FC responses; live FC and real Vault integration remain a separate acceptance gate.
+
+The original Finance Core production handoff is retained below as the artifact contract.
 
 ```text
 READ_ONLY first: inspect Finance Core 3.1.1, its AGENTS.md, released /api/v3 contracts, Demo UI, and release process. Do not edit FRAG.
@@ -12,4 +14,4 @@ The archive must contain exactly manifest.json, adapter.py, and ui.js at its roo
 Test installation artifact integrity, compatibility failure, Workspace isolation, bounded reads, dashboard values, disabled/unavailable FC behavior, and absence of finance credentials in browser assets. Use synthetic fixtures only. Do not access real Vault data, copy FC SQLite, edit FRAG, commit, push, tag, or publish. Return the exact archive contract, test results, diff, and required compatible versions for FRAG integration.
 ```
 
-Cross-repo impact: BOTH_REQUIRED. Contract change: NONE, pending the FC read-contract audit. Other repo status: BLOCKED_PENDING_RELEASE. Required compatible version: FRAG plugin protocol 1 and FC API 3.1.1.
+Cross-repo impact: NONE. Contract change: NONE. Other repo status: NOT_TOUCHED. Required compatible version: FRAG host >=1.0.0, plugin protocol 1, and FC API 3.1.1. The local archive is installed, while live FC acceptance is pending.
