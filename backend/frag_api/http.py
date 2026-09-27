@@ -7,6 +7,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 MAX_BODY_BYTES = 16 * 1024
+MAX_PLUGIN_ARCHIVE_BYTES = 20 * 1024 * 1024
 
 
 def error_response(
@@ -32,7 +33,9 @@ class BodyLimitMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        max_bytes = self.max_bytes
+        max_bytes = (MAX_PLUGIN_ARCHIVE_BYTES
+                     if scope.get("path") == "/api/plugin-management/install"
+                     else self.max_bytes)
         messages: list[dict] = []
         total = 0
         while True:

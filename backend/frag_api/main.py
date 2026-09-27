@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -54,6 +55,19 @@ def create_app(
 
     app = FastAPI(title="FRAG-harness API", version="1.0.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
+    app.state.plugin_root = Path(plugin_root)
+    app.state.plugin_hidden = False
+    app.state.plugin_management_lock = asyncio.Lock()
+
+    @app.middleware("http")
+    async def hide_deactivated_plugin(request: Request, call_next):
+        path = request.url.path
+        if app.state.plugin_hidden and (
+            path.startswith("/api/plugins/finance-core/")
+            or path == "/plugins/finance-core/ui.js"
+        ):
+            return error_response(404, "NOT_FOUND", "Endpoint was not found.")
+        return await call_next(request)
     plugin = None
     plugin_error = False
     try:

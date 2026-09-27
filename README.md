@@ -70,9 +70,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-plugin.ps1
 
 # Disable without removing installed files
 powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-plugin.ps1 -Disable
+
+# Re-enable an installed version
+powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-plugin.ps1 -Enable
 ```
 
 Restart FRAG after install or disable. The plugin supplies a read-only dashboard and scoped Workspace record choices. Journal and all other mutations open Finance Core's own UI. A selected Workspace and at most ten record IDs enter the host preview through a read-only FC `/api/v3` adapter; the host never opens FC SQLite or indexes the whole finance database. The FC token stays backend-only. The adapter checks FC 3.1.1 health and version before bounded reads. Installing the archive does not configure FC or establish live integration; that requires a separately reviewed local FC setup.
+
+The local Plugins page also accepts a trusted ZIP and its published SHA-256 for installation, and offers Enable, Disable, and Uninstall controls when a package is on disk. These controls run the same pinned PowerShell installer. Uninstall removes all locally installed Finance Core plugin versions and the activation pointer, after confirming every version contains only the three expected files. A successful management action hides plugin routes for the rest of that server session. Restart FRAG to load or unload the package. The private Sites design preview cannot perform these local operations.
 
 ```mermaid
 flowchart LR
@@ -94,8 +99,11 @@ Plugin adapter contract: `create_router()` returns only `GET` or `HEAD` routes u
 npm test
 npm run typecheck
 npm run build
-$env:PYTEST_ADDOPTS='--basetemp=.tmp/pytest-frag -p no:cacheprovider'
+$runId = [guid]::NewGuid().ToString('N')
+$env:PYTEST_ADDOPTS="--basetemp=.tmp/pytest-frag-$runId -p no:cacheprovider"
 npm run test:python
 ```
 
 Tests use synthetic sources and temporary indexes. Backend-only keys and optional FC tokens must never enter browser assets, prompts, logs, tracked files, or error responses. Model answers require human review. FRAG does not connect to trading, banking, payment, or live-market APIs. The [plugin handoff](docs/finance-core-plugin-handoff.md) defines the optional FC integration boundary.
+
+LangGraph is installed in the backend development dependency group for isolated orchestration experiments. The FRAG runtime does not import it; a production environment can use `uv sync --project backend --no-dev`. Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.

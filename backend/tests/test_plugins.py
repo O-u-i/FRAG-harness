@@ -53,6 +53,11 @@ def test_disabled_and_corrupt_plugins_expose_no_routes(tmp_path: Path):
         assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
         assert client.get("/api/plugins").json()["plugins"][0]["installed"] is False
     current = tmp_path / "finance-core" / "current.json"
+    current.write_text(json.dumps({"version": "1.0.0", "enabled": "false"}), encoding="utf-8")
+    with pytest.raises(PluginValidationError):
+        load_plugin(tmp_path)
+    with TestClient(create_app(plugin_root=tmp_path, rag_index_path=tmp_path / "rag-invalid.sqlite3")) as client:
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
     current.write_text(json.dumps({"version": "1.0.0", "enabled": True}), encoding="utf-8")
     manifest = tmp_path / "finance-core" / "versions" / "1.0.0" / "manifest.json"
     value = json.loads(manifest.read_text(encoding="utf-8"))
@@ -175,3 +180,85 @@ def test_powershell_installer_hash_activation_and_disable(tmp_path: Path):
                                "-Disable", "-InstallRoot", str(install_root)], cwd=repo, capture_output=True, text=True, check=False)
     assert disabled.returncode == 0, disabled.stderr
     assert load_plugin(install_root) is None
+    enabled = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                              str(repo / "scripts" / "install-plugin.ps1"), "-Enable", "-InstallRoot", str(install_root)],
+                             cwd=repo, capture_output=True, text=True, check=False)
+    assert enabled.returncode == 0, enabled.stderr
+    assert load_plugin(install_root) is not None
+    older = install_root / "finance-core" / "versions" / "0.9.0"
+    shutil.copytree(install_root / "finance-core" / "versions" / "1.0.0", older)
+    unexpected = older / "unexpected.txt"
+    unexpected.write_text("synthetic", encoding="utf-8")
+    uninstall_command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                         str(repo / "scripts" / "install-plugin.ps1"), "-Uninstall", "-InstallRoot", str(install_root)]
+    rejected_uninstall = subprocess.run(uninstall_command, cwd=repo, capture_output=True, text=True, check=False)
+    assert rejected_uninstall.returncode != 0
+    assert (install_root / "finance-core" / "current.json").exists()
+    unexpected.unlink()
+    uninstalled = subprocess.run(uninstall_command, cwd=repo, capture_output=True, text=True, check=False)
+    assert uninstalled.returncode == 0, uninstalled.stderr
+    assert not (install_root / "finance-core").exists()
+
+
+def test_browser_plugin_install_and_uninstall_are_pinned_and_restart_gated(tmp_path: Path):
+    if not shutil.which("powershell"):
+        pytest.skip("PowerShell is unavailable")
+    root = tmp_path / "managed"
+    archive = tmp_path / "synthetic-plugin.zip"
+    manifest = {
+        "id": "finance-core", "protocolVersion": 1, "version": "1.0.0",
+        "minHostVersion": "1.0.0", "fcApiVersion": "3.1.1",
+        "files": {"adapter.py": hashlib.sha256(ADAPTER.encode()).hexdigest(),
+                  "ui.js": hashlib.sha256(UI.encode()).hexdigest()},
+    }
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr("manifest.json", json.dumps(manifest))
+        package.writestr("adapter.py", ADAPTER)
+        package.writestr("ui.js", UI)
+    body = archive.read_bytes()
+    headers = {"Content-Type": "application/zip", "X-FRAG-Plugin-Action": "install",
+               "X-Expected-Sha256": hashlib.sha256(body).hexdigest()}
+    with TestClient(create_app(plugin_root=root, rag_index_path=tmp_path / "rag.sqlite3")) as client:
+        assert client.post("/api/plugin-management/install", content=body,
+                           headers={**headers, "Origin": "https://untrusted.example"}).status_code == 403
+        assert client.post("/api/plugin-management/install", content=body,
+                           headers={**headers, "Origin": "http://127.0.0.1:5174",
+                                    "X-Expected-Sha256": "0" * 64}).json()["error"]["code"] == "ARCHIVE_HASH_MISMATCH"
+        assert not (root / "finance-core" / "current.json").exists()
+        installed = client.post("/api/plugin-management/install", content=body, headers=headers)
+        assert installed.status_code == 200, installed.text
+        assert installed.json() == {"status": "installed", "restartRequired": True}
+        assert client.get("/api/plugins").json()["plugins"][0]["packageVersion"] == "1.0.0"
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
+    with TestClient(create_app(plugin_root=root, rag_index_path=tmp_path / "rag2.sqlite3")) as client:
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 200
+        assert client.get("/plugins/finance-core/ui.js").status_code == 200
+        disabled = client.post("/api/plugin-management/state", json={"enabled": False},
+                               headers={"X-FRAG-Plugin-Action": "state"})
+        assert disabled.status_code == 200, disabled.text
+        assert disabled.json() == {"status": "disabled", "restartRequired": True}
+        assert client.get("/api/plugins").json()["plugins"][0]["packageEnabled"] is False
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
+    with TestClient(create_app(plugin_root=root, rag_index_path=tmp_path / "rag3.sqlite3")) as client:
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
+        assert client.post("/api/plugin-management/state", json={"enabled": "true"},
+                           headers={"X-FRAG-Plugin-Action": "state"}).status_code == 422
+        enabled = client.post("/api/plugin-management/state", json={"enabled": True},
+                              headers={"X-FRAG-Plugin-Action": "state"})
+        assert enabled.status_code == 200, enabled.text
+        assert enabled.json() == {"status": "enabled", "restartRequired": True}
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
+    with TestClient(create_app(plugin_root=root, rag_index_path=tmp_path / "rag4.sqlite3")) as client:
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 200
+        assert client.post("/api/plugin-management/uninstall").status_code == 403
+        removed = client.post("/api/plugin-management/uninstall",
+                              headers={"X-FRAG-Plugin-Action": "uninstall"})
+        assert removed.status_code == 200, removed.text
+        assert removed.json() == {"status": "uninstalled", "restartRequired": True}
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
+        assert client.get("/plugins/finance-core/ui.js").status_code == 404
+        assert client.get("/api/plugins").json()["plugins"][0]["packageVersion"] is None
+    assert not (root / "finance-core" / "current.json").exists()
+    assert not (root / "finance-core" / "versions" / "1.0.0" / "adapter.py").exists()
+    with TestClient(create_app(plugin_root=root, rag_index_path=tmp_path / "rag5.sqlite3")) as client:
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 404

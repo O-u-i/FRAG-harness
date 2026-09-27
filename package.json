@@ -14,7 +14,7 @@
     "check:architecture": "npm run check:size && npm run check:boundaries && npm run check:safety && npm run check:version && npm run check:mermaid",
     "check:mermaid": "node scripts/check-mermaid.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run",
+    "test": "vitest run --dir src",
     "test:python": "uv run --offline --project backend --cache-dir .tmp/uv-cache pytest",
     "build": "npm run check:architecture && npm run typecheck && vite build",
     "preview": "vite preview"

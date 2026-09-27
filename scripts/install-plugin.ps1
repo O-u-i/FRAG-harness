@@ -4,6 +4,8 @@ param(
     [Parameter(ParameterSetName='Release', Mandatory=$true)]
     [Parameter(ParameterSetName='Local', Mandatory=$true)][ValidatePattern('^[a-fA-F0-9]{64}$')][string]$ExpectedSha256,
     [Parameter(ParameterSetName='Disable', Mandatory=$true)][switch]$Disable,
+    [Parameter(ParameterSetName='Enable', Mandatory=$true)][switch]$Enable,
+    [Parameter(ParameterSetName='Uninstall', Mandatory=$true)][switch]$Uninstall,
     [string]$InstallRoot
 )
 
@@ -29,6 +31,43 @@ $pluginRoot = Join-Path $installBase 'finance-core'
 Assert-NoReparsePoint $pluginRoot
 $currentPath = Join-Path $pluginRoot 'current.json'
 
+if ($Uninstall) {
+    Assert-NoReparsePoint $currentPath
+    if (-not (Test-Path -LiteralPath $currentPath -PathType Leaf)) { throw 'Finance Core is not installed.' }
+    $current = Get-Content -LiteralPath $currentPath -Raw | ConvertFrom-Json
+    if ($current.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Installed plugin version is invalid.' }
+    $versionsRoot = Join-Path $pluginRoot 'versions'
+    Assert-NoReparsePoint $versionsRoot
+    $rootEntries = @(Get-ChildItem -LiteralPath $pluginRoot -Force)
+    if ($rootEntries.Count -ne 2 -or @($rootEntries | Where-Object { $_.Name -notin @('current.json', 'versions') }).Count -ne 0) {
+        throw 'Installed plugin root contains unexpected files.'
+    }
+    $expected = @('manifest.json', 'adapter.py', 'ui.js')
+    $versions = @(Get-ChildItem -LiteralPath $versionsRoot -Force)
+    if (@($versions | Where-Object { -not $_.PSIsContainer -or $_.Name -notmatch '^\d+\.\d+\.\d+$' -or ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) }).Count -ne 0 -or
+        $current.version -notin @($versions | ForEach-Object { $_.Name })) {
+        throw 'Installed plugin versions are invalid.'
+    }
+    foreach ($version in $versions) {
+        Assert-NoReparsePoint $version.FullName
+        $entries = @(Get-ChildItem -LiteralPath $version.FullName -Force)
+        if ($entries.Count -ne 3 -or @($entries | Where-Object { $_.Name -notin $expected -or $_.PSIsContainer -or ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) }).Count -ne 0) {
+            throw 'Installed plugin files do not match the expected archive.'
+        }
+    }
+    foreach ($version in $versions) {
+        foreach ($name in $expected) {
+            Remove-Item -LiteralPath (Join-Path $version.FullName $name)
+        }
+        Remove-Item -LiteralPath $version.FullName
+    }
+    Remove-Item -LiteralPath $currentPath
+    Remove-Item -LiteralPath $versionsRoot
+    Remove-Item -LiteralPath $pluginRoot
+    Write-Output 'Finance Core plugin uninstalled. Restart FRAG-harness.'
+    exit 0
+}
+
 function Get-Sha256([string]$path) {
     $stream = [System.IO.File]::OpenRead($path)
     $hasher = [System.Security.Cryptography.SHA256]::Create()
@@ -36,14 +75,17 @@ function Get-Sha256([string]$path) {
     finally { $hasher.Dispose(); $stream.Dispose() }
 }
 
-if ($Disable) {
+if ($Disable -or $Enable) {
+    Assert-NoReparsePoint $currentPath
     if (-not (Test-Path -LiteralPath $currentPath -PathType Leaf)) { throw 'Finance Core is not installed.' }
     $current = Get-Content -LiteralPath $currentPath -Raw | ConvertFrom-Json
-    $current.enabled = $false
+    if ($current.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Installed plugin version is invalid.' }
+    $current.enabled = [bool]$Enable
     $pending = Join-Path $pluginRoot 'current.pending.json'
     $current | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $pending -Encoding utf8
     Move-Item -LiteralPath $pending -Destination $currentPath -Force
-    Write-Output 'Finance Core plugin disabled. Restart FRAG-harness.'
+    $action = if ($Enable) { 'enabled' } else { 'disabled' }
+    Write-Output "Finance Core plugin $action. Restart FRAG-harness."
     exit 0
 }
 
@@ -53,6 +95,7 @@ if ($PSCmdlet.ParameterSetName -eq 'Release') {
         throw 'ReleaseUrl must be an HTTPS GitHub release asset.'
     }
     $downloadPath = Join-Path $projectRoot '.tmp\finance-core-download.zip'
+    Assert-NoReparsePoint $downloadPath
     New-Item -ItemType Directory -Path (Split-Path $downloadPath) -Force | Out-Null
     Invoke-WebRequest -Uri $uri -OutFile $downloadPath -MaximumRedirection 5
     $archive = $downloadPath

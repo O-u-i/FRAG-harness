@@ -20,6 +20,13 @@ DEFAULT_PLUGIN_ROOT = Path(__file__).resolve().parents[2] / ".local-plugins"
 VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 
 
+def _is_reparse_point(path: Path) -> bool:
+    try:
+        return path.is_symlink() or bool(path.lstat().st_file_attributes & 0x400)
+    except (AttributeError, OSError):
+        return False
+
+
 @dataclass(frozen=True)
 class LoadedPlugin:
     version: str
@@ -46,16 +53,20 @@ def load_plugin(root: Path = DEFAULT_PLUGIN_ROOT) -> LoadedPlugin | None:
     current_path = root / PLUGIN_ID / "current.json"
     if not current_path.is_file():
         return None
-    if current_path.is_symlink() or current_path.stat().st_size > 16 * 1024:
+    if any(_is_reparse_point(path) for path in (root, root / PLUGIN_ID, root / PLUGIN_ID / "versions", current_path)):
+        raise PluginValidationError()
+    if current_path.stat().st_size > 16 * 1024:
         raise PluginValidationError()
     current = _read_json(current_path)
-    if current.get("enabled") is False:
+    if not isinstance(current.get("enabled"), bool):
+        raise PluginValidationError()
+    if not current["enabled"]:
         return None
     version = current.get("version")
     if not isinstance(version, str) or not VERSION_PATTERN.fullmatch(version):
         raise PluginValidationError()
     directory = (root / PLUGIN_ID / "versions" / version).resolve()
-    if not directory.is_relative_to(root.resolve()) or not directory.is_dir():
+    if _is_reparse_point(root / PLUGIN_ID / "versions" / version) or not directory.is_relative_to(root.resolve()) or not directory.is_dir():
         raise PluginValidationError()
     entries = list(directory.iterdir())
     if any(item.is_symlink() or not item.is_file() for item in entries):
