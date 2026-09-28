@@ -33,12 +33,12 @@
   ],
   "cards": [
     { "dot": "emerald", "title": "Index boundary", "items": [
-      "Only the bundled synthetic Markdown file enters this index after Build.",
-      "A changed source makes the index stale until another explicit rebuild."
+      "Explicit Build writes only bundled synthetic Markdown chunks to the local FTS5 index.",
+      "Queries do not rebuild the index; a changed source makes it stale."
     ] },
     { "dot": "amber", "title": "Retrieval boundary", "items": [
-      "Search uses SQLite FTS5 keyword ranking; there are no embeddings or vectors.",
-      "Search and Preview make no model call. Context Run needs a fresh one-time approval."
+      "Search reads FTS5-ranked chunks; there are no embeddings or vectors.",
+      "Context preview shows the retrieved evidence and issues a one-time token without calling a model."
     ] }
   ]
 }

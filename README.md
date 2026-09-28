@@ -22,11 +22,11 @@ Each stage requires a separate exact-input preview and a single-use approval. Th
 
 ### RAG Lab
 
-RAG Lab indexes only the bundled synthetic Markdown file after an explicit Build action. Section chunks enter a separate SQLite FTS5 index; source changes make it stale until a rebuild. Query search ranks keyword matches, and Search and Preview make no model call. [Explore the RAG index and retrieval flow](docs/architecture/rag-lab/dataflow.html).
+RAG Lab has a Build path and a query path. Explicit Build writes chunks from the bundled synthetic Markdown file to a separate SQLite FTS5 index; source changes make it stale until a rebuild. A query reads and ranks matches from that index. Search and Context input preview make no model call. The data-flow diagram ends at that preview. [Explore the RAG index and retrieval flow](docs/architecture/rag-lab/dataflow.html).
 
 ![RAG Lab flow from explicit synthetic indexing through FTS5 retrieval to an exact Context preview](docs/architecture/rag-lab/dataflow.svg)
 
-The RAG query path needs a ready index and retrieved evidence before Context Run. Its Context and Inference calls have independent one-time approvals; compressed evidence IDs and answer citations are checked before human review. [Explore the RAG query and approval lifecycle](docs/architecture/rag-lab/lifecycle.html).
+After retrieval, the optional answer path needs a ready index and retrieved evidence before Context Run. Context and Inference each require an exact input preview and independent one-time approval. The host checks compressed evidence IDs after the Context call and answer citations after the Inference call, before human review. [Explore the RAG query and approval lifecycle](docs/architecture/rag-lab/lifecycle.html).
 
 ![RAG Lab lifecycle from a ready-index query through two approvals and citation checks to human review](docs/architecture/rag-lab/lifecycle.svg)
 

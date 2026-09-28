@@ -13,10 +13,10 @@
   ],
   "states": [
     { "id": "readyQuery", "type": "start", "label": "Ready-index query", "sublabel": "query + topK", "lane": "main", "col": 0, "step": "01" },
-    { "id": "ragPreview", "type": "waiting", "label": "RAG preview", "sublabel": "ranked chunks + token", "lane": "main", "col": 1, "step": "02" },
-    { "id": "ragContext", "type": "active", "label": "Context call", "sublabel": "evidence IDs checked", "lane": "main", "col": 2, "step": "03" },
+    { "id": "ragPreview", "type": "waiting", "label": "Context preview", "sublabel": "ranked chunks + token", "lane": "main", "col": 1, "step": "02" },
+    { "id": "ragContext", "type": "active", "label": "Context model call", "sublabel": "approved evidence", "lane": "main", "col": 2, "step": "03" },
     { "id": "ragInferencePreview", "type": "waiting", "label": "Inference preview", "sublabel": "exact input + token", "lane": "main", "col": 3, "step": "04" },
-    { "id": "ragInference", "type": "active", "label": "Inference call", "sublabel": "citations checked", "lane": "main", "col": 4, "step": "05" },
+    { "id": "ragInference", "type": "active", "label": "Inference model call", "sublabel": "approved context", "lane": "main", "col": 4, "step": "05" },
     { "id": "noContext", "type": "failure", "label": "No Context call", "sublabel": "invalid approval", "lane": "terminal", "col": 0, "yOffset": -80 },
     { "id": "noInference", "type": "failure", "label": "No Inference call", "sublabel": "invalid or stale", "lane": "terminal", "col": 1, "yOffset": -80 },
     { "id": "ragReview", "type": "success", "label": "Human review", "sublabel": "grounded answer", "lane": "terminal", "col": 2, "yOffset": -80 }
@@ -32,12 +32,12 @@
   ],
   "cards": [
     { "dot": "amber", "title": "Entry and approval gates", "items": [
-      "Not-built or stale indexes block search; zero hits block Context Run.",
+      "A ready index permits search; zero hits block Context Run.",
       "Each model stage requires its own exact preview and one-time approval."
     ] },
     { "dot": "emerald", "title": "Output checks", "items": [
-      "Context output must retain exactly the retrieved chunk IDs within budget.",
-      "Inference claims must cite retrieved chunk IDs before human review."
+      "After the Context call, output must retain exactly the retrieved chunk IDs within budget.",
+      "After the Inference call, claims must cite retrieved chunk IDs before human review."
     ] }
   ]
 }
