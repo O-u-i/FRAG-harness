@@ -13,7 +13,7 @@
   ],
   "states": [
     { "id": "readyQuery", "type": "start", "label": "Ready-index query", "sublabel": "query + topK", "lane": "main", "col": 0, "step": "01" },
-    { "id": "ragPreview", "type": "waiting", "label": "Context preview", "sublabel": "ranked chunks + token", "lane": "main", "col": 1, "step": "02" },
+    { "id": "ragPreview", "type": "waiting", "label": "Context preview", "sublabel": "parent evidence + token", "lane": "main", "col": 1, "step": "02" },
     { "id": "ragContext", "type": "active", "label": "Context model call", "sublabel": "approved evidence", "lane": "main", "col": 2, "step": "03" },
     { "id": "ragInferencePreview", "type": "waiting", "label": "Inference preview", "sublabel": "exact input + token", "lane": "main", "col": 3, "step": "04" },
     { "id": "ragInference", "type": "active", "label": "Inference model call", "sublabel": "approved context", "lane": "main", "col": 4, "step": "05" },
@@ -26,7 +26,7 @@
     { "id": "approveRagContext", "from": "ragPreview", "to": "ragContext", "label": "approve once; re-search", "variant": "security", "route": "straight", "labelAt": [325, 110] },
     { "id": "prepareRagInference", "from": "ragContext", "to": "ragInferencePreview", "label": "validated compression", "labelAt": [479, 202] },
     { "id": "approveRagInference", "from": "ragInferencePreview", "to": "ragInference", "label": "approve once; re-check", "variant": "security", "labelAt": [633, 202] },
-    { "id": "validateRagCitations", "from": "ragInference", "to": "ragReview", "label": "cited chunk IDs valid", "variant": "emphasis", "labelAt": [710, 260] },
+    { "id": "validateRagCitations", "from": "ragInference", "to": "ragReview", "label": "cited evidence IDs valid", "variant": "emphasis", "labelAt": [710, 260] },
     { "id": "rejectRagContext", "from": "ragPreview", "to": "noContext", "label": "expired or changed", "variant": "security" },
     { "id": "rejectRagInference", "from": "ragInferencePreview", "to": "noInference", "label": "expired or changed", "variant": "security", "labelAt": [556, 260] }
   ],
@@ -36,8 +36,8 @@
       "Each model stage requires its own exact preview and one-time approval."
     ] },
     { "dot": "emerald", "title": "Output checks", "items": [
-      "After the Context call, output must retain exactly the retrieved chunk IDs within budget.",
-      "After the Inference call, claims must cite retrieved chunk IDs before human review."
+      "After Context, output must retain exactly the previewed parent evidence IDs within budget.",
+      "After Inference, claims must cite those evidence IDs before human review."
     ] }
   ]
 }

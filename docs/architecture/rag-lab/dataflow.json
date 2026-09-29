@@ -17,28 +17,28 @@
   "nodes": [
     { "id": "buildAction", "type": "frontend", "label": "Explicit Build", "stage": 0, "row": 0 },
     { "id": "syntheticFile", "type": "database", "label": "Synthetic Markdown", "stage": 0, "row": 2 },
-    { "id": "sectionChunking", "type": "backend", "label": "Section chunking", "stage": 1, "row": 1 },
+    { "id": "sectionChunking", "type": "backend", "label": "Title-aware split", "stage": 1, "row": 1 },
     { "id": "query", "type": "frontend", "label": "RAG Lab query", "stage": 2, "row": 0 },
-    { "id": "ftsIndex", "type": "database", "label": "SQLite FTS5 index", "stage": 2, "row": 2 },
-    { "id": "search", "type": "backend", "label": "Ranked search", "stage": 3, "row": 1 },
-    { "id": "contextPreview", "type": "security", "label": "Context preview", "stage": 4, "row": 1 }
+    { "id": "ftsIndex", "type": "database", "label": "Child FTS + parent", "stage": 2, "row": 2 },
+    { "id": "search", "type": "backend", "label": "Rank + expand", "stage": 3, "row": 1 },
+    { "id": "contextPreview", "type": "security", "label": "Parent preview", "stage": 4, "row": 1 }
   ],
   "flows": [
     { "id": "buildRequest", "from": "buildAction", "to": "sectionChunking", "label": "explicit rebuild", "variant": "emphasis" },
-    { "id": "sourceSections", "from": "syntheticFile", "to": "sectionChunking", "label": "sections + source hash", "variant": "default" },
-    { "id": "indexedChunks", "from": "sectionChunking", "to": "ftsIndex", "label": "chunks + revision", "variant": "emphasis" },
+    { "id": "sourceSections", "from": "syntheticFile", "to": "sectionChunking", "label": "headings + source hash", "variant": "default" },
+    { "id": "indexedChunks", "from": "sectionChunking", "to": "ftsIndex", "label": "child + parent IDs", "variant": "emphasis" },
     { "id": "queryTerms", "from": "query", "to": "search", "label": "query + topK", "variant": "default" },
-    { "id": "rankedRows", "from": "ftsIndex", "to": "search", "label": "FTS5 ranked rows", "variant": "emphasis" },
-    { "id": "candidateEvidence", "from": "search", "to": "contextPreview", "label": "evidence + index revision", "variant": "security", "labelAt": [853, 314] }
+    { "id": "rankedRows", "from": "ftsIndex", "to": "search", "label": "ranked child + parent", "variant": "emphasis" },
+    { "id": "candidateEvidence", "from": "search", "to": "contextPreview", "label": "bounded parent evidence", "variant": "security", "labelAt": [853, 314] }
   ],
   "cards": [
     { "dot": "emerald", "title": "Index boundary", "items": [
-      "Explicit Build writes only bundled synthetic Markdown chunks to the local FTS5 index.",
-      "Queries do not rebuild the index; a changed source makes it stale."
+      "Explicit Build indexes only bundled synthetic Markdown child chunks and parent sections.",
+      "Queries do not rebuild; source or index-strategy changes require Build."
     ] },
     { "dot": "amber", "title": "Retrieval boundary", "items": [
-      "Search reads FTS5-ranked chunks; there are no embeddings or vectors.",
-      "Context preview shows the retrieved evidence and issues a one-time token without calling a model."
+      "Search ranks small chunks; Preview deduplicates parent sections and bounds long hits.",
+      "Preview shows exact evidence and issues a one-time token without calling a model."
     ] }
   ]
 }

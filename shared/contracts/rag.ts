@@ -24,8 +24,8 @@ export const inferencePreviewSchema = z.object({
 
 export const ragIndexStatusSchema = z.object({
   datasetId: ragDatasetIdSchema,
-  schemaVersion: z.literal(1),
-  chunkStrategyVersion: z.literal('markdown-section-v1'),
+  schemaVersion: z.literal(2),
+  chunkStrategyVersion: z.literal('markdown-hierarchy-v2'),
   state: z.enum(['not_built', 'ready', 'stale']),
   documentCount: z.number().int().nonnegative(),
   chunkCount: z.number().int().nonnegative(),
@@ -37,6 +37,8 @@ export const ragChunkResultSchema = z.object({
   rank: z.number().int().positive(),
   bm25Score: z.number(),
   chunkId: z.string().min(1),
+  parentId: z.string().min(1),
+  evidenceId: z.string().min(1).nullable(),
   documentId: z.string().min(1),
   sourceId: z.string().min(1),
   locatorId: z.string().min(1),

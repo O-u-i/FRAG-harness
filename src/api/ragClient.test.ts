@@ -10,18 +10,20 @@ const fingerprint = 'a'.repeat(64);
 const revision = 'b'.repeat(64);
 const chunk = {
   rank: 1, bm25Score: -0.5, chunkId: 'rag-synthetic-risk-review-v1-c002',
+  parentId: 'rag-synthetic-risk-review-v1-parent-002', evidenceId: null,
   documentId: 'rag-synthetic-risk-review-v1', sourceId: 'synthetic-risk-review-source-v1',
   locatorId: 'section-2', locatorLabel: 'Regulatory Risk', excerpt: 'Regulatory restrictions increased.',
 };
+const previewChunk = { ...chunk, evidenceId: chunk.parentId };
 const status = {
-  ...dataset, schemaVersion: 1, chunkStrategyVersion: 'markdown-section-v1', state: 'ready',
+  ...dataset, schemaVersion: 2, chunkStrategyVersion: 'markdown-hierarchy-v2', state: 'ready',
   documentCount: 1, chunkCount: 3, indexRevision: revision, sourceHash: 'c'.repeat(64),
 } as const;
 const request = { ...dataset, query: 'What regulatory risks are mentioned?', topK: 3 };
 const preview: RagPreview = {
-  ...request, indexRevision: revision, retrievalResults: [chunk],
+  ...request, indexRevision: revision, retrievalResults: [previewChunk],
   candidateEvidence: [{
-    chunkId: chunk.chunkId, documentId: chunk.documentId, sourceId: chunk.sourceId,
+    chunkId: chunk.parentId, documentId: chunk.documentId, sourceId: chunk.sourceId,
     locatorId: chunk.locatorId, locatorLabel: chunk.locatorLabel, text: '# Regulatory Risk\nRestrictions increased.',
   }],
   instructions: 'Compress evidence.', input: '{}',
@@ -34,11 +36,11 @@ const preview: RagPreview = {
 const run: RagRun = {
   preview,
   compressedContext: {
-    evidence: [{ chunkId: chunk.chunkId, summary: 'Restrictions increased.', preservedFacts: ['Restrictions increased.'], uncertainty: [] }],
+    evidence: [{ chunkId: chunk.parentId, summary: 'Restrictions increased.', preservedFacts: ['Restrictions increased.'], uncertainty: [] }],
     missingInformation: [],
   },
   result: {
-    answer: 'Restrictions increased.', claims: [{ text: 'Restrictions increased.', chunkIds: [chunk.chunkId] }],
+    answer: 'Restrictions increased.', claims: [{ text: 'Restrictions increased.', chunkIds: [chunk.parentId] }],
     missingInformation: [], disclaimer: 'Synthetic only.',
   },
   contextStage: { provider: 'fake', model: 'fake-context-v1', usage: { inputTokens: 10, outputTokens: 8 } },

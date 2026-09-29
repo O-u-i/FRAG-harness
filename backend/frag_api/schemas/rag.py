@@ -44,9 +44,9 @@ class InferencePreview(ApiModel):
 
 class RagIndexStatus(ApiModel):
     dataset_id: RagDatasetId = Field(alias="datasetId")
-    schema_version: Literal[1] = Field(default=1, alias="schemaVersion")
-    chunk_strategy_version: Literal["markdown-section-v1"] = Field(
-        default="markdown-section-v1", alias="chunkStrategyVersion"
+    schema_version: Literal[2] = Field(default=2, alias="schemaVersion")
+    chunk_strategy_version: Literal["markdown-hierarchy-v2"] = Field(
+        default="markdown-hierarchy-v2", alias="chunkStrategyVersion"
     )
     state: RagIndexState
     document_count: int = Field(alias="documentCount", ge=0)
@@ -59,6 +59,8 @@ class RagChunkResult(ApiModel):
     rank: int = Field(ge=1)
     bm25_score: float = Field(alias="bm25Score")
     chunk_id: str = Field(alias="chunkId")
+    parent_id: str = Field(alias="parentId")
+    evidence_id: str | None = Field(default=None, alias="evidenceId")
     document_id: str = Field(alias="documentId")
     source_id: str = Field(alias="sourceId")
     locator_id: str = Field(alias="locatorId")

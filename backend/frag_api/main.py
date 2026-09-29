@@ -53,7 +53,7 @@ def create_app(
         )
         yield
 
-    app = FastAPI(title="FRAG-harness API", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.1.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.plugin_root = Path(plugin_root)
     app.state.plugin_hidden = False

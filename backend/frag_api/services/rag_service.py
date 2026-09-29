@@ -7,24 +7,21 @@ import re
 from pathlib import Path
 
 from frag_api.errors import (
-    RagFingerprintError,
     RagIndexNotReadyError,
     RagIndexStaleError,
-    RagNotReadyError,
     RagOutputError,
-    RagProviderError,
     RequestContractError,
 )
-from frag_api.providers.llm import FakeLlmProvider, LlmProvider, LlmSettings, context_input, inference_input, provider_for
+from frag_api.providers.llm import FakeLlmProvider, LlmProvider, LlmSettings, context_input, provider_for
 from frag_api.repositories.rag_index_repository import (
     DEFAULT_RAG_INDEX_PATH,
     IndexChunk,
     IndexDocument,
+    IndexParent,
     RagIndexRepository,
     SearchRow,
 )
-from frag_api.schemas.context_source import ParsedLocalFile
-from frag_api.schemas.common import StageResult, TokenBudget
+from frag_api.schemas.common import TokenBudget
 from frag_api.schemas.rag import (
     RagChunkResult,
     RagContextRun,
@@ -35,7 +32,6 @@ from frag_api.schemas.rag import (
     RagEvaluationReport,
     RagEvidence,
     RagGroundedAnswer,
-    InferencePreview,
     InferenceRunRequest,
     RagIndexStatus,
     RagPreview,
@@ -45,8 +41,10 @@ from frag_api.schemas.rag import (
     RagRunRequest,
     RagSearchResponse,
 )
-from frag_api.services.context_source_service import ContextSourceError, ContextSourceService
+from frag_api.services.context_source_service import MAX_FILE_BYTES, ContextSourceError, ContextSourceService
+from frag_api.services.rag_markdown import sections_from_markdown, children_for
 from frag_api.services.approval import ApprovalRegistry, PendingInferenceRegistry
+from frag_api.services.governed_flow import GovernedFlow
 from frag_api.services.governed_context import (
     CONTEXT_OUTPUT_LIMIT,
     INFERENCE_OUTPUT_LIMIT,
@@ -60,7 +58,7 @@ DATASET_ID = "synthetic-risk-review-v1"
 SOURCE_FILE = "synthetic-risk-review.md"
 SOURCE_ID = "synthetic-risk-review-source-v1"
 DOCUMENT_ID = "rag-synthetic-risk-review-v1"
-CHUNK_STRATEGY_VERSION = "markdown-section-v1"
+CHUNK_STRATEGY_VERSION = "markdown-hierarchy-v2"
 STOP_WORDS = {
     "a", "an", "and", "are", "did", "do", "does", "how", "in", "is", "of",
     "on", "source", "the", "to", "was", "were", "what", "which",
@@ -73,10 +71,23 @@ def _sha256(text: str) -> str:
 
 def _match_expression(query: str) -> str:
     tokens = [token.casefold() for token in re.findall(r"[A-Za-z0-9]+", query)]
+    chinese: list[str] = []
+    for sequence in re.findall(r"[\u3400-\u9fff]+", query):
+        chinese.extend(sequence[i:i + 2] for i in range(len(sequence) - 1))
+        if len(sequence) == 1:
+            chinese.append(sequence)
     selected = [token for token in tokens if token not in STOP_WORDS]
-    if not selected:
+    if not selected and not chinese:
         raise RequestContractError([{"path": "body.query", "message": "Query has no searchable terms."}])
-    return " OR ".join(f'"{token}"' for token in dict.fromkeys(selected))
+    english = " OR ".join(f'"{token}"' for token in dict.fromkeys(selected))
+    cjk = " AND ".join(f'"{token}"' for token in dict.fromkeys(chinese))
+    return " OR ".join(f"({part})" for part in (english, cjk) if part)
+
+
+def _search_text(text: str) -> str:
+    bigrams = [sequence[i:i + 2] for sequence in re.findall(r"[\u3400-\u9fff]+", text)
+               for i in range(len(sequence) - 1)]
+    return text + "\n" + " ".join(bigrams)
 
 
 def _excerpt(text: str) -> str:
@@ -101,13 +112,19 @@ class RagService:
         self.eval_path = Path(eval_path) if eval_path else Path(source_service.root) / "eval-cases.json"
         self.approvals = ApprovalRegistry()
         self.pending_inference = PendingInferenceRegistry()
+        self.flow = GovernedFlow(
+            prepare_preview=self._prepare_preview, goal_for=lambda request: request.query,
+            settings=self.settings, context_provider=lambda: self.context_provider,
+            inference_provider=lambda: self.inference_provider, approvals=self.approvals,
+            pending_inference=self.pending_inference,
+        )
 
     def status(self) -> RagIndexStatus:
         source_hash = self._source_hash()
         snapshot = self.repository.snapshot()
         if snapshot.index_revision is None:
             state = "not_built"
-        elif snapshot.source_hash != source_hash:
+        elif snapshot.schema_version != "2" or snapshot.source_hash != source_hash:
             state = "stale"
         else:
             state = "ready"
@@ -121,13 +138,13 @@ class RagService:
         )
 
     def rebuild(self, request: RagDatasetRequest) -> RagIndexStatus:
-        parsed = self._parse_source()
-        chunks = self._chunks_for(parsed)
+        source_text, source_hash = self._parse_source()
+        parents, chunks = self._chunks_for(source_text)
         if not chunks:
             raise RagOutputError()
         revision = fingerprint({
             "datasetId": request.dataset_id,
-            "sourceHash": parsed.source.sha256,
+            "sourceHash": source_hash,
             "strategy": CHUNK_STRATEGY_VERSION,
             "chunks": [chunk.text_hash for chunk in chunks],
         })
@@ -136,9 +153,10 @@ class RagService:
                 document_id=DOCUMENT_ID,
                 dataset_id=request.dataset_id,
                 source_id=SOURCE_ID,
-                source_hash=parsed.source.sha256 or "",
+                source_hash=source_hash,
             ),
             chunks,
+            parents,
             revision,
         )
         return self.status()
@@ -149,9 +167,14 @@ class RagService:
         return self._search_response(request, status.index_revision or "", rows)
 
     def preview(self, request: RagQueryRequest, *, issue_approval: bool = True) -> RagPreview:
+        return self.flow.preview(request, issue_approval=issue_approval)
+
+    def _prepare_preview(self, request: RagQueryRequest) -> RagPreview:
         search = self.search(request)
         rows = self.repository.search(_match_expression(request.query), request.top_k)
-        evidence = [self._evidence(row) for row in rows]
+        evidence, matched_ids = self._expanded_evidence(rows)
+        for result in search.results:
+            result.evidence_id = matched_ids.get(result.chunk_id)
         payload = {
             "datasetId": request.dataset_id,
             "query": request.query,
@@ -195,92 +218,25 @@ class RagService:
             ),
             warnings=warnings,
             contextFingerprint=context_fingerprint,
-            approvalToken=self.approvals.issue(context_fingerprint) if issue_approval else "",
+            approvalToken="",
         )
 
     def run(self, request: RagRunRequest) -> RagContextRun:
         query_request = RagQueryRequest.model_validate(
             request.model_dump(exclude={"context_fingerprint", "approval_token", "approved"})
         )
-        preview = self.preview(query_request, issue_approval=False)
-        if request.context_fingerprint != preview.context_fingerprint:
-            raise RagFingerprintError()
-        if not preview.candidate_evidence:
-            raise RagOutputError()
-        if not self.settings.context.ready or not self.settings.inference.ready:
-            raise RagNotReadyError()
-        if not self.approvals.consume(request.approval_token, preview.context_fingerprint):
-            raise RagFingerprintError()
-        preview.approval_token = request.approval_token
-        try:
-            context_call = self.context_provider.generate_rag_context(
-                preview.candidate_evidence, CONTEXT_OUTPUT_LIMIT
-            )
-        except RagOutputError as error:
-            raise RagOutputError() from error
-        except RagProviderError as error:
-            raise RagProviderError() from error
-        compressed = context_call.output
-        if not isinstance(compressed, RagContextCompression):
-            raise RagOutputError()
-        allowed = {item.chunk_id for item in preview.candidate_evidence}
-        returned = {item.chunk_id for item in compressed.evidence}
-        if returned != allowed or estimated_tokens(compressed.model_dump(by_alias=True)) > CONTEXT_OUTPUT_LIMIT:
-            raise RagOutputError()
-        instructions, payload = inference_input(compressed, request.query)
-        outbound = json.dumps(payload, ensure_ascii=False)
-        inference_fingerprint = fingerprint({"instructions": instructions, "input": outbound,
-                                             "provider": self.settings.inference.provider,
-                                             "model": self.settings.inference.model,
-                                             "maxOutputTokens": INFERENCE_OUTPUT_LIMIT,
-                                             "contextFingerprint": preview.context_fingerprint})
-        token = self.pending_inference.issue(
-            inference_fingerprint, (query_request, preview, compressed, context_call.usage)
-        )
+        state = self.flow.run_context(query_request, request)
         return RagContextRun(
-            preview=preview, compressedContext=compressed,
-            contextStage=StageResult(provider=self.settings.context.provider,
-                                     model=self.settings.context.model, usage=context_call.usage),
-            inferencePreview=InferencePreview(provider=self.settings.inference.provider,
-                                              model=self.settings.inference.model, instructions=instructions,
-                                              input=outbound, maxOutputTokens=INFERENCE_OUTPUT_LIMIT,
-                                              inferenceFingerprint=inference_fingerprint, approvalToken=token),
+            preview=state["preview"], compressedContext=state["compressed"],
+            contextStage=state["context_stage"], inferencePreview=state["inference_preview"],
         )
 
     def run_inference(self, request: InferenceRunRequest) -> RagRun:
-        state = self.pending_inference.consume(request.approval_token, request.inference_fingerprint)
-        if state is None:
-            raise RagFingerprintError()
-        query_request, preview, compressed, context_usage = state
-        if request.context_fingerprint != preview.context_fingerprint:
-            raise RagFingerprintError()
-        current = self.preview(query_request, issue_approval=False)
-        if current.context_fingerprint != preview.context_fingerprint:
-            raise RagFingerprintError()
-        inference_call = self.inference_provider.generate_rag_answer(
-            compressed, query_request.query, INFERENCE_OUTPUT_LIMIT
-        )
-        result = inference_call.output
-        if not isinstance(result, RagGroundedAnswer):
-            raise RagOutputError()
-        returned = {item.chunk_id for item in compressed.evidence}
-        cited = {chunk_id for claim in result.claims for chunk_id in claim.chunk_ids}
-        if not cited.issubset(returned) or not cited:
-            raise RagOutputError()
+        state = self.flow.run_inference(request)
         return RagRun(
-            preview=preview,
-            compressedContext=compressed,
-            result=result,
-            contextStage=StageResult(
-                provider=self.settings.context.provider,
-                model=self.settings.context.model,
-                usage=context_usage,
-            ),
-            inferenceStage=StageResult(
-                provider=self.settings.inference.provider,
-                model=self.settings.inference.model,
-                usage=inference_call.usage,
-            ),
+            preview=state["preview"], compressedContext=state["compressed"],
+            result=state["answer"], contextStage=state["context_stage"],
+            inferenceStage=state["inference_stage"],
         )
 
     def evaluate(self, request: RagDatasetRequest) -> RagEvaluationReport:
@@ -311,7 +267,9 @@ class RagService:
             reciprocal_ranks.append(1 / rank if rank and rank <= 3 else 0)
             ndcg_values.append(1 / math.log2(rank + 1) if rank and rank <= 3 else 0)
             context_ids = {item.chunk_id for item in preview.candidate_evidence}
-            context_hits += int(expected in context_ids)
+            expected_evidence = next((item.evidence_id for item in preview.retrieval_results
+                                      if item.chunk_id == expected), None)
+            context_hits += int(expected_evidence in context_ids)
             compressed = fake.generate_rag_context(preview.candidate_evidence, CONTEXT_OUTPUT_LIMIT).output
             if not isinstance(compressed, RagContextCompression):
                 continue
@@ -320,7 +278,7 @@ class RagService:
                 continue
             cited = {chunk_id for claim in answer.claims for chunk_id in claim.chunk_ids}
             valid_citations += int(cited.issubset(context_ids) and bool(cited))
-            expected_citations += int(expected in cited)
+            expected_citations += int(expected_evidence in cited)
         count = len(results)
         if count != 3:
             raise RagOutputError()
@@ -335,7 +293,7 @@ class RagService:
             citationValidity=valid_citations / count,
             expectedCitationCoverage=expected_citations / count,
             staleResidualCount=self.repository.stale_residual_count(
-                self._chunks_for(self._parse_source())
+                self._chunks_for(self._parse_source()[0])[1]
             ),
         )
         passed = all(value == 1.0 for value in (
@@ -348,29 +306,36 @@ class RagService:
         )
 
     def _source_hash(self) -> str:
-        return self._parse_source().source.sha256 or ""
+        return self._parse_source()[1]
 
-    def _parse_source(self) -> ParsedLocalFile:
+    def _parse_source(self) -> tuple[str, str]:
         try:
-            return self.source_service.parse(SOURCE_FILE)
-        except (ContextSourceError, OSError, ValueError) as error:
+            path = self.source_service._resolve(SOURCE_FILE)
+            data = path.read_bytes()
+            if len(data) > MAX_FILE_BYTES:
+                raise ContextSourceError("RAG source is unavailable.")
+            return data.decode("utf-8-sig"), hashlib.sha256(data).hexdigest()
+        except (ContextSourceError, OSError, UnicodeError, ValueError) as error:
             raise RagOutputError() from error
 
     @staticmethod
-    def _chunks_for(parsed: ParsedLocalFile) -> list[IndexChunk]:
-        return [
-            IndexChunk(
-                chunk_id=f"{DOCUMENT_ID}-c{index:03d}",
-                document_id=DOCUMENT_ID,
-                source_id=SOURCE_ID,
-                locator_id=section.locator.id,
-                locator_label=section.locator.label,
-                ordinal=index,
-                text=section.text,
-                text_hash=_sha256(section.text),
-            )
-            for index, section in enumerate(parsed.sections, start=1)
-        ]
+    def _chunks_for(source: str) -> tuple[list[IndexParent], list[IndexChunk]]:
+        parents: list[IndexParent] = []
+        chunks: list[IndexChunk] = []
+        for section in sections_from_markdown(source):
+            parent_id = f"{DOCUMENT_ID}-{section.parent_id}"
+            parents.append(IndexParent(parent_id, DOCUMENT_ID, section.locator_id,
+                                       section.label, section.title_path, section.text))
+            for child in children_for(section):
+                number = len(chunks) + 1
+                chunks.append(IndexChunk(
+                    chunk_id=f"{DOCUMENT_ID}-c{number:03d}", document_id=DOCUMENT_ID,
+                    source_id=SOURCE_ID, locator_id=section.locator_id,
+                    locator_label=section.title_path, ordinal=number,
+                    text=child.text, text_hash=_sha256(child.text), parent_id=parent_id,
+                    search_text=_search_text(child.text),
+                ))
+        return parents, chunks
 
     def _require_ready(self) -> RagIndexStatus:
         status = self.status()
@@ -380,12 +345,39 @@ class RagService:
             raise RagIndexStaleError()
         return status
 
-    @staticmethod
-    def _evidence(row: SearchRow) -> RagEvidence:
-        return RagEvidence(
-            chunkId=row.chunk_id, documentId=row.document_id, sourceId=row.source_id,
-            locatorId=row.locator_id, locatorLabel=row.locator_label, text=row.text,
-        )
+    def _expanded_evidence(self, rows: list[SearchRow]) -> tuple[list[RagEvidence], dict[str, str]]:
+        selected: dict[str, SearchRow] = {}
+        for row in rows:
+            selected.setdefault(row.parent_id, row)
+        limit = 1400
+        while True:
+            evidence: list[RagEvidence] = []
+            parent_evidence: dict[str, str] = {}
+            for parent_id, row in selected.items():
+                parent = self.repository.parent(parent_id)
+                full = f"Title path: {parent.title_path}\n{parent.text}"
+                if len(full) <= limit:
+                    evidence_id, content = parent_id, full
+                else:
+                    hit_text = row.text.split("\n", 1)[-1].strip()
+                    anchor = parent.text.find(hit_text[:min(60, len(hit_text))]) if hit_text else -1
+                    if anchor < 0:
+                        anchor = 0
+                    start = max(0, min(anchor - limit // 3, len(parent.text) - limit))
+                    end = min(len(parent.text), start + max(100, limit - len(parent.title_path) - 65))
+                    evidence_id = f"{parent_id}@{start}-{end}"
+                    content = (f"Title path: {parent.title_path}\n"
+                               f"[Parent section window {start}:{end}; matched child {row.chunk_id}]\n"
+                               f"{parent.text[start:end]}")
+                parent_evidence[parent_id] = evidence_id
+                evidence.append(RagEvidence(
+                    chunkId=evidence_id, documentId=row.document_id, sourceId=row.source_id,
+                    locatorId=parent.locator_id, locatorLabel=parent.title_path, text=content,
+                ))
+            payload = {"candidateEvidence": [item.model_dump(by_alias=True) for item in evidence]}
+            if estimated_tokens(payload) <= INPUT_BUDGET * (100 - RESERVED_PERCENT) // 100 or limit <= 180:
+                return evidence, {row.chunk_id: parent_evidence[row.parent_id] for row in rows}
+            limit = int(limit * 0.75)
 
     @staticmethod
     def _search_response(
@@ -401,6 +393,7 @@ class RagService:
                     rank=index,
                     bm25Score=row.bm25_score,
                     chunkId=row.chunk_id,
+                    parentId=row.parent_id,
                     documentId=row.document_id,
                     sourceId=row.source_id,
                     locatorId=row.locator_id,

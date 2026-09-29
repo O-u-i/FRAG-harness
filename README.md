@@ -1,4 +1,4 @@
-# FRAG-harness v1.0.0
+# FRAG-harness v1.1.0
 
 FRAG-harness is a local application for governed evidence retrieval and two model API stages. It starts with no Finance Core installation, account, token, or database. The Context LLM compresses approved evidence; the Inference LLM produces a cited answer. Selection, redaction, token budgeting, approval, output validation, and citation checks are deterministic host code.
 
@@ -22,7 +22,7 @@ Each stage requires a separate exact-input preview and a single-use approval. Th
 
 ### RAG Lab
 
-RAG Lab has a Build path and a query path. Explicit Build writes chunks from the bundled synthetic Markdown file to a separate SQLite FTS5 index; source changes make it stale until a rebuild. A query reads and ranks matches from that index. Search and Context input preview make no model call. The data-flow diagram ends at that preview. [Explore the RAG index and retrieval flow](docs/architecture/rag-lab/dataflow.html).
+RAG Lab has a Build path and a query path. Explicit Build parses headings and title paths from the bundled synthetic Markdown file, recursively splits each section into overlapping small chunks, and stores child-to-parent relationships in a separate SQLite FTS5 index. Source or index-strategy changes require an explicit rebuild. A query ranks small chunks; Preview deduplicates their parent sections and shows bounded parent context with a marked hit window when needed. Search and Preview make no model call. [Explore the RAG index and retrieval flow](docs/architecture/rag-lab/dataflow.html).
 
 ![RAG Lab flow from explicit synthetic indexing through FTS5 retrieval to an exact Context preview](docs/architecture/rag-lab/dataflow.svg)
 
@@ -44,7 +44,7 @@ npm run dev
 
 Open `http://localhost:5173`; the backend listens on `http://127.0.0.1:8787`. To configure either model, copy `backend/.env.example` to the Git ignored `backend/.env` and set provider, model, and backend-only credentials. `fake` is the default for both stages. Put supported `.md`, `.txt`, `.html`, `.pdf`, `.docx`, `.csv`, or `.xlsx` files under `local-sources/`; the folder is ignored except for instructions and placeholders. Files are never automatically indexed by the product.
 
-The RAG Lab source is `shared/demo/rag/synthetic-risk-review.md`. It has no embedding or vector retrieval in v1.0.0.
+The RAG Lab source is `shared/demo/rag/synthetic-risk-review.md`. English words and Chinese bigrams are indexed as keyword terms; there is no embedding or vector retrieval. KB notes are not a product source.
 
 Local caches, browser review profiles, and disposable test evidence under `.tmp/` have different retention rules. See the [temporary workspace guide](docs/tmp-workspace.md) before moving or cleaning them.
 
@@ -97,6 +97,6 @@ npm run test:python
 
 Tests use synthetic sources and temporary indexes. Backend-only keys and optional FC tokens must never enter browser assets, prompts, logs, tracked files, or error responses. Model answers require human review. FRAG does not connect to trading, banking, payment, or live-market APIs. The [plugin handoff](docs/finance-core-plugin-handoff.md) defines the optional FC integration boundary.
 
-LangGraph is installed in the backend development dependency group for isolated orchestration experiments. The FRAG runtime does not import it; a production environment can use `uv sync --project backend --no-dev`. Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
+LangGraph runs embedded in FastAPI for Preview, Context Run, and Inference Run orchestration in Harness and RAG Lab. Host code still owns evidence selection, budgets, approval tokens, provider calls, and validation. The graphs have no checkpointer, external Agent Server, or LangSmith tracing. [Future Agent Server assessment](docs/horizon/horizon-1.md). Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
 
 Thanks to [Archify](https://github.com/tt-a1i/archify) for the diagram tooling.

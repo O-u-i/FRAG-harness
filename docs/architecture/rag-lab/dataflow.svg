@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 1400 640" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase" style="" width="1400" height="640" xmlns="http://www.w3.org/2000/svg"><style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 640" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase"><style>
 /*
 JetBrains Mono variable WOFF2 subsets from Google Fonts service revision v24.
 These fixed bytes are shared by the viewer and its SVG/raster exports.
@@ -421,16 +421,16 @@ rect.c-bg-rect { fill: var(--bg); }
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-default"/>
+            <polygon points="0 0, 10 3.5, 0 7" class="m-default" />
           </marker>
           <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis"/>
+            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis" />
           </marker>
           <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-security"/>
+            <polygon points="0 0, 10 3.5, 0 7" class="m-security" />
           </marker>
           <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed"/>
+            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed" />
           </marker>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
@@ -438,7 +438,7 @@ rect.c-bg-rect { fill: var(--bg); }
         </defs>
 
         <!-- Background Grid -->
-        <rect width="100%" height="100%" fill="url(#grid)"/>
+        <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Data Stages -->
         <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="0" x="16" y="46" width="168" height="520" rx="10" class="c-lane" stroke-width="1"/>
@@ -458,11 +458,11 @@ rect.c-bg-rect { fill: var(--bg); }
 
         <!-- Flow paths -->
         <path data-edge-from="buildAction" data-edge-to="sectionChunking" data-edge-label="explicit rebuild" data-edge-key="0" data-edge-id="buildRequest" data-composition-points="156,157;207.5,157;207.5,264;259,264" d="M 156 157 L 207.5 157 L 207.5 264 L 259 264" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="syntheticFile" data-edge-to="sectionChunking" data-edge-label="sections + source hash" data-edge-key="1" data-edge-id="sourceSections" data-composition-points="156,385;207.5,385;207.5,278;259,278" d="M 156 385 L 207.5 385 L 207.5 278 L 259 278" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="sectionChunking" data-edge-to="ftsIndex" data-edge-label="chunks + revision" data-edge-key="2" data-edge-id="indexedChunks" data-composition-points="371,271;422.5,271;422.5,385;474,385" d="M 371 271 L 422.5 271 L 422.5 385 L 474 385" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="syntheticFile" data-edge-to="sectionChunking" data-edge-label="headings + source hash" data-edge-key="1" data-edge-id="sourceSections" data-composition-points="156,385;207.5,385;207.5,278;259,278" d="M 156 385 L 207.5 385 L 207.5 278 L 259 278" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="sectionChunking" data-edge-to="ftsIndex" data-edge-label="child + parent IDs" data-edge-key="2" data-edge-id="indexedChunks" data-composition-points="371,271;422.5,271;422.5,385;474,385" d="M 371 271 L 422.5 271 L 422.5 385 L 474 385" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="query" data-edge-to="search" data-edge-label="query + topK" data-edge-key="3" data-edge-id="queryTerms" data-composition-points="586,157;637.5,157;637.5,264;689,264" d="M 586 157 L 637.5 157 L 637.5 264 L 689 264" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="ftsIndex" data-edge-to="search" data-edge-label="FTS5 ranked rows" data-edge-key="4" data-edge-id="rankedRows" data-composition-points="586,385;637.5,385;637.5,278;689,278" d="M 586 385 L 637.5 385 L 637.5 278 L 689 278" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="search" data-edge-to="contextPreview" data-edge-label="evidence + index revision" data-edge-key="5" data-edge-id="candidateEvidence" data-composition-points="801,271;904,271" d="M 801 271 L 904 271" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="ftsIndex" data-edge-to="search" data-edge-label="ranked child + parent" data-edge-key="4" data-edge-id="rankedRows" data-composition-points="586,385;637.5,385;637.5,278;689,278" d="M 586 385 L 637.5 385 L 637.5 278 L 689 278" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="search" data-edge-to="contextPreview" data-edge-label="bounded parent evidence" data-edge-key="5" data-edge-id="candidateEvidence" data-composition-points="801,271;904,271" d="M 801 271 L 904 271" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
 
         <!-- Nodes -->
         <g id="node-buildAction" data-node-id="buildAction" data-node-label="Explicit Build" tabindex="0" role="button" aria-label="Focus Explicit Build, 01 / Source and action" aria-pressed="false" data-node-kind="frontend" data-node-context="01 / Source and action">
@@ -489,14 +489,14 @@ rect.c-bg-rect { fill: var(--bg); }
           <text data-node-label="" x="100" y="377" class="t-primary" font-size="9.6" font-weight="600" text-anchor="middle">Synthetic Markdown</text>
         </g>
 
-        <g id="node-sectionChunking" data-node-id="sectionChunking" data-node-label="Section chunking" tabindex="0" role="button" aria-label="Focus Section chunking, 02 / Build" aria-pressed="false" data-node-kind="backend" data-node-context="02 / Build">
-          <title>Section chunking · 02 / Build</title>
+        <g id="node-sectionChunking" data-node-id="sectionChunking" data-node-label="Title-aware split" tabindex="0" role="button" aria-label="Focus Title-aware split, 02 / Build" aria-pressed="false" data-node-kind="backend" data-node-context="02 / Build">
+          <title>Title-aware split · 02 / Build</title>
           <rect x="259" y="242" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="259" y="242" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(265 248) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" x="315" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Section chunking</text>
+          <text data-node-label="" x="315" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Title-aware split</text>
         </g>
 
         <g id="node-query" data-node-id="query" data-node-label="RAG Lab query" tabindex="0" role="button" aria-label="Focus RAG Lab query, 03 / Index and query" aria-pressed="false" data-node-kind="frontend" data-node-context="03 / Index and query">
@@ -512,66 +512,66 @@ rect.c-bg-rect { fill: var(--bg); }
           <text data-node-label="" x="530" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">RAG Lab query</text>
         </g>
 
-        <g id="node-ftsIndex" data-node-id="ftsIndex" data-node-label="SQLite FTS5 index" tabindex="0" role="button" aria-label="Focus SQLite FTS5 index, 03 / Index and query" aria-pressed="false" data-node-kind="database" data-node-context="03 / Index and query">
-          <title>SQLite FTS5 index · 03 / Index and query</title>
+        <g id="node-ftsIndex" data-node-id="ftsIndex" data-node-label="Child FTS + parent" tabindex="0" role="button" aria-label="Focus Child FTS + parent, 03 / Index and query" aria-pressed="false" data-node-kind="database" data-node-context="03 / Index and query">
+          <title>Child FTS + parent · 03 / Index and query</title>
           <rect x="474" y="356" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="474" y="356" width="112" height="58" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(480 362) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
-          <text data-node-label="" x="530" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">SQLite FTS5 index</text>
+          <text data-node-label="" x="530" y="377" class="t-primary" font-size="9.6" font-weight="600" text-anchor="middle">Child FTS + parent</text>
         </g>
 
-        <g id="node-search" data-node-id="search" data-node-label="Ranked search" tabindex="0" role="button" aria-label="Focus Ranked search, 04 / Retrieve" aria-pressed="false" data-node-kind="backend" data-node-context="04 / Retrieve">
-          <title>Ranked search · 04 / Retrieve</title>
+        <g id="node-search" data-node-id="search" data-node-label="Rank + expand" tabindex="0" role="button" aria-label="Focus Rank + expand, 04 / Retrieve" aria-pressed="false" data-node-kind="backend" data-node-context="04 / Retrieve">
+          <title>Rank + expand · 04 / Retrieve</title>
           <rect x="689" y="242" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="689" y="242" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(695 248) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" x="745" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Ranked search</text>
+          <text data-node-label="" x="745" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Rank + expand</text>
         </g>
 
-        <g id="node-contextPreview" data-node-id="contextPreview" data-node-label="Context preview" tabindex="0" role="button" aria-label="Focus Context preview, 05 / Preview" aria-pressed="false" data-node-kind="security" data-node-context="05 / Preview">
-          <title>Context preview · 05 / Preview</title>
+        <g id="node-contextPreview" data-node-id="contextPreview" data-node-label="Parent preview" tabindex="0" role="button" aria-label="Focus Parent preview, 05 / Preview" aria-pressed="false" data-node-kind="security" data-node-context="05 / Preview">
+          <title>Parent preview · 05 / Preview</title>
           <rect x="904" y="242" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="904" y="242" width="112" height="58" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(910 248) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" x="960" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Context preview</text>
+          <text data-node-label="" x="960" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Parent preview</text>
         </g>
 
         <!-- Flow labels -->
-        <g data-edge-from="buildAction" data-edge-to="sectionChunking" data-edge-label="explicit rebuild" data-edge-key="0" data-edge-id="buildRequest">
+        <g data-detail="context" data-edge-from="buildAction" data-edge-to="sectionChunking" data-edge-label="explicit rebuild" data-edge-key="0" data-edge-id="buildRequest">
           <rect x="162.3" y="189.5" width="90.4" height="16" rx="4" class="c-mask"/>
           <text x="207.5" y="200.5" class="t-backend" font-size="8" text-anchor="middle">explicit rebuild</text>
         </g>
-        <g data-edge-from="syntheticFile" data-edge-to="sectionChunking" data-edge-label="sections + source hash" data-edge-key="1" data-edge-id="sourceSections">
+        <g data-detail="context" data-edge-from="syntheticFile" data-edge-to="sectionChunking" data-edge-label="headings + source hash" data-edge-key="1" data-edge-id="sourceSections">
           <rect x="147.6" y="310.5" width="119.8" height="16" rx="4" class="c-mask"/>
-          <text x="207.5" y="321.5" class="t-muted" font-size="8" text-anchor="middle">sections + source hash</text>
+          <text x="207.5" y="321.5" class="t-muted" font-size="8" text-anchor="middle">headings + source hash</text>
         </g>
-        <g data-edge-from="sectionChunking" data-edge-to="ftsIndex" data-edge-label="chunks + revision" data-edge-key="2" data-edge-id="indexedChunks">
-          <rect x="374.85" y="307" width="95.3" height="16" rx="4" class="c-mask"/>
-          <text x="422.5" y="318" class="t-backend" font-size="8" text-anchor="middle">chunks + revision</text>
+        <g data-detail="context" data-edge-from="sectionChunking" data-edge-to="ftsIndex" data-edge-label="child + parent IDs" data-edge-key="2" data-edge-id="indexedChunks">
+          <rect x="372.4" y="307" width="100.2" height="16" rx="4" class="c-mask"/>
+          <text x="422.5" y="318" class="t-backend" font-size="8" text-anchor="middle">child + parent IDs</text>
         </g>
-        <g data-edge-from="query" data-edge-to="search" data-edge-label="query + topK" data-edge-key="3" data-edge-id="queryTerms">
+        <g data-detail="context" data-edge-from="query" data-edge-to="search" data-edge-label="query + topK" data-edge-key="3" data-edge-id="queryTerms">
           <rect x="602.1" y="189.5" width="70.8" height="16" rx="4" class="c-mask"/>
           <text x="637.5" y="200.5" class="t-muted" font-size="8" text-anchor="middle">query + topK</text>
         </g>
-        <g data-edge-from="ftsIndex" data-edge-to="search" data-edge-label="FTS5 ranked rows" data-edge-key="4" data-edge-id="rankedRows">
-          <rect x="592.3" y="310.5" width="90.4" height="16" rx="4" class="c-mask"/>
-          <text x="637.5" y="321.5" class="t-backend" font-size="8" text-anchor="middle">FTS5 ranked rows</text>
+        <g data-detail="context" data-edge-from="ftsIndex" data-edge-to="search" data-edge-label="ranked child + parent" data-edge-key="4" data-edge-id="rankedRows">
+          <rect x="580.05" y="310.5" width="114.9" height="16" rx="4" class="c-mask"/>
+          <text x="637.5" y="321.5" class="t-backend" font-size="8" text-anchor="middle">ranked child + parent</text>
         </g>
-        <g data-edge-from="search" data-edge-to="contextPreview" data-edge-label="evidence + index revision" data-edge-key="5" data-edge-id="candidateEvidence">
-          <rect x="785.75" y="303" width="134.5" height="16" rx="4" class="c-mask"/>
-          <text x="853" y="314" class="t-security" font-size="8" text-anchor="middle">evidence + index revision</text>
+        <g data-detail="context" data-edge-from="search" data-edge-to="contextPreview" data-edge-label="bounded parent evidence" data-edge-key="5" data-edge-id="candidateEvidence">
+          <rect x="790.65" y="303" width="124.7" height="16" rx="4" class="c-mask"/>
+          <text x="853" y="314" class="t-security" font-size="8" text-anchor="middle">bounded parent evidence</text>
         </g>
 
         <!-- Legend -->
-        <g data-legend="">
+        <g data-legend="" data-legend-bridge="">
           <text x="40" y="584" class="t-primary" font-size="12" font-weight="650">Legend</text>
           <g data-legend-semantic-kind="emphasis" data-legend-x="40" data-legend-baseline="604" data-legend-width="103">
             <path d="M 40 601 L 74 601" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
@@ -581,7 +581,7 @@ rect.c-bg-rect { fill: var(--bg); }
             <path d="M 165 601 L 199 601" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
             <text x="208" y="604" class="t-muted" font-size="10" font-weight="500">policy / PII</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-x="290" data-legend-baseline="604" data-legend-width="93">
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="data store" data-legend-x="290" data-legend-baseline="604" data-legend-width="93">
             <rect x="290" y="596" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
             <text x="312" y="604" class="t-muted" font-size="10" font-weight="500">data store</text>
           </g>

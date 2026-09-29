@@ -12,7 +12,7 @@ from fastapi.routing import APIRoute
 
 from frag_api.errors import PluginValidationError
 
-HOST_VERSION = "1.0.0"
+SUPPORTED_PLUGIN_MIN_HOST_VERSION = "1.0.0"
 FC_API_VERSION = "3.1.1"
 PLUGIN_ID = "finance-core"
 PLUGIN_PROTOCOL = 1
@@ -79,7 +79,7 @@ def load_plugin(root: Path = DEFAULT_PLUGIN_ROOT) -> LoadedPlugin | None:
     manifest = _read_json(directory / "manifest.json")
     if manifest.get("id") != PLUGIN_ID or manifest.get("protocolVersion") != PLUGIN_PROTOCOL:
         raise PluginValidationError()
-    if manifest.get("version") != version or manifest.get("minHostVersion") != HOST_VERSION:
+    if manifest.get("version") != version or manifest.get("minHostVersion") != SUPPORTED_PLUGIN_MIN_HOST_VERSION:
         raise PluginValidationError()
     if manifest.get("fcApiVersion") != FC_API_VERSION:
         raise PluginValidationError()

@@ -19,6 +19,10 @@ def test_rag_build_search_preview_run_evaluate(tmp_path: Path):
         assert search.status_code == 200
         assert search.json()["results"][0]["chunkId"].endswith("c002")
         preview = client.post("/api/rag/preview", json=body).json()
+        first = preview["retrievalResults"][0]
+        assert first["parentId"].endswith("parent-002")
+        assert first["evidenceId"] in {item["chunkId"] for item in preview["candidateEvidence"]}
+        assert first["evidenceId"] != first["chunkId"]
         run_body = {**body, "contextFingerprint": preview["contextFingerprint"], "approvalToken": preview["approvalToken"], "approved": True}
         run = client.post("/api/rag/run", json=run_body)
         assert run.status_code == 200, run.text
@@ -27,7 +31,10 @@ def test_rag_build_search_preview_run_evaluate(tmp_path: Path):
         inference_body = {"contextFingerprint": preview["contextFingerprint"],
                           "inferenceFingerprint": second["inferenceFingerprint"],
                           "approvalToken": second["approvalToken"], "approved": True}
-        assert client.post("/api/rag/inference/run", json=inference_body).status_code == 200
+        answer = client.post("/api/rag/inference/run", json=inference_body)
+        assert answer.status_code == 200
+        evidence_ids = {item["chunkId"] for item in preview["candidateEvidence"]}
+        assert all(set(claim["chunkIds"]).issubset(evidence_ids) for claim in answer.json()["result"]["claims"])
         assert client.post("/api/rag/inference/run", json=inference_body).status_code == 409
         assert client.post("/api/rag/run", json=run_body).status_code == 409
         evaluation = client.post("/api/rag/evaluations/run", json=DATASET)

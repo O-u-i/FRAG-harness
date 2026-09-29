@@ -1,11 +1,12 @@
 [project]
 name = "frag-harness-backend"
-version = "1.0.0"
+version = "1.1.0"
 description = "Local governed retrieval and two-stage LLM harness"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi>=0.116,<1",
   "httpx>=0.28,<1",
+  "langgraph>=1.2.12,<2",
   "openai>=2,<3",
   "beautifulsoup4>=4.13,<5",
   "openpyxl>=3.1,<4",
@@ -18,7 +19,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-  "langgraph>=1.2.12,<2",
   "pytest>=8.4,<9",
 ]
 

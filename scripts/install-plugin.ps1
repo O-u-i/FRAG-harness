@@ -123,7 +123,7 @@ try {
     try { $manifest = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
     if ($manifest.id -ne 'finance-core' -or $manifest.protocolVersion -ne 1 -or $manifest.minHostVersion -ne '1.0.0' -or
         $manifest.fcApiVersion -ne '3.1.1' -or
-        $manifest.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Plugin manifest is incompatible with FRAG-harness v1.0.0.' }
+        $manifest.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Plugin manifest is incompatible with this FRAG host.' }
     $fileNames = @($manifest.files.PSObject.Properties.Name)
     if ($fileNames.Count -ne 2 -or @($fileNames | Where-Object { $_ -notin @('adapter.py', 'ui.js') }).Count -ne 0) {
         throw 'Manifest must hash exactly adapter.py and ui.js.'

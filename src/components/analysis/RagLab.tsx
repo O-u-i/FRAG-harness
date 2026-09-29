@@ -111,21 +111,21 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
   return <div className="rag-lab">
     <PanelHeading
       title="RAG Lab · FTS Baseline"
-      subtitle="Synthetic Markdown → section chunks → SQLite FTS5 → governed Context → grounded answer."
+      subtitle="Synthetic Markdown → title-aware child chunks → section context → governed Context → grounded answer."
     />
 
     <section className="rag-status-card">
       <div>
         <span className={`rag-state ${status?.state ?? 'loading'}`}>{status?.state ?? 'loading'}</span>
         <strong>{status ? `${status.documentCount} document · ${status.chunkCount} chunks` : 'Reading index status…'}</strong>
-        <small>markdown-section-v1 · explicit rebuild · no Finance Core data</small>
+        <small>markdown-hierarchy-v2 · explicit rebuild · no Finance Core data</small>
       </div>
       <button type="button" className="secondary-button" disabled={busy !== ''} onClick={() => void rebuild()}>
         {busy === 'rebuild' ? 'Rebuilding…' : ready ? 'Rebuild Demo Index' : 'Build Demo Index'}
       </button>
     </section>
 
-    {status?.state === 'stale' && <p className="sandbox-notice">Synthetic source hash changed. Rebuild before searching.</p>}
+    {status?.state === 'stale' && <p className="sandbox-notice">Source or index strategy changed. Rebuild before searching.</p>}
     {error && <p className="sandbox-error" role="alert">{error}</p>}
 
     <section className="rag-query-card">
@@ -154,7 +154,7 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
         {search.results.map((item) => <article key={item.chunkId}>
           <div><strong>#{item.rank} · {item.locatorLabel}</strong><span>{item.bm25Score.toFixed(6)}</span></div>
           <p>{item.excerpt}</p>
-          <small>{item.chunkId} → {item.sourceId} → {item.locatorId}</small>
+          <small>{item.chunkId} → {item.parentId} → {item.evidenceId ?? 'preview to expand'}</small>
         </article>)}
       </div>}
     </section>}
