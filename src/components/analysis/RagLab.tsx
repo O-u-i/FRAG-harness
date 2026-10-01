@@ -154,15 +154,15 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
         {search.results.map((item) => <article key={item.chunkId}>
           <div><strong>#{item.rank} · {item.locatorLabel}</strong><span>{item.bm25Score.toFixed(6)}</span></div>
           <p>{item.excerpt}</p>
-          <small>{item.chunkId} → {item.parentId} → {item.evidenceId ?? 'preview to expand'}</small>
+          <small>Retrieval chunkId: {item.chunkId} → parentId: {item.parentId} → Context evidenceId: {item.evidenceId ?? 'preview to expand'}</small>
         </article>)}
       </div>}
     </section>}
 
     {preview && <section className="rag-section">
       <div className="rag-section-heading"><h3>Context Input Preview</h3><small>{preview.budget.estimatedInputTokens} estimated tokens</small></div>
-      <div className="rag-result-list">{preview.candidateEvidence.map((item) => <article key={item.chunkId}>
-        <strong>{item.chunkId} · {item.locatorLabel}</strong><pre>{item.text}</pre>
+      <div className="rag-result-list">{preview.candidateEvidence.map((item) => <article key={item.evidenceId}>
+        <strong>Context evidenceId: {item.evidenceId} · {item.locatorLabel}</strong><pre>{item.text}</pre>
       </article>)}</div>
       <div className="inference-preview"><strong>Context instructions</strong><pre>{preview.instructions}</pre>
         <strong>Context input JSON</strong><pre>{preview.input}</pre></div>
@@ -184,8 +184,8 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
     {run && <section className="rag-section rag-answer">
       <div className="rag-section-heading"><h3>Grounded Answer</h3><small>{run.contextStage.provider} → {run.inferenceStage.provider}</small></div>
       <p>{run.result.answer}</p>
-      {run.result.claims.map((claim) => <article key={`${claim.text}-${claim.chunkIds.join('-')}`}>
-        <p>{claim.text}</p><small>Citations: {claim.chunkIds.join(', ')}</small>
+      {run.result.claims.map((claim) => <article key={`${claim.text}-${claim.evidenceIds.join('-')}`}>
+        <p>{claim.text}</p><small>Evidence IDs: {claim.evidenceIds.join(', ')}</small>
       </article>)}
       <p className="sandbox-disclaimer">{run.result.disclaimer}</p>
     </section>}

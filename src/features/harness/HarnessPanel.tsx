@@ -179,7 +179,7 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
         {preview && <>
           <div className="preview-meta"><span>{preview.candidateEvidence.length} selected excerpt(s)</span>
             <span>{preview.budget.estimatedInputTokens} estimated input tokens</span></div>
-          {preview.candidateEvidence.map((item) => <article className="evidence-item" key={item.chunkId}>
+          {preview.candidateEvidence.map((item) => <article className="evidence-item" key={item.evidenceId}>
             <strong>{item.locatorLabel}</strong><pre>{item.text}</pre></article>)}
           <div className="inference-preview"><strong>Context instructions</strong><pre>{preview.instructions}</pre>
             <strong>Context input JSON</strong><pre>{preview.input}</pre></div>
@@ -196,7 +196,7 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
             onClick={() => void generateInference()}>{busy === 'inference' ? 'Running Inference…' : 'Approve Inference input'}</button>
         </div>}
         {run && <div className="answer"><h3>{run.result.answer}</h3>
-          {run.result.claims.map((claim, index) => <p key={index}>{claim.text} <small>[{claim.chunkIds.join(', ')}]</small></p>)}
+          {run.result.claims.map((claim, index) => <p key={index}>{claim.text} <small>[{claim.evidenceIds.join(', ')}]</small></p>)}
           <p className="muted">{run.result.disclaimer}</p>
         </div>}
       </section>

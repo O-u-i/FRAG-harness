@@ -266,7 +266,7 @@ class RagService:
             ))
             reciprocal_ranks.append(1 / rank if rank and rank <= 3 else 0)
             ndcg_values.append(1 / math.log2(rank + 1) if rank and rank <= 3 else 0)
-            context_ids = {item.chunk_id for item in preview.candidate_evidence}
+            context_ids = {item.evidence_id for item in preview.candidate_evidence}
             expected_evidence = next((item.evidence_id for item in preview.retrieval_results
                                       if item.chunk_id == expected), None)
             context_hits += int(expected_evidence in context_ids)
@@ -276,7 +276,7 @@ class RagService:
             answer = fake.generate_rag_answer(compressed, case["query"], INFERENCE_OUTPUT_LIMIT).output
             if not isinstance(answer, RagGroundedAnswer):
                 continue
-            cited = {chunk_id for claim in answer.claims for chunk_id in claim.chunk_ids}
+            cited = {evidence_id for claim in answer.claims for evidence_id in claim.evidence_ids}
             valid_citations += int(cited.issubset(context_ids) and bool(cited))
             expected_citations += int(expected_evidence in cited)
         count = len(results)
@@ -371,7 +371,7 @@ class RagService:
                                f"{parent.text[start:end]}")
                 parent_evidence[parent_id] = evidence_id
                 evidence.append(RagEvidence(
-                    chunkId=evidence_id, documentId=row.document_id, sourceId=row.source_id,
+                    evidenceId=evidence_id, documentId=row.document_id, sourceId=row.source_id,
                     locatorId=parent.locator_id, locatorLabel=parent.title_path, text=content,
                 ))
             payload = {"candidateEvidence": [item.model_dump(by_alias=True) for item in evidence]}

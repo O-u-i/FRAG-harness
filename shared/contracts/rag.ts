@@ -55,7 +55,7 @@ export const ragSearchResponseSchema = z.object({
 }).strict();
 
 export const ragEvidenceSchema = z.object({
-  chunkId: z.string().min(1), documentId: z.string().min(1), sourceId: z.string().min(1),
+  evidenceId: z.string().min(1), documentId: z.string().min(1), sourceId: z.string().min(1),
   locatorId: z.string().min(1), locatorLabel: z.string().min(1), text: z.string().min(1),
 }).strict();
 
@@ -74,14 +74,14 @@ export const ragPreviewSchema = z.object({
 }).strict();
 
 export const ragCompressedEvidenceSchema = z.object({
-  chunkId: z.string().min(1), summary: z.string().min(1),
+  evidenceId: z.string().min(1), summary: z.string().min(1),
   preservedFacts: z.array(z.string()), uncertainty: z.array(z.string()),
 }).strict();
 export const ragContextCompressionSchema = z.object({
   evidence: z.array(ragCompressedEvidenceSchema), missingInformation: z.array(z.string()),
 }).strict();
 export const ragClaimSchema = z.object({
-  text: z.string().min(1), chunkIds: z.array(z.string().min(1)).min(1),
+  text: z.string().min(1), evidenceIds: z.array(z.string().min(1)).min(1),
 }).strict();
 export const ragGroundedAnswerSchema = z.object({
   answer: z.string().min(1), claims: z.array(ragClaimSchema).min(1),

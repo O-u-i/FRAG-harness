@@ -124,8 +124,8 @@ class GovernedFlow:
         compressed = state["compressed"]
         if not isinstance(compressed, RagContextCompression):
             raise RagOutputError()
-        allowed = {item.chunk_id for item in state["preview"].candidate_evidence}
-        returned = {item.chunk_id for item in compressed.evidence}
+        allowed = {item.evidence_id for item in state["preview"].candidate_evidence}
+        returned = {item.evidence_id for item in compressed.evidence}
         if returned != allowed or estimated_tokens(compressed.model_dump(by_alias=True)) > CONTEXT_OUTPUT_LIMIT:
             raise RagOutputError()
         return {}
@@ -180,8 +180,8 @@ class GovernedFlow:
         answer = state["answer"]
         if not isinstance(answer, RagGroundedAnswer):
             raise RagOutputError()
-        allowed = {item.chunk_id for item in state["compressed"].evidence}
-        cited = {chunk_id for claim in answer.claims for chunk_id in claim.chunk_ids}
+        allowed = {item.evidence_id for item in state["compressed"].evidence}
+        cited = {evidence_id for claim in answer.claims for evidence_id in claim.evidence_ids}
         if not cited or not cited.issubset(allowed):
             raise RagOutputError()
         return {}

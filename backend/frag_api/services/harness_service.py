@@ -84,11 +84,11 @@ class HarnessService:
                     item = by_id[record_id]
                     if not all(isinstance(item.get(key), str) and item[key] for key in ("label", "text", "revision")):
                         raise HarnessSourceError()
-                    chunk_id = hashlib.sha256(f"fc\0{scope.workspace_id}\0{record_id}".encode()).hexdigest()[:24]
+                    evidence_id = hashlib.sha256(f"fc\0{scope.workspace_id}\0{record_id}".encode()).hexdigest()[:24]
                     document_id = hashlib.sha256(scope.workspace_id.encode()).hexdigest()[:24]
                     locator_id = hashlib.sha256(record_id.encode()).hexdigest()[:24]
                     evidence.append(RagEvidence(
-                        chunkId=chunk_id, documentId=document_id, sourceId="finance-core",
+                        evidenceId=evidence_id, documentId=document_id, sourceId="finance-core",
                         locatorId=locator_id, locatorLabel=redact(item["label"]), text=redact(item["text"]),
                     ))
                     revisions.append((record_id, item["revision"]))
@@ -105,9 +105,9 @@ class HarnessService:
                     seen.add(identity)
                     section = sections[locator_id]
                     document_id = hashlib.sha256(selection.relative_path.encode()).hexdigest()[:24]
-                    chunk_id = hashlib.sha256(f"{selection.relative_path}\0{locator_id}".encode()).hexdigest()[:24]
+                    evidence_id = hashlib.sha256(f"{selection.relative_path}\0{locator_id}".encode()).hexdigest()[:24]
                     evidence.append(RagEvidence(
-                        chunkId=chunk_id, documentId=document_id,
+                        evidenceId=evidence_id, documentId=document_id,
                         sourceId=f"file-{document_id}", locatorId=locator_id,
                         locatorLabel=redact(section.locator.label),
                         text=redact(section.text),

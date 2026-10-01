@@ -36,8 +36,8 @@
       "Each model stage requires its own exact preview and one-time approval."
     ] },
     { "dot": "emerald", "title": "Output checks", "items": [
-      "After Context, output must retain exactly the previewed parent evidence IDs within budget.",
-      "After Inference, claims must cite those evidence IDs before human review."
+      "After Context, output must retain exactly the previewed Context evidenceId values within budget.",
+      "After Inference, claims must cite those values as evidenceIds before human review."
     ] }
   ]
 }

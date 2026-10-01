@@ -23,7 +23,7 @@ const request = { ...dataset, query: 'What regulatory risks are mentioned?', top
 const preview: RagPreview = {
   ...request, indexRevision: revision, retrievalResults: [previewChunk],
   candidateEvidence: [{
-    chunkId: chunk.parentId, documentId: chunk.documentId, sourceId: chunk.sourceId,
+    evidenceId: chunk.parentId, documentId: chunk.documentId, sourceId: chunk.sourceId,
     locatorId: chunk.locatorId, locatorLabel: chunk.locatorLabel, text: '# Regulatory Risk\nRestrictions increased.',
   }],
   instructions: 'Compress evidence.', input: '{}',
@@ -36,11 +36,11 @@ const preview: RagPreview = {
 const run: RagRun = {
   preview,
   compressedContext: {
-    evidence: [{ chunkId: chunk.parentId, summary: 'Restrictions increased.', preservedFacts: ['Restrictions increased.'], uncertainty: [] }],
+    evidence: [{ evidenceId: chunk.parentId, summary: 'Restrictions increased.', preservedFacts: ['Restrictions increased.'], uncertainty: [] }],
     missingInformation: [],
   },
   result: {
-    answer: 'Restrictions increased.', claims: [{ text: 'Restrictions increased.', chunkIds: [chunk.parentId] }],
+    answer: 'Restrictions increased.', claims: [{ text: 'Restrictions increased.', evidenceIds: [chunk.parentId] }],
     missingInformation: [], disclaimer: 'Synthetic only.',
   },
   contextStage: { provider: 'fake', model: 'fake-context-v1', usage: { inputTokens: 10, outputTokens: 8 } },

@@ -77,7 +77,7 @@ class RagSearchResponse(ApiModel):
 
 
 class RagEvidence(ApiModel):
-    chunk_id: str = Field(alias="chunkId")
+    evidence_id: str = Field(alias="evidenceId")
     document_id: str = Field(alias="documentId")
     source_id: str = Field(alias="sourceId")
     locator_id: str = Field(alias="locatorId")
@@ -101,7 +101,7 @@ class RagPreview(ApiModel):
 
 
 class RagCompressedEvidence(ApiModel):
-    chunk_id: str = Field(alias="chunkId")
+    evidence_id: str = Field(alias="evidenceId")
     summary: str
     preserved_facts: list[str] = Field(alias="preservedFacts")
     uncertainty: list[str]
@@ -114,7 +114,7 @@ class RagContextCompression(ApiModel):
 
 class RagClaim(ApiModel):
     text: str = Field(min_length=1)
-    chunk_ids: list[str] = Field(alias="chunkIds", min_length=1)
+    evidence_ids: list[str] = Field(alias="evidenceIds", min_length=1)
 
 
 class RagGroundedAnswer(ApiModel):

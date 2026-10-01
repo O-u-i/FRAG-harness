@@ -48,10 +48,10 @@ def test_chinese_search_parent_dedupe_and_bounded_window(tmp_path: Path):
         result = preview.json()
         assert len(result["candidateEvidence"]) == 1
         evidence = result["candidateEvidence"][0]
-        assert evidence["chunkId"].startswith(search.json()["results"][0]["parentId"])
+        assert evidence["evidenceId"].startswith(search.json()["results"][0]["parentId"])
         assert "[Parent section window" in evidence["text"]
         assert "风险复核 > 监管风险" in evidence["text"]
-        assert all(row["evidenceId"] == evidence["chunkId"] for row in result["retrievalResults"])
+        assert all(row["evidenceId"] == evidence["evidenceId"] for row in result["retrievalResults"])
         assert result["budget"]["estimatedInputTokens"] <= 4500
 
 

@@ -47,8 +47,8 @@ def test_preview_redacts_and_approval_is_single_use(client: TestClient, source_r
     final = client.post("/api/harness/inference/run", json=inference_body)
     assert final.status_code == 200, final.text
     assert final.json()["inferenceStage"]["provider"] == "fake"
-    allowed = {e["chunkId"] for e in value["candidateEvidence"]}
-    assert {c for claim in final.json()["result"]["claims"] for c in claim["chunkIds"]} <= allowed
+    allowed = {e["evidenceId"] for e in value["candidateEvidence"]}
+    assert {c for claim in final.json()["result"]["claims"] for c in claim["evidenceIds"]} <= allowed
     assert client.post("/api/harness/run", json=run_body).status_code == 409
     assert client.post("/api/harness/inference/run", json=inference_body).status_code == 409
 
@@ -69,7 +69,7 @@ def test_foreign_citation_is_rejected(client: TestClient):
     class InvalidInference:
         def generate_rag_answer(self, *_args):
             return LlmCallResult(RagGroundedAnswer(
-                answer="Unverified answer", claims=[{"text": "Unverified", "chunkIds": ["foreign-chunk"]}],
+                answer="Unverified answer", claims=[{"text": "Unverified", "evidenceIds": ["foreign-evidence"]}],
                 missingInformation=[], disclaimer="Review first"), ProviderUsage(inputTokens=1, outputTokens=1))
     client.app.state.harness_service.inference_provider = InvalidInference()
     body = selection(client)

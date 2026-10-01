@@ -77,7 +77,7 @@ class FakeLlmProvider:
     def generate_rag_context(self, evidence: list[RagEvidence], max_output_tokens: int) -> LlmCallResult:
         output = RagContextCompression(
             evidence=[RagCompressedEvidence(
-                chunkId=item.chunk_id, summary=item.text,
+                evidenceId=item.evidence_id, summary=item.text,
                 preservedFacts=[item.text], uncertainty=[],
             ) for item in evidence],
             missingInformation=[],
@@ -87,7 +87,7 @@ class FakeLlmProvider:
     def generate_rag_answer(self, compressed: RagContextCompression, query: str, max_output_tokens: int) -> LlmCallResult:
         output = RagGroundedAnswer(
             answer=" ".join(item.summary for item in compressed.evidence),
-            claims=[RagClaim(text=item.summary, chunkIds=[item.chunk_id]) for item in compressed.evidence],
+            claims=[RagClaim(text=item.summary, evidenceIds=[item.evidence_id]) for item in compressed.evidence],
             missingInformation=compressed.missing_information,
             disclaimer="Review the cited evidence before relying on this answer.",
         )
@@ -154,7 +154,7 @@ class OpenAICompatibleProvider:
 def context_input(evidence: list[RagEvidence]) -> tuple[str, dict]:
     """The exact instructions and JSON payload passed to the Context provider."""
     return (
-        "Compress only supplied evidence. Preserve each chunkId and qualifier. Do not invent sources.",
+        "Compress only supplied evidence. Preserve each evidenceId and qualifier. Do not invent sources.",
         {"evidence": [item.model_dump(by_alias=True) for item in evidence],
          "outputSchema": RagContextCompression.model_json_schema(by_alias=True)},
     )
@@ -163,7 +163,7 @@ def context_input(evidence: list[RagEvidence]) -> tuple[str, dict]:
 def inference_input(compressed: RagContextCompression, query: str) -> tuple[str, dict]:
     """The exact instructions and JSON payload passed to the inference provider."""
     return (
-        "Answer only from supplied evidence. Every claim must cite supplied chunkIds. State uncertainty and missing information.",
+        "Answer only from supplied evidence. Every claim must cite supplied evidenceIds. State uncertainty and missing information.",
         {"query": query, "context": compressed.model_dump(by_alias=True),
          "outputSchema": RagGroundedAnswer.model_json_schema(by_alias=True)},
     )

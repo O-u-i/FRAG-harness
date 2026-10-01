@@ -21,20 +21,24 @@ def test_rag_build_search_preview_run_evaluate(tmp_path: Path):
         preview = client.post("/api/rag/preview", json=body).json()
         first = preview["retrievalResults"][0]
         assert first["parentId"].endswith("parent-002")
-        assert first["evidenceId"] in {item["chunkId"] for item in preview["candidateEvidence"]}
+        assert first["evidenceId"] in {item["evidenceId"] for item in preview["candidateEvidence"]}
         assert first["evidenceId"] != first["chunkId"]
+        assert all("chunkId" not in item for item in preview["candidateEvidence"])
+        assert '"evidenceId"' in preview["input"]
         run_body = {**body, "contextFingerprint": preview["contextFingerprint"], "approvalToken": preview["approvalToken"], "approved": True}
         run = client.post("/api/rag/run", json=run_body)
         assert run.status_code == 200, run.text
         assert "inferenceStage" not in run.json()
         second = run.json()["inferencePreview"]
+        assert '"evidenceIds"' in second["input"]
         inference_body = {"contextFingerprint": preview["contextFingerprint"],
                           "inferenceFingerprint": second["inferenceFingerprint"],
                           "approvalToken": second["approvalToken"], "approved": True}
         answer = client.post("/api/rag/inference/run", json=inference_body)
         assert answer.status_code == 200
-        evidence_ids = {item["chunkId"] for item in preview["candidateEvidence"]}
-        assert all(set(claim["chunkIds"]).issubset(evidence_ids) for claim in answer.json()["result"]["claims"])
+        evidence_ids = {item["evidenceId"] for item in preview["candidateEvidence"]}
+        assert all(set(claim["evidenceIds"]).issubset(evidence_ids) for claim in answer.json()["result"]["claims"])
+        assert all("chunkIds" not in claim for claim in answer.json()["result"]["claims"])
         assert client.post("/api/rag/inference/run", json=inference_body).status_code == 409
         assert client.post("/api/rag/run", json=run_body).status_code == 409
         evaluation = client.post("/api/rag/evaluations/run", json=DATASET)

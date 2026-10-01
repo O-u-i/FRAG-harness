@@ -19,19 +19,19 @@ describe('harness client', () => {
   });
 
   it('requires separate approved Context and Inference requests', async () => {
-    const evidence = { chunkId: 'chunk', documentId: 'doc', sourceId: 'source',
+    const evidence = { evidenceId: 'evidence', documentId: 'doc', sourceId: 'source',
       locatorId: 'section-1', locatorLabel: 'Finding', text: 'Synthetic fact' };
     const preview = { goal: selection.goal, candidateEvidence: [evidence], instructions: 'Compress evidence.', input: '{}',
       budget: { estimatedInputTokens: 80, inputBudget: 6000, reservedPercent: 25,
         contextOutputLimit: 1500, inferenceOutputLimit: 2000, approximate: true },
       warnings: [], contextFingerprint: 'a'.repeat(64), approvalToken: 'b'.repeat(48) };
-    const context = { preview, compressedContext: { evidence: [{chunkId: 'chunk', summary: 'Synthetic fact',
+    const context = { preview, compressedContext: { evidence: [{evidenceId: 'evidence', summary: 'Synthetic fact',
       preservedFacts: ['Synthetic fact'], uncertainty: []}], missingInformation: [] },
       contextStage: { provider: 'fake', model: 'fake-context-v1', usage: {inputTokens: 1, outputTokens: 1} },
       inferencePreview: { provider: 'fake', model: 'fake-inference-v1', instructions: 'Answer.', input: '{}',
         maxOutputTokens: 2000, inferenceFingerprint: 'c'.repeat(64), approvalToken: 'd'.repeat(48) } };
     const run = { preview, compressedContext: context.compressedContext, contextStage: context.contextStage,
-      result: { answer: 'Synthetic fact', claims: [{text: 'Synthetic fact', chunkIds: ['chunk']}],
+      result: { answer: 'Synthetic fact', claims: [{text: 'Synthetic fact', evidenceIds: ['evidence']}],
         missingInformation: [], disclaimer: 'Review first.' },
       inferenceStage: { provider: 'fake', model: 'fake-inference-v1', usage: {inputTokens: 1, outputTokens: 1} } };
     const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(preview)).mockResolvedValueOnce(Response.json(context))

@@ -37,8 +37,8 @@
       "Queries do not rebuild; source or index-strategy changes require Build."
     ] },
     { "dot": "amber", "title": "Retrieval boundary", "items": [
-      "Search ranks small chunks; Preview deduplicates parent sections and bounds long hits.",
-      "Preview shows exact evidence and issues a one-time token without calling a model."
+      "Search ranks child retrieval chunkId values; Preview deduplicates parent sections and bounds long hits.",
+      "Preview assigns each Context evidenceId to a parent or bounded window, then issues a one-time token without calling a model."
     ] }
   ]
 }
