@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PreparedCallPreview } from '../common/PreparedCallPreview';
 import type {
   RagContextRun, RagEvaluationReport, RagIndexStatus, RagPreview, RagRun, RagSearchResponse,
 } from '../../../shared/contracts/rag';
@@ -78,7 +79,7 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
     finally { if (version === requestVersion.current) setBusy(''); }
   };
   const generate = async () => {
-    if (!preview) return;
+    if (!preview?.canApprove) return;
     const approved = window.confirm(
       `Send ${preview.candidateEvidence.length} displayed chunks to the ${config?.context.provider} Context model?`,
     );
@@ -142,7 +143,7 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
         <button type="button" className="secondary-button" disabled={!ready || query.trim().length < 3 || busy !== ''} onClick={() => void buildPreview()}>
           {busy === 'preview' ? 'Building Preview…' : '2. Preview Exact Context'}
         </button>
-        <button type="button" className="primary-button" disabled={!preview || preview.candidateEvidence.length === 0 || !modelsReady || busy !== ''} onClick={() => void generate()}>
+        <button type="button" className="primary-button" disabled={!preview?.canApprove || preview.candidateEvidence.length === 0 || !modelsReady || busy !== ''} onClick={() => void generate()}>
           {busy === 'run' ? 'Running Context…' : '3. Approve Context Input'}
         </button>
       </div>
@@ -164,8 +165,7 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
       <div className="rag-result-list">{preview.candidateEvidence.map((item) => <article key={item.evidenceId}>
         <strong>Context evidenceId: {item.evidenceId} · {item.locatorLabel}</strong><pre>{item.text}</pre>
       </article>)}</div>
-      <div className="inference-preview"><strong>Context instructions</strong><pre>{preview.instructions}</pre>
-        <strong>Context input JSON</strong><pre>{preview.input}</pre></div>
+      <PreparedCallPreview call={preview.preparedCall} sources={preview.sourceBindings} />
       <ul>{preview.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
       <code className="sandbox-fingerprint">{preview.contextFingerprint}</code>
     </section>}
@@ -173,9 +173,7 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
     {contextRun && <section className="rag-section inference-preview">
       <div className="rag-section-heading"><h3>Inference Input Preview</h3><small>Second approval · expires in 10 minutes</small></div>
       <p>Review the Context output before the second model call.</p>
-      <p>{contextRun.inferencePreview.provider} · {contextRun.inferencePreview.model}</p>
-      <strong>Instructions</strong><pre>{contextRun.inferencePreview.instructions}</pre>
-      <strong>Input JSON</strong><pre>{contextRun.inferencePreview.input}</pre>
+      <PreparedCallPreview call={contextRun.inferencePreview.preparedCall} />
       <button type="button" className="primary-button" disabled={busy !== '' || !modelsReady} onClick={() => void generateInference()}>
         {busy === 'inference' ? 'Running Inference…' : '4. Approve Inference Input'}
       </button>

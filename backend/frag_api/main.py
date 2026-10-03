@@ -14,6 +14,7 @@ from frag_api.errors import (
     HarnessSourceError, PluginValidationError, RagFingerprintError, RagIndexBuildError,
     RagIndexNotReadyError, RagIndexStaleError, RagNotReadyError, RagOutputError,
     RagProviderError, RequestContractError,
+    PolicyRejectedError, RequestBudgetError, RagRefusalError, RagIncompleteError, RagOutcomeUnknownError,
 )
 from frag_api.http import BodyLimitMiddleware, error_response, issue_path
 from frag_api.plugin_host import DEFAULT_PLUGIN_ROOT, load_plugin
@@ -25,6 +26,7 @@ from frag_api.routers.rag import router as rag_router
 from frag_api.services.context_source_service import ContextSourceService
 from frag_api.services.harness_service import HarnessService
 from frag_api.services.rag_service import RagService, create_rag_service
+from frag_api.services.runtime_policy import redact
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
@@ -53,7 +55,7 @@ def create_app(
         )
         yield
 
-    app = FastAPI(title="FRAG-harness API", version="1.1.0", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.2.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.plugin_root = Path(plugin_root)
     app.state.plugin_hidden = False
@@ -95,7 +97,7 @@ def create_app(
     async def validation_error(_request: Request, error: RequestValidationError) -> JSONResponse:
         if any(item.get("type") == "json_invalid" for item in error.errors()):
             return error_response(400, "MALFORMED_JSON", "Request body contains malformed JSON.")
-        issues = [{"path": issue_path(tuple(item.get("loc", ()))), "message": str(item.get("msg", "Invalid value."))}
+        issues = [{"path": redact(issue_path(tuple(item.get("loc", ())))), "message": redact(str(item.get("msg", "Invalid value.")))}
                   for item in error.errors()]
         return error_response(422, "INVALID_REQUEST", "The request does not match its contract.", issues)
 
@@ -112,6 +114,11 @@ def create_app(
         RagNotReadyError: (503, "LLM_NOT_CONFIGURED", "Both model routes must be configured."),
         RagProviderError: (502, "LLM_PROVIDER_FAILED", "A model provider failed."),
         RagOutputError: (502, "INVALID_LLM_OUTPUT", "A model result failed validation."),
+        PolicyRejectedError: (409, "POLICY_REJECTED", "Selected scope or blocking checklist does not permit this action."),
+        RequestBudgetError: (422, "REQUEST_BUDGET_EXCEEDED", "The complete model request or cumulative run exceeds its budget."),
+        RagRefusalError: (502, "LLM_REFUSED", "The model refused this request; a new preview and approval are required."),
+        RagIncompleteError: (502, "LLM_INCOMPLETE", "The model result was incomplete; a new preview and approval are required."),
+        RagOutcomeUnknownError: (502, "LLM_OUTCOME_UNKNOWN", "The external call outcome is unknown; it will not be resent automatically."),
     }
     for error_type, (status, code, message) in failures.items():
         async def handler(_request: Request, _error: Exception, s=status, c=code, m=message):

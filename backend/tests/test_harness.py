@@ -17,7 +17,7 @@ def selection(client: TestClient) -> dict:
 
 
 def test_core_starts_without_finance_core(client: TestClient):
-    assert client.get("/api/health").json() == {"status": "ok", "service": "frag-harness", "serviceVersion": "1.1.0"}
+    assert client.get("/api/health").json() == {"status": "ok", "service": "frag-harness", "serviceVersion": "1.2.0"}
     assert client.get("/api/harness/config").json()["context"]["provider"] == "fake"
     paths = client.get("/openapi.json").json()["paths"]
     assert "/api/harness/preview" in paths
@@ -67,7 +67,7 @@ def test_source_paths_are_confined(client: TestClient):
 
 def test_foreign_citation_is_rejected(client: TestClient):
     class InvalidInference:
-        def generate_rag_answer(self, *_args):
+        def execute_prepared(self, _call):
             return LlmCallResult(RagGroundedAnswer(
                 answer="Unverified answer", claims=[{"text": "Unverified", "evidenceIds": ["foreign-evidence"]}],
                 missingInformation=[], disclaimer="Review first"), ProviderUsage(inputTokens=1, outputTokens=1))

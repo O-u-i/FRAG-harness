@@ -4,7 +4,8 @@ from typing import Literal
 
 from pydantic import Field
 
-from frag_api.schemas.common import ApiModel, StageResult, TokenBudget
+from frag_api.schemas.common import ApiModel, ExplicitApproval, StageResult, TokenBudget
+from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
 
 RagDatasetId = Literal["synthetic-risk-review-v1"]
 RagIndexState = Literal["not_built", "ready", "stale"]
@@ -17,15 +18,16 @@ class RagDatasetRequest(ApiModel):
 class RagQueryRequest(RagDatasetRequest):
     query: str = Field(min_length=3, max_length=500)
     top_k: int = Field(default=3, alias="topK", ge=1, le=10)
+    task: TaskContract = Field(default_factory=TaskContract)
 
 
-class RagRunRequest(RagQueryRequest):
+class RagRunRequest(RagQueryRequest, ExplicitApproval):
     context_fingerprint: str = Field(alias="contextFingerprint", min_length=64, max_length=64)
     approval_token: str = Field(alias="approvalToken", min_length=32)
     approved: Literal[True]
 
 
-class InferenceRunRequest(ApiModel):
+class InferenceRunRequest(ExplicitApproval):
     context_fingerprint: str = Field(alias="contextFingerprint", min_length=64, max_length=64)
     inference_fingerprint: str = Field(alias="inferenceFingerprint", min_length=64, max_length=64)
     approval_token: str = Field(alias="approvalToken", min_length=32)
@@ -40,6 +42,7 @@ class InferencePreview(ApiModel):
     max_output_tokens: int = Field(alias="maxOutputTokens")
     inference_fingerprint: str = Field(alias="inferenceFingerprint")
     approval_token: str = Field(alias="approvalToken")
+    prepared_call: PreparedCall = Field(alias="preparedCall")
 
 
 class RagIndexStatus(ApiModel):
@@ -77,12 +80,12 @@ class RagSearchResponse(ApiModel):
 
 
 class RagEvidence(ApiModel):
-    evidence_id: str = Field(alias="evidenceId")
-    document_id: str = Field(alias="documentId")
-    source_id: str = Field(alias="sourceId")
-    locator_id: str = Field(alias="locatorId")
-    locator_label: str = Field(alias="locatorLabel")
-    text: str
+    evidence_id: str = Field(alias="evidenceId", min_length=1)
+    document_id: str = Field(alias="documentId", min_length=1)
+    source_id: str = Field(alias="sourceId", min_length=1)
+    locator_id: str = Field(alias="locatorId", min_length=1)
+    locator_label: str = Field(alias="locatorLabel", min_length=1)
+    text: str = Field(min_length=1)
 
 
 class RagPreview(ApiModel):
@@ -98,11 +101,15 @@ class RagPreview(ApiModel):
     warnings: list[str]
     context_fingerprint: str = Field(alias="contextFingerprint", min_length=64, max_length=64)
     approval_token: str = Field(alias="approvalToken")
+    prepared_call: PreparedCall = Field(alias="preparedCall")
+    source_bindings: tuple[SourceBinding, ...] = Field(alias="sourceBindings")
+    task: TaskContract
+    can_approve: bool = Field(alias="canApprove")
 
 
 class RagCompressedEvidence(ApiModel):
-    evidence_id: str = Field(alias="evidenceId")
-    summary: str
+    evidence_id: str = Field(alias="evidenceId", min_length=1)
+    summary: str = Field(min_length=1)
     preserved_facts: list[str] = Field(alias="preservedFacts")
     uncertainty: list[str]
 

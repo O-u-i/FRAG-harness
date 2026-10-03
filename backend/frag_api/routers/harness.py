@@ -4,10 +4,17 @@ from fastapi import APIRouter, Body, Depends, Request
 
 from frag_api.http import reject_body, reject_query
 from frag_api.schemas.common import HarnessConfig
+from frag_api.schemas.governance import CapabilityCatalog
 from frag_api.schemas.harness import HarnessContextRun, HarnessPreview, HarnessRequest, HarnessRun, HarnessRunRequest
 from frag_api.schemas.rag import InferenceRunRequest
 
 router = APIRouter(prefix="/api/harness")
+
+
+@router.get("/capabilities", response_model=CapabilityCatalog, response_model_by_alias=True,
+            dependencies=[Depends(reject_query), Depends(reject_body)])
+def capabilities(request: Request) -> CapabilityCatalog:
+    return request.app.state.harness_service.capabilities()
 
 
 @router.get("/config", response_model=HarnessConfig, response_model_by_alias=True,

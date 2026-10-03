@@ -21,6 +21,7 @@ from frag_api.schemas.context_source import (
     ParsedLocalFile,
     SourceLocator,
 )
+from frag_api.services.rag_markdown import sections_from_markdown
 
 SUPPORTED = {".md": "md", ".txt": "txt", ".pdf": "pdf", ".docx": "docx",
              ".csv": "csv", ".xlsx": "xlsx", ".html": "html", ".htm": "html"}
@@ -28,6 +29,7 @@ MAX_FILE_BYTES = 20 * 1024 * 1024
 MAX_EXTRACTED_CHARS = 200_000
 MAX_LOCATORS = 200
 CHUNK_ROWS = 50
+PARSER_VERSION = "local-snapshot-v2"
 
 
 class ContextSourceError(ValueError):
@@ -59,7 +61,7 @@ class ContextSourceService:
                 continue
             try:
                 resolved = self._resolve(path.relative_to(self.root).as_posix())
-                sources.append(self._metadata(resolved, include_hash=False))
+                sources.append(self._metadata(resolved))
             except (ContextSourceError, OSError):
                 continue
         return sources
@@ -73,12 +75,9 @@ class ContextSourceService:
         )
 
     def parse(self, relative_path: str) -> ParsedLocalFile:
-        path = self._resolve(relative_path)
-        metadata = self._metadata(path, include_hash=True)
-        if metadata.status != "ready":
-            raise ContextSourceError(metadata.status_reason or "File is not available for parsing.")
+        metadata, data = self.read_snapshot(relative_path)
         parser = getattr(self, f"_parse_{metadata.format}")
-        sections, warnings = parser(path)
+        sections, warnings = parser(data)
         sections = [item for item in sections if item.text]
         if len(sections) > MAX_LOCATORS:
             raise ContextSourceError("Document has too many selectable locators for direct Context.")
@@ -86,16 +85,33 @@ class ContextSourceService:
             raise ContextSourceError("No machine-readable text was found. OCR is not supported.")
         total = sum(len(item.text) for item in sections)
         if total > MAX_EXTRACTED_CHARS:
-            raise ContextSourceError("Extracted text exceeds the v0.4.0 direct-context limit.")
+            raise ContextSourceError("Extracted text exceeds the direct-context limit.")
         return ParsedLocalFile(source=metadata, sections=sections, warnings=warnings)
+
+    def read_snapshot(self, relative_path: str) -> tuple[LocalFileSource, bytes]:
+        path = self._resolve(relative_path)
+        with path.open("rb") as handle:
+            before = os.fstat(handle.fileno())
+            metadata = self._metadata(path, stat=before)
+            if metadata.status != "ready":
+                raise ContextSourceError("File is unavailable for parsing.")
+            data = handle.read(MAX_FILE_BYTES + 1)
+            after = os.fstat(handle.fileno())
+        fields = ("st_size", "st_mtime_ns", "st_ctime_ns", "st_ino", "st_dev")
+        if len(data) > MAX_FILE_BYTES or any(getattr(before, field) != getattr(after, field) for field in fields):
+            raise ContextSourceError("Source changed during snapshot capture.")
+        return metadata.model_copy(update={"size_bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}), data
 
     def _resolve(self, relative_path: str) -> Path:
         raw = Path(relative_path)
-        if raw.is_absolute() or ".." in raw.parts:
+        if raw.is_absolute() or raw.drive or raw.root or ".." in raw.parts or any(":" in part for part in raw.parts):
             raise ContextSourceError("Only relative paths inside local-sources are allowed.")
         candidate = self.root.joinpath(raw)
-        if candidate.is_symlink() or self._is_reparse_point(candidate):
-            raise ContextSourceError("Links are not allowed in local-sources.")
+        current = candidate
+        while current != self.root:
+            if current.is_symlink() or self._is_reparse_point(current):
+                raise ContextSourceError("Links are not allowed in local-sources.")
+            current = current.parent
         resolved = candidate.resolve(strict=True)
         try:
             resolved.relative_to(self.root)
@@ -118,14 +134,14 @@ class ContextSourceService:
             return False
 
     @staticmethod
-    def _check_office_archive(path: Path) -> None:
-        with zipfile.ZipFile(path) as archive:
+    def _check_office_archive(data: bytes) -> None:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
             total = sum(item.file_size for item in archive.infolist())
             if total > 100 * 1024 * 1024:
                 raise ContextSourceError("Office document expands beyond the safe parsing limit.")
 
-    def _metadata(self, path: Path, *, include_hash: bool) -> LocalFileSource:
-        stat = path.stat()
+    def _metadata(self, path: Path, *, stat=None) -> LocalFileSource:
+        stat = stat or path.stat()
         relative = path.relative_to(self.root).as_posix()
         extension = path.suffix.lower()
         source_format = SUPPORTED.get(extension)
@@ -135,48 +151,38 @@ class ContextSourceService:
             status, reason = "unsupported", "Unsupported file format."
         elif stat.st_size > MAX_FILE_BYTES:
             status, reason = "too_large", "File exceeds the 20 MiB parsing limit."
-        digest = None
-        if include_hash and status == "ready":
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
         return LocalFileSource(
             relativePath=relative,
             category=relative.split("/", 1)[0] if "/" in relative else "other",
             format=source_format,
             sizeBytes=stat.st_size,
             modifiedAt=datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
-            sha256=digest,
+            sha256=None,
             status=status,
             statusReason=reason,
         )
 
-    def _parse_md(self, path: Path):
-        text = path.read_text(encoding="utf-8-sig")
-        matches = list(re.finditer(r"(?m)^#{1,4}\s+.+$", text))
-        if not matches:
-            return [_section("document", "document", "Whole document", text)], []
-        sections = []
-        for index, match in enumerate(matches):
-            end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
-            sections.append(_section(f"section-{index + 1}", "section", match.group().lstrip("# "), text[match.start():end]))
-        return sections, []
+    def _parse_md(self, data: bytes):
+        return [_section(item.locator_id, "section", item.title_path, item.text)
+                for item in sections_from_markdown(data.decode("utf-8-sig"))], []
 
-    def _parse_txt(self, path: Path):
-        text = path.read_text(encoding="utf-8-sig")
+    def _parse_txt(self, data: bytes):
+        text = data.decode("utf-8-sig")
         chunks = [chunk for chunk in re.split(r"\n\s*\n", text) if chunk.strip()]
         return [
             _section(f"section-{index + 1}", "section", f"Text block {index + 1}", chunk)
             for index, chunk in enumerate(chunks)
         ], []
 
-    def _parse_html(self, path: Path):
-        soup = BeautifulSoup(path.read_text(encoding="utf-8-sig"), "html.parser")
+    def _parse_html(self, data: bytes):
+        soup = BeautifulSoup(data.decode("utf-8-sig"), "html.parser")
         for tag in soup(["script", "style", "noscript"]):
             tag.decompose()
         blocks = [tag.get_text(" ", strip=True) for tag in soup.find_all(["h1", "h2", "h3", "p", "li", "table"])]
         return [_section(f"section-{i + 1}", "section", f"HTML block {i + 1}", value) for i, value in enumerate(blocks) if value], []
 
-    def _parse_pdf(self, path: Path):
-        reader = PdfReader(path)
+    def _parse_pdf(self, data: bytes):
+        reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted:
             raise ContextSourceError("Encrypted PDF files are not supported.")
         if len(reader.pages) > 100:
@@ -189,21 +195,21 @@ class ContextSourceService:
             sections.append(_section(f"page-{index + 1}", "page", f"Page {index + 1}", page.extract_text() or ""))
         return sections, []
 
-    def _parse_docx(self, path: Path):
-        self._check_office_archive(path)
-        document = Document(path)
+    def _parse_docx(self, data: bytes):
+        self._check_office_archive(data)
+        document = Document(io.BytesIO(data))
         values = [paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()]
         values.extend(" | ".join(cell.text for cell in row.cells) for table in document.tables for row in table.rows)
         return [_section(f"section-{i + 1}", "section", f"DOCX block {i + 1}", value) for i, value in enumerate(values)], []
 
-    def _parse_csv(self, path: Path):
-        with path.open("r", encoding="utf-8-sig", newline="") as handle:
+    def _parse_csv(self, data: bytes):
+        with io.StringIO(data.decode("utf-8-sig"), newline="") as handle:
             rows = list(csv.reader(handle))
         return self._row_sections(rows, "CSV"), []
 
-    def _parse_xlsx(self, path: Path):
-        self._check_office_archive(path)
-        workbook = load_workbook(path, read_only=True, data_only=True)
+    def _parse_xlsx(self, data: bytes):
+        self._check_office_archive(data)
+        workbook = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         sections = []
         try:
             if len(workbook.worksheets) > 10:

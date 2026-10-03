@@ -1,10 +1,14 @@
-# FRAG-harness v1.1.0
+# FRAG-harness v1.2.0
 
 FRAG-harness is a local application for governed evidence retrieval and two model API stages. It starts with no Finance Core installation, account, token, or database. The Context LLM compresses approved evidence; the Inference LLM produces a cited answer. Selection, redaction, token budgeting, approval, output validation, and citation checks are deterministic host code.
 
 ## What runs in the core
 
 The React interface offers Harness, RAG Lab, and Plugins. The FastAPI backend owns local source parsing, exact outbound previews, single-use approval tokens for each model stage, the two model routes, citation validation, and a rebuildable SQLite FTS5 index for a bundled synthetic RAG dataset. Fake model providers work offline. Real model API credentials live only in `backend/.env`.
+
+Both stages execute the server-owned `PreparedCall` that was previewed. It binds the complete request JSON, destination, transport, model, output schema, timeout, source revisions, selected locators, checklist and host policy versions. Revalidation rejects changed bindings; execution does not rebuild a request from evidence. Source hashing and parsing use one byte snapshot, and RAG hits, parent text and index revision share a database read snapshot. Input estimates include instructions and schemas; each stage and the cumulative run have budget checks.
+
+The host exposes CLI, tool and loop registration contracts through `GET /api/harness/capabilities`. The fixed runner is registered and used by both workflows. Product CLI and tool lists are currently empty; a Research runner, persistent sessions and reviewed memory are pending implementation. Blocking checklist items require a reviewed `met` status before approval is available. Source authority and real-world freshness remain explicit unknowns. See [runtime contracts](docs/runtime-contracts.md) for the request, policy and registration boundaries.
 
 ## Architecture review diagrams
 

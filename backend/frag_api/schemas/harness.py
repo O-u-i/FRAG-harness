@@ -4,8 +4,9 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from frag_api.schemas.common import ApiModel, HarnessConfig, StageResult, TokenBudget
+from frag_api.schemas.common import ApiModel, ExplicitApproval, HarnessConfig, StageResult, TokenBudget
 from frag_api.schemas.context_source import FileSourceSelection
+from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
 from frag_api.schemas.rag import InferencePreview, RagContextCompression, RagEvidence, RagGroundedAnswer
 
 
@@ -19,6 +20,7 @@ class HarnessRequest(ApiModel):
     goal: str = Field(min_length=3, max_length=500)
     file_selections: list[FileSourceSelection] = Field(alias="fileSelections", default_factory=list, max_length=3)
     plugin_selection: PluginEvidenceSelection | None = Field(alias="pluginSelection", default=None)
+    task: TaskContract = Field(default_factory=TaskContract)
 
     @model_validator(mode="after")
     def exactly_one_source(self):
@@ -27,7 +29,7 @@ class HarnessRequest(ApiModel):
         return self
 
 
-class HarnessRunRequest(HarnessRequest):
+class HarnessRunRequest(HarnessRequest, ExplicitApproval):
     context_fingerprint: str = Field(alias="contextFingerprint", min_length=64, max_length=64)
     approval_token: str = Field(alias="approvalToken", min_length=32)
     approved: Literal[True]
@@ -42,6 +44,10 @@ class HarnessPreview(ApiModel):
     warnings: list[str]
     context_fingerprint: str = Field(alias="contextFingerprint")
     approval_token: str = Field(alias="approvalToken")
+    prepared_call: PreparedCall = Field(alias="preparedCall")
+    source_bindings: tuple[SourceBinding, ...] = Field(alias="sourceBindings")
+    task: TaskContract
+    can_approve: bool = Field(alias="canApprove")
 
 
 class HarnessRun(ApiModel):

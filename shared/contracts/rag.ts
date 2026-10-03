@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import { stageResultSchema, tokenBudgetSchema } from './modelStages';
+import { preparedCallSchema, sourceBindingSchema, taskContractSchema } from './governance';
 
 export const ragDatasetIdSchema = z.literal('synthetic-risk-review-v1');
 export const ragDatasetRequestSchema = z.object({ datasetId: ragDatasetIdSchema }).strict();
 export const ragQueryRequestSchema = ragDatasetRequestSchema.extend({
   query: z.string().min(3).max(500),
   topK: z.number().int().min(1).max(10).default(3),
+  task: taskContractSchema.optional(),
 }).strict();
 export const ragRunRequestSchema = ragQueryRequestSchema.extend({
   contextFingerprint: z.string().length(64),
@@ -20,6 +22,7 @@ export const inferencePreviewSchema = z.object({
   provider: z.string(), model: z.string(), instructions: z.string(), input: z.string(),
   maxOutputTokens: z.number().int().positive(), inferenceFingerprint: z.string().length(64),
   approvalToken: z.string().min(32),
+  preparedCall: preparedCallSchema,
 }).strict();
 
 export const ragIndexStatusSchema = z.object({
@@ -71,6 +74,8 @@ export const ragPreviewSchema = z.object({
   warnings: z.array(z.string()),
   contextFingerprint: z.string().length(64),
   approvalToken: z.string(),
+  preparedCall: preparedCallSchema, sourceBindings: z.array(sourceBindingSchema), task: taskContractSchema,
+  canApprove: z.boolean(),
 }).strict();
 
 export const ragCompressedEvidenceSchema = z.object({

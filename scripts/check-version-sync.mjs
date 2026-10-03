@@ -22,6 +22,7 @@ const backendPackage = readFileSync('backend/pyproject.toml', 'utf8');
 const backendHealth = readFileSync('backend/frag_api/routers/health.py', 'utf8');
 const backendApp = readFileSync('backend/frag_api/main.py', 'utf8');
 const backendLock = readFileSync('backend/uv.lock', 'utf8');
+const governance = readFileSync('backend/frag_api/schemas/governance.py', 'utf8');
 const exactChecks = [
   ['package name', packageManifest.name === 'frag-harness'],
   ['package-lock name', packageLock.name === 'frag-harness' && packageLock.packages[''].name === 'frag-harness'],
@@ -32,6 +33,7 @@ const exactChecks = [
   ['backend package name', backendPackage.includes('name = "frag-harness-backend"')],
   ['backend health version', backendHealth.includes(`"serviceVersion": "${packageVersion}"`)],
   ['backend health identity', backendHealth.includes('"service": "frag-harness"')],
+  ['prepared request host version', governance.includes(`HOST_VERSION = "${packageVersion}"`)],
 ];
 const mismatched = exactChecks.filter(([, matches]) => !matches);
 if (mismatched.length > 0) {

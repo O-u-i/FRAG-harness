@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { previewHarness, runHarness, runHarnessInference } from './harnessClient';
+import { preparedFixture, reviewTask } from './governanceFixtures';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -25,19 +26,22 @@ describe('harness client', () => {
       budget: { estimatedInputTokens: 80, inputBudget: 6000, reservedPercent: 25,
         contextOutputLimit: 1500, inferenceOutputLimit: 2000, approximate: true },
       warnings: [], contextFingerprint: 'a'.repeat(64), approvalToken: 'b'.repeat(48) };
-    const context = { preview, compressedContext: { evidence: [{evidenceId: 'evidence', summary: 'Synthetic fact',
+    const contextPreview = { ...preview, preparedCall: preparedFixture('context'), sourceBindings: [],
+      task: reviewTask, canApprove: true };
+    const context = { preview: contextPreview, compressedContext: { evidence: [{evidenceId: 'evidence', summary: 'Synthetic fact',
       preservedFacts: ['Synthetic fact'], uncertainty: []}], missingInformation: [] },
       contextStage: { provider: 'fake', model: 'fake-context-v1', usage: {inputTokens: 1, outputTokens: 1} },
       inferencePreview: { provider: 'fake', model: 'fake-inference-v1', instructions: 'Answer.', input: '{}',
-        maxOutputTokens: 2000, inferenceFingerprint: 'c'.repeat(64), approvalToken: 'd'.repeat(48) } };
-    const run = { preview, compressedContext: context.compressedContext, contextStage: context.contextStage,
+        maxOutputTokens: 2000, inferenceFingerprint: 'c'.repeat(64), approvalToken: 'd'.repeat(48),
+        preparedCall: preparedFixture('inference') } };
+    const run = { preview: contextPreview, compressedContext: context.compressedContext, contextStage: context.contextStage,
       result: { answer: 'Synthetic fact', claims: [{text: 'Synthetic fact', evidenceIds: ['evidence']}],
         missingInformation: [], disclaimer: 'Review first.' },
       inferenceStage: { provider: 'fake', model: 'fake-inference-v1', usage: {inputTokens: 1, outputTokens: 1} } };
-    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(preview)).mockResolvedValueOnce(Response.json(context))
+    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(contextPreview)).mockResolvedValueOnce(Response.json(context))
       .mockResolvedValueOnce(Response.json(run));
     vi.stubGlobal('fetch', fetchMock);
-    await expect(previewHarness(selection)).resolves.toEqual(preview);
+    await expect(previewHarness(selection)).resolves.toEqual(contextPreview);
     await expect(runHarness({ ...selection, contextFingerprint: preview.contextFingerprint,
       approvalToken: preview.approvalToken, approved: true })).resolves.toEqual(context);
     await expect(runHarnessInference({ contextFingerprint: preview.contextFingerprint,

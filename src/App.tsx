@@ -27,7 +27,7 @@ export default function App() {
   const current = pages.find((item) => item.id === page)!;
   return <div className="app-frame">
     <aside className="sidebar">
-      <div className="brand"><div className="brand-mark">F<span>·</span></div><div><strong>FRAG</strong><small>HARNESS / v1.1.0</small></div></div>
+      <div className="brand"><div className="brand-mark">F<span>·</span></div><div><strong>FRAG</strong><small>HARNESS / v1.2.0</small></div></div>
       <div className="sidebar-label">WORKSPACE</div>
       <nav aria-label="Primary navigation">{pages.map((item) => <button key={item.id} type="button"
         className={`nav-item ${page === item.id ? 'active' : ''}`} onClick={() => setPage(item.id)}>
@@ -36,7 +36,7 @@ export default function App() {
       <div className="sidebar-bottom"><span className={`status-dot ${health}`} /><div><strong>{health === 'online' ? 'Local backend online' : health === 'offline' ? 'Backend unavailable' : 'Checking backend'}</strong><small>Evidence stays under your control</small></div></div>
     </aside>
     <main className="main-content">
-      <header className="topbar"><span>LOCAL INTELLIGENCE / {current.label.toUpperCase()}</span><span className="topbar-version">PROTOCOL 1.1.0</span></header>
+      <header className="topbar"><span>LOCAL INTELLIGENCE / {current.label.toUpperCase()}</span><span className="topbar-version">PROTOCOL 1.2.0</span></header>
       <div className="page-content">
         <div className="page-intro"><div><span className="eyebrow">FRAG / {current.number}</span><h1>{page === 'harness' ? 'Evidence, governed.' : page === 'rag' ? 'Retrieval you can inspect.' : 'Extend when needed.'}</h1>
           <p>{page === 'harness' ? 'A local workflow for selecting evidence, checking exactly what leaves the machine, and reviewing a cited answer.' : page === 'rag' ? 'A transparent retrieval sandbox using a synthetic dataset and deterministic evaluation.' : 'Install trusted capabilities at runtime. The core harness runs independently.'}</p></div>

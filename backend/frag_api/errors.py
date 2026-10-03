@@ -12,3 +12,8 @@ class RagProviderError(Exception): pass
 class RagOutputError(Exception): pass
 class HarnessSourceError(Exception): pass
 class PluginValidationError(Exception): pass
+class PolicyRejectedError(Exception): pass
+class RequestBudgetError(Exception): pass
+class RagRefusalError(RagOutputError): pass
+class RagIncompleteError(RagOutputError): pass
+class RagOutcomeUnknownError(RagProviderError): pass

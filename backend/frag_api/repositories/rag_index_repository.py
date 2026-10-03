@@ -73,22 +73,10 @@ class RagIndexRepository:
             return IndexSnapshot(0, 0, None, None)
         try:
             with self._connect() as connection:
+                connection.execute("BEGIN")
                 if not self._has_schema(connection):
                     return IndexSnapshot(0, 0, None, None)
-                metadata = dict(connection.execute("SELECT key, value FROM rag_meta"))
-                document_count = connection.execute(
-                    "SELECT COUNT(*) FROM rag_documents"
-                ).fetchone()[0]
-                chunk_count = connection.execute(
-                    "SELECT COUNT(*) FROM rag_chunks"
-                ).fetchone()[0]
-                return IndexSnapshot(
-                    document_count=document_count,
-                    chunk_count=chunk_count,
-                    source_hash=metadata.get("source_hash"),
-                    index_revision=metadata.get("index_revision"),
-                    schema_version=metadata.get("schema_version"),
-                )
+                return self._snapshot(connection)
         except sqlite3.Error as error:
             raise RagIndexBuildError() from error
 
@@ -178,8 +166,14 @@ class RagIndexRepository:
         return self.snapshot()
 
     def search(self, match_expression: str, top_k: int) -> list[SearchRow]:
+        return self.search_snapshot(match_expression, top_k)[1]
+
+    def search_snapshot(self, match_expression: str, top_k: int) -> tuple[IndexSnapshot, list[SearchRow], dict[str, IndexParent]]:
+        """Revision, hits and selected parents share one SQLite read transaction."""
         try:
             with self._connect() as connection:
+                connection.execute("BEGIN")
+                snapshot = self._snapshot(connection)
                 rows = connection.execute(
                     """
                     SELECT c.chunk_id, c.document_id, c.source_id, c.locator_id,
@@ -193,9 +187,29 @@ class RagIndexRepository:
                     """,
                     (match_expression, top_k),
                 ).fetchall()
-            return [SearchRow(*row) for row in rows]
+                hits = [SearchRow(*row) for row in rows]
+                parents = {}
+                for parent_id in dict.fromkeys(item.parent_id for item in hits):
+                    row = connection.execute(
+                        "SELECT parent_id, document_id, locator_id, locator_label, title_path, content "
+                        "FROM rag_parents WHERE parent_id = ?", (parent_id,),
+                    ).fetchone()
+                    if row is None:
+                        raise RagIndexBuildError()
+                    parents[parent_id] = IndexParent(*row)
+            return snapshot, hits, parents
         except sqlite3.Error as error:
             raise RagIndexBuildError() from error
+
+    @staticmethod
+    def _snapshot(connection: sqlite3.Connection) -> IndexSnapshot:
+        metadata = dict(connection.execute("SELECT key, value FROM rag_meta"))
+        return IndexSnapshot(
+            document_count=connection.execute("SELECT COUNT(*) FROM rag_documents").fetchone()[0],
+            chunk_count=connection.execute("SELECT COUNT(*) FROM rag_chunks").fetchone()[0],
+            source_hash=metadata.get("source_hash"), index_revision=metadata.get("index_revision"),
+            schema_version=metadata.get("schema_version"),
+        )
 
     def stale_residual_count(self, expected_chunks: list[IndexChunk]) -> int:
         """Count stored chunks or FTS rows that do not match the current source build."""

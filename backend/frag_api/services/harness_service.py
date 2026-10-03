@@ -1,29 +1,22 @@
 from __future__ import annotations
 
 import hashlib
-import json
-import re
+import os
 
 from frag_api.errors import HarnessSourceError
 from frag_api.plugin_host import LoadedPlugin
-from frag_api.providers.llm import LlmProvider, LlmSettings, context_input, provider_for
-from frag_api.schemas.common import HarnessConfig, StageConfig, TokenBudget
+from frag_api.providers.llm import LlmProvider, LlmSettings, provider_for
+from frag_api.schemas.common import HarnessConfig, StageConfig
+from frag_api.schemas.governance import CapabilityCatalog, QualityFact, SourceAssessment, SourceBinding, SourceIdentity
 from frag_api.schemas.harness import HarnessContextRun, HarnessPreview, HarnessRequest, HarnessRun, HarnessRunRequest
 from frag_api.schemas.rag import InferenceRunRequest, RagEvidence
 from frag_api.services.approval import ApprovalRegistry, PendingInferenceRegistry
-from frag_api.services.context_source_service import ContextSourceError, ContextSourceService
+from frag_api.services.context_source_service import PARSER_VERSION, ContextSourceError, ContextSourceService
 from frag_api.services.governed_flow import GovernedFlow
-from frag_api.services.governed_context import (
-    CONTEXT_OUTPUT_LIMIT, INFERENCE_OUTPUT_LIMIT, INPUT_BUDGET,
-    RESERVED_PERCENT, estimated_tokens, fingerprint,
-)
-
-SECRET = re.compile(r"(?i)(api[_ -]?key|password|secret|access[_ -]?token)\s*[:=]\s*\S+")
-EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
-
-
-def redact(text: str) -> str:
-    return EMAIL.sub("[REDACTED_EMAIL]", SECRET.sub("[REDACTED_SECRET]", text))
+from frag_api.services.governed_context import fingerprint
+from frag_api.services.model_preview import context_preview_fields
+from frag_api.services.runtime_policy import configured_secrets, redact
+from frag_api.services.runtime_registry import CLIRegistry, ToolRegistry
 
 
 class HarnessService:
@@ -42,8 +35,10 @@ class HarnessService:
         self.approvals = ApprovalRegistry()
         self.pending_inference = PendingInferenceRegistry()
         self.plugin = plugin
+        self.cli_registry = CLIRegistry()
+        self.tool_registry = ToolRegistry()
         self.flow = GovernedFlow(
-            prepare_preview=self._prepare_preview, goal_for=lambda request: request.goal,
+            prepare_preview=self._prepare_preview, goal_for=lambda request: redact(request.goal, configured_secrets(self.settings)),
             settings=self.settings, context_provider=lambda: self.context_provider,
             inference_provider=lambda: self.inference_provider, approvals=self.approvals,
             pending_inference=self.pending_inference,
@@ -58,11 +53,15 @@ class HarnessService:
         )
 
     def preview(self, request: HarnessRequest, *, issue_approval: bool = True) -> HarnessPreview:
-        return self.flow.preview(request, issue_approval=issue_approval)
+        return self.flow.loops.get("fixed").runner.preview(request, issue_approval=issue_approval)
+
+    def capabilities(self) -> CapabilityCatalog:
+        return CapabilityCatalog(cli=self.cli_registry.catalog(), tools=self.tool_registry.catalog(),
+                                 loops=self.flow.loops.catalog(), planned=["cli", "kb_tools", "research"])
 
     def _prepare_preview(self, request: HarnessRequest) -> HarnessPreview:
         evidence: list[RagEvidence] = []
-        revisions: list[tuple[str, str]] = []
+        bindings: list[SourceBinding] = []
         seen: set[tuple[str, str]] = set()
         try:
             if request.plugin_selection is not None:
@@ -91,69 +90,74 @@ class HarnessService:
                         evidenceId=evidence_id, documentId=document_id, sourceId="finance-core",
                         locatorId=locator_id, locatorLabel=redact(item["label"]), text=redact(item["text"]),
                     ))
-                    revisions.append((record_id, item["revision"]))
+                    bindings.append(SourceBinding(
+                        identity=SourceIdentity(kind="fc_record", namespace="finance-core", resourceId=record_id,
+                                                workspaceId=scope.workspace_id), revision=item["revision"],
+                        parserVersion=f"released-http-v1/plugin-{self.plugin.version}",
+                        locatorIds=(locator_id,), evidenceIds=(evidence_id,),
+                        assessment=SourceAssessment(provenance=QualityFact(status="known", detail="Released read-only plugin record and revision.")),
+                    ))
+            selected_files: set[str] = set()
             for selection in request.file_selections:
                 parsed = self.source_service.parse(selection.relative_path)
                 if parsed.source.status != "ready" or not parsed.source.sha256:
                     raise HarnessSourceError()
                 sections = {section.locator.id: section for section in parsed.sections}
-                revisions.append((selection.relative_path, parsed.source.sha256))
+                relative = parsed.source.relative_path
+                normalized = relative.casefold() if os.name == "nt" else relative
+                if normalized in selected_files:
+                    raise HarnessSourceError()
+                selected_files.add(normalized)
+                selected_evidence: list[str] = []
                 for locator_id in selection.locator_ids:
-                    identity = (selection.relative_path, locator_id)
+                    identity = (normalized, locator_id)
                     if identity in seen or locator_id not in sections:
                         raise HarnessSourceError()
                     seen.add(identity)
                     section = sections[locator_id]
-                    document_id = hashlib.sha256(selection.relative_path.encode()).hexdigest()[:24]
-                    evidence_id = hashlib.sha256(f"{selection.relative_path}\0{locator_id}".encode()).hexdigest()[:24]
+                    document_id = hashlib.sha256(normalized.encode()).hexdigest()[:24]
+                    evidence_id = hashlib.sha256(f"{normalized}\0{locator_id}".encode()).hexdigest()[:24]
                     evidence.append(RagEvidence(
                         evidenceId=evidence_id, documentId=document_id,
                         sourceId=f"file-{document_id}", locatorId=locator_id,
                         locatorLabel=redact(section.locator.label),
                         text=redact(section.text),
                     ))
+                    selected_evidence.append(evidence_id)
+                bindings.append(SourceBinding(
+                    identity=SourceIdentity(kind="local_file", namespace=fingerprint(str(self.source_service.root)),
+                                            resourceId=document_id), revision=parsed.source.sha256,
+                    parserVersion=PARSER_VERSION, locatorIds=tuple(selection.locator_ids),
+                    evidenceIds=tuple(selected_evidence), assessment=SourceAssessment(
+                        relevance=QualityFact(status="known", detail="User selection reason: " + redact(selection.relevance_reason)),
+                        provenance=QualityFact(status="known", detail="Selected file byte snapshot; SHA-256 and parser version bound.")),
+                ))
         except (ContextSourceError, OSError, ValueError) as error:
             raise HarnessSourceError() from error
         if not evidence:
             raise HarnessSourceError()
-        payload = {
-            "goal": request.goal,
-            "candidateEvidence": [item.model_dump(by_alias=True) for item in evidence],
-            "sourceRevisions": revisions,
-            "pluginScope": request.plugin_selection.model_dump(by_alias=True) if request.plugin_selection else None,
-            "providerRoute": [[self.settings.context.provider, self.settings.context.model],
-                              [self.settings.inference.provider, self.settings.inference.model]],
-        }
-        estimate = estimated_tokens(payload)
-        if estimate > INPUT_BUDGET * (100 - RESERVED_PERCENT) // 100:
-            raise HarnessSourceError()
-        context_fingerprint = fingerprint(payload)
-        context_instructions, context_payload = context_input(evidence)
         return HarnessPreview(
-            goal=request.goal, candidateEvidence=evidence,
-            instructions=context_instructions, input=json.dumps(context_payload, ensure_ascii=False),
-            budget=TokenBudget(
-                estimatedInputTokens=estimate, inputBudget=INPUT_BUDGET,
-                reservedPercent=RESERVED_PERCENT, contextOutputLimit=CONTEXT_OUTPUT_LIMIT,
-                inferenceOutputLimit=INFERENCE_OUTPUT_LIMIT,
-            ),
+            goal=redact(request.goal, configured_secrets(self.settings)),
+            **context_preview_fields(settings=self.settings, evidence=evidence, goal=request.goal, task=request.task,
+                                     sources=tuple(bindings), selection_hash=fingerprint(request.model_dump(by_alias=True)),
+                                     loop_definition=self.flow.loops.get("fixed").definition.model_dump(by_alias=True)),
             warnings=["Check every exact excerpt before approving the Context call.",
-                      "Automatic redaction cannot identify every private value."],
-            contextFingerprint=context_fingerprint,
-            approvalToken="",
+                      "Automatic redaction cannot identify every private value.",
+                      "Authority and real-world freshness are unknown unless separately reviewed.",
+                      "Input tokens are estimated for the complete request, including schema and instructions."],
         )
 
     def run(self, request: HarnessRunRequest) -> HarnessContextRun:
         source_request = HarnessRequest(goal=request.goal, fileSelections=request.file_selections,
-                                        pluginSelection=request.plugin_selection)
-        state = self.flow.run_context(source_request, request)
+                                        pluginSelection=request.plugin_selection, task=request.task)
+        state = self.flow.loops.get("fixed").runner.run_context(source_request, request)
         return HarnessContextRun(
             preview=state["preview"], compressedContext=state["compressed"],
             contextStage=state["context_stage"], inferencePreview=state["inference_preview"],
         )
 
     def run_inference(self, request: InferenceRunRequest) -> HarnessRun:
-        state = self.flow.run_inference(request)
+        state = self.flow.loops.get("fixed").runner.run_inference(request)
         return HarnessRun(
             preview=state["preview"], compressedContext=state["compressed"],
             result=state["answer"], contextStage=state["context_stage"],

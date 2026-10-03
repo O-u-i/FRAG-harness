@@ -5,6 +5,7 @@ import type { LocalFileInspectResponse, LocalFileSource } from '../../../shared/
 import { fetchLocalFileSources, inspectLocalFile } from '../../api/contextSourceClient';
 import { previewHarness, runHarness, runHarnessInference } from '../../api/harnessClient';
 import { fetchPlugins, fetchPluginScopes } from '../../api/pluginClient';
+import { PreparedCallPreview } from '../../components/common/PreparedCallPreview';
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : 'The request could not be completed.';
@@ -84,7 +85,7 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
     finally { if (version === requestVersion.current) setBusy(''); }
   };
   const generate = async () => {
-    if (!preview || !window.confirm(`Send ${preview.candidateEvidence.length} displayed excerpt(s) to the Context model API?`)) return;
+    if (!preview?.canApprove || !window.confirm(`Approve the displayed request to ${preview.preparedCall.endpoint}?`)) return;
     const version = requestVersion.current;
     setBusy('run'); setError('');
     try {
@@ -181,17 +182,15 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
             <span>{preview.budget.estimatedInputTokens} estimated input tokens</span></div>
           {preview.candidateEvidence.map((item) => <article className="evidence-item" key={item.evidenceId}>
             <strong>{item.locatorLabel}</strong><pre>{item.text}</pre></article>)}
-          <div className="inference-preview"><strong>Context instructions</strong><pre>{preview.instructions}</pre>
-            <strong>Context input JSON</strong><pre>{preview.input}</pre></div>
+          <PreparedCallPreview call={preview.preparedCall} sources={preview.sourceBindings} />
+          {!preview.canApprove && <p className="alert">Review and satisfy all blocking checklist items before approving.</p>}
           {preview.warnings.map((warning) => <p className="notice" key={warning}>{warning}</p>)}
-          <button className="button primary" type="button" disabled={!config?.context.ready || !config.inference.ready || !!busy}
+          <button className="button primary" type="button" disabled={!preview.canApprove || !config?.context.ready || !config.inference.ready || !!busy}
             onClick={() => void generate()}>{busy === 'run' ? 'Running Context…' : 'Approve Context input'}</button>
         </>}
         {contextRun && <div className="inference-preview">
           <p className="muted">Review the Context output before approving the second model call. Approval expires in 10 minutes.</p>
-          <p className="muted">{contextRun.inferencePreview.provider} · {contextRun.inferencePreview.model}</p>
-          <strong>Instructions</strong><pre>{contextRun.inferencePreview.instructions}</pre>
-          <strong>Input JSON</strong><pre>{contextRun.inferencePreview.input}</pre>
+          <PreparedCallPreview call={contextRun.inferencePreview.preparedCall} />
           <button className="button primary" type="button" disabled={!!busy || !config?.inference.ready}
             onClick={() => void generateInference()}>{busy === 'inference' ? 'Running Inference…' : 'Approve Inference input'}</button>
         </div>}

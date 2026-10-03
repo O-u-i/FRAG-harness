@@ -13,21 +13,25 @@ class ApprovalRegistry:
     def __init__(self, maximum: int = 128, ttl_seconds: int = 600):
         self._maximum = maximum
         self._ttl_seconds = ttl_seconds
-        self._pending: OrderedDict[str, tuple[str, float]] = OrderedDict()
+        self._pending: OrderedDict[str, tuple[str, float, Any]] = OrderedDict()
         self._lock = Lock()
 
-    def issue(self, fingerprint: str) -> str:
+    def issue(self, fingerprint: str, state: Any = None) -> str:
         token = secrets.token_urlsafe(32)
         with self._lock:
-            self._pending[token] = (fingerprint, time.monotonic() + self._ttl_seconds)
+            self._pending[token] = (fingerprint, time.monotonic() + self._ttl_seconds, state)
             while len(self._pending) > self._maximum:
                 self._pending.popitem(last=False)
         return token
 
     def consume(self, token: str, fingerprint: str) -> bool:
+        return self.consume_state(token, fingerprint)[0]
+
+    def consume_state(self, token: str, fingerprint: str) -> tuple[bool, Any]:
         with self._lock:
             stored = self._pending.pop(token, None)
-        return stored is not None and time.monotonic() < stored[1] and secrets.compare_digest(stored[0], fingerprint)
+        valid = stored is not None and time.monotonic() < stored[1] and secrets.compare_digest(stored[0], fingerprint)
+        return valid, stored[2] if valid else None
 
 
 class PendingInferenceRegistry:

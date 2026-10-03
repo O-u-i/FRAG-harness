@@ -3,19 +3,21 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import Protocol, TypeVar
+from typing import Protocol
 
 from pydantic import BaseModel, ValidationError
 
-from frag_api.errors import RagOutputError, RagProviderError
+from frag_api.errors import (
+    RagIncompleteError, RagNotReadyError, RagOutcomeUnknownError, RagOutputError,
+    RagProviderError, RagRefusalError,
+)
+from frag_api.providers.prepared import output_model_for, strict_json, verify_prepared
 from frag_api.schemas.common import ProviderKind, ProviderUsage
+from frag_api.schemas.governance import PreparedCall
 from frag_api.schemas.rag import (
     RagClaim, RagCompressedEvidence, RagContextCompression, RagEvidence,
     RagGroundedAnswer,
 )
-
-OutputModel = TypeVar("OutputModel", bound=BaseModel)
-
 
 @dataclass(frozen=True)
 class LlmStageSettings:
@@ -47,7 +49,7 @@ class LlmSettings:
             prefix = f"FRAG_{name}_LLM"
             provider = os.environ.get(f"{prefix}_PROVIDER", "fake").lower()
             if provider not in {"fake", "openai", "ollama"}:
-                provider = "fake"
+                raise RagNotReadyError()
             base_url = os.environ.get(f"{prefix}_BASE_URL")
             if provider == "ollama" and not base_url:
                 base_url = "http://127.0.0.1:11434/v1/"
@@ -69,11 +71,19 @@ class LlmCallResult:
 
 
 class LlmProvider(Protocol):
-    def generate_rag_context(self, evidence: list[RagEvidence], max_output_tokens: int) -> LlmCallResult: ...
-    def generate_rag_answer(self, compressed: RagContextCompression, query: str, max_output_tokens: int) -> LlmCallResult: ...
+    def execute_prepared(self, call: PreparedCall) -> LlmCallResult: ...
 
 
 class FakeLlmProvider:
+    def execute_prepared(self, call: PreparedCall) -> LlmCallResult:
+        output_model_for(call)
+        payload = json.loads(call.request_body()["input"])
+        if call.purpose == "context":
+            return self.generate_rag_context([RagEvidence.model_validate(item) for item in payload["evidence"]],
+                                             call.request_body()["max_output_tokens"])
+        return self.generate_rag_answer(RagContextCompression.model_validate(payload["context"]),
+                                        payload["query"], call.request_body()["max_output_tokens"])
+
     def generate_rag_context(self, evidence: list[RagEvidence], max_output_tokens: int) -> LlmCallResult:
         output = RagContextCompression(
             evidence=[RagCompressedEvidence(
@@ -98,57 +108,41 @@ class OpenAICompatibleProvider:
     def __init__(self, settings: LlmStageSettings):
         self.settings = settings
 
-    def _generate(self, instructions: str, payload: dict, output_model: type[OutputModel], max_output_tokens: int) -> LlmCallResult:
+    def execute_prepared(self, call: PreparedCall) -> LlmCallResult:
+        verify_prepared(call, self.settings)
+        output_model = output_model_for(call)
         try:
+            import httpx
             from openai import OpenAI
 
-            client = OpenAI(
-                api_key=self.settings.api_key,
-                base_url=self.settings.base_url,
-                timeout=self.settings.timeout_seconds,
-                max_retries=0,
-            )
-            request = {
-                "model": self.settings.model,
-                "instructions": instructions,
-                "input": json.dumps(payload, ensure_ascii=False),
-                "max_output_tokens": max_output_tokens,
-            }
-            if self.settings.provider == "openai":
-                response = client.responses.parse(**request, store=False, text_format=output_model)
-                parsed = response.output_parsed
-                if parsed is None:
-                    raise RagOutputError()
-            else:
-                response = client.responses.create(**request)
-                parsed = output_model.model_validate(json.loads(response.output_text))
+            # Explicit base_url prevents SDK environment routing. Redirects cannot change the approved endpoint.
+            with httpx.Client(follow_redirects=False, trust_env=False) as transport:
+                with OpenAI(api_key=self.settings.api_key, base_url=call.endpoint.removesuffix("responses"),
+                            timeout=call.timeout_seconds, max_retries=call.max_retries,
+                            http_client=transport) as client:
+                    response = client.responses.create(**call.request_body())
+            if any(getattr(content, "type", None) == "refusal" for item in getattr(response, "output", [])
+                   for content in getattr(item, "content", [])):
+                raise RagRefusalError()
+            if getattr(response, "status", None) == "incomplete":
+                raise RagIncompleteError()
+            if getattr(response, "status", None) != "completed":
+                raise RagOutputError()
+            parsed = output_model.model_validate(strict_json(response.output_text))
             usage = getattr(response, "usage", None)
             return LlmCallResult(parsed, ProviderUsage(
                 inputTokens=getattr(usage, "input_tokens", None),
                 outputTokens=getattr(usage, "output_tokens", None),
             ))
-        except (json.JSONDecodeError, ValidationError) as error:
+        except (ValueError, TypeError, ValidationError) as error:
             raise RagOutputError() from error
         except RagOutputError:
             raise
         except Exception as error:
+            # Timeout/connection errors cannot prove whether an external request was executed.
+            if error.__class__.__name__ in {"APITimeoutError", "APIConnectionError", "ReadTimeout", "ConnectError"}:
+                raise RagOutcomeUnknownError() from error
             raise RagProviderError() from error
-
-    def generate_rag_context(self, evidence: list[RagEvidence], max_output_tokens: int) -> LlmCallResult:
-        instructions, payload = context_input(evidence)
-        return self._generate(
-            instructions,
-            payload,
-            RagContextCompression, max_output_tokens,
-        )
-
-    def generate_rag_answer(self, compressed: RagContextCompression, query: str, max_output_tokens: int) -> LlmCallResult:
-        instructions, payload = inference_input(compressed, query)
-        return self._generate(
-            instructions,
-            payload,
-            RagGroundedAnswer, max_output_tokens,
-        )
 
 
 def context_input(evidence: list[RagEvidence]) -> tuple[str, dict]:

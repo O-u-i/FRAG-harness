@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RagPreview, RagRun } from '../../shared/contracts/rag';
 import { ApiRequestError } from './apiRequestError';
+import { preparedFixture, reviewTask } from './governanceFixtures';
 import {
   evaluateRag, fetchRagStatus, previewRag, rebuildRagIndex, runRag, runRagInference, searchRag,
 } from './ragClient';
@@ -32,6 +33,7 @@ const preview: RagPreview = {
     contextOutputLimit: 1500, inferenceOutputLimit: 2000, approximate: true,
   },
   warnings: ['Synthetic only.'], contextFingerprint: fingerprint, approvalToken: 'c'.repeat(48),
+  preparedCall: preparedFixture('context'), sourceBindings: [], task: reviewTask, canApprove: true,
 };
 const run: RagRun = {
   preview,
@@ -48,7 +50,8 @@ const run: RagRun = {
 };
 const context = { preview, compressedContext: run.compressedContext, contextStage: run.contextStage,
   inferencePreview: { provider: 'fake', model: 'fake-inference-v1', instructions: 'Answer.', input: '{}',
-    maxOutputTokens: 2000, inferenceFingerprint: 'd'.repeat(64), approvalToken: 'e'.repeat(48) } };
+    maxOutputTokens: 2000, inferenceFingerprint: 'c'.repeat(64), approvalToken: 'e'.repeat(48),
+    preparedCall: preparedFixture('inference') } };
 
 afterEach(() => vi.unstubAllGlobals());
 

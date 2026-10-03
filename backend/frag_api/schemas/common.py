@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 ProviderKind = Literal["fake", "openai", "ollama"]
@@ -10,6 +10,17 @@ ProviderKind = Literal["fake", "openai", "ollama"]
 
 class ApiModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
+class ExplicitApproval(ApiModel):
+    approved: Literal[True]
+
+    @field_validator("approved", mode="before")
+    @classmethod
+    def boolean_true_only(cls, value):
+        if value is not True:
+            raise ValueError("Approval must be the JSON boolean true.")
+        return value
 
 
 class StageConfig(ApiModel):
