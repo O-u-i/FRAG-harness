@@ -15,6 +15,7 @@ export const harnessRequestSchema = z.object({
   pluginSelection: z.object({pluginId: z.literal('finance-core'), workspaceId: z.string().min(1).max(128),
     recordIds: z.array(z.string()).min(1).max(10)}).strict().nullable().optional(),
   task: taskContractSchema.optional(),
+  sessionId: z.string().max(64).nullable().optional(), parentRunId: z.string().max(64).nullable().optional(),
 }).strict().refine((value) => Boolean(value.fileSelections.length) !== Boolean(value.pluginSelection), 'Select one evidence source.');
 export const harnessRunRequestSchema = harnessRequestSchema.extend({
   contextFingerprint: z.string().length(64), approvalToken: z.string().min(32), approved: z.literal(true),
@@ -25,6 +26,7 @@ export const harnessPreviewSchema = z.object({
   warnings: z.array(z.string()), contextFingerprint: z.string().length(64), approvalToken: z.string(),
   preparedCall: preparedCallSchema, sourceBindings: z.array(sourceBindingSchema), task: taskContractSchema,
   canApprove: z.boolean(),
+  runId: z.string().nullable().optional(), sessionId: z.string().nullable().optional(),
 }).strict();
 export const harnessRunSchema = z.object({
   preview: harnessPreviewSchema, compressedContext: ragContextCompressionSchema,

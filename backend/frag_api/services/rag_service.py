@@ -199,12 +199,13 @@ class RagService:
             warnings.append("No matching chunks were retrieved; Run is unavailable.")
         return RagPreview(
             datasetId=request.dataset_id,
-            query=redact(request.query, configured_secrets(self.settings)),
+            query=redact(request.query, configured_secrets(self.settings) + (self.flow.runtime.redaction_secrets if self.flow.runtime else ())),
             topK=request.top_k,
             indexRevision=search.index_revision,
             retrievalResults=search.results,
             **context_preview_fields(settings=self.settings, evidence=evidence, goal=request.query, task=request.task,
                                      sources=sources, selection_hash=fingerprint(request.model_dump(by_alias=True)),
+                                     redaction_secrets=self.flow.runtime.redaction_secrets if self.flow.runtime else (),
                                      loop_definition=self.flow.loops.get("fixed").definition.model_dump(by_alias=True)),
             warnings=warnings,
         )

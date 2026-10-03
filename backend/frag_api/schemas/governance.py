@@ -8,7 +8,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from frag_api.schemas.common import ApiModel, ProviderKind
 
-HOST_VERSION = "1.2.0"
+HOST_VERSION = "1.3.0"
 POLICY_VERSION = "selected-read-v1"
 REDACTION_VERSION = "outbound-v1"
 TASK_TEMPLATE_VERSION = "evidence-review-v1"
@@ -69,9 +69,9 @@ class SourceBinding(FrozenModel):
 class ChecklistItem(FrozenModel):
     id: str = Field(min_length=1, max_length=80)
     text: str = Field(min_length=1, max_length=500)
-    blocking: bool = False
+    blocking: bool = Field(default=False, strict=True)
     status: Literal["pending", "met", "missing", "unknown"] = "pending"
-    reviewed: bool = False
+    reviewed: bool = Field(default=False, strict=True)
 
 
 class TaskContract(FrozenModel):

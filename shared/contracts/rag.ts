@@ -8,6 +8,7 @@ export const ragQueryRequestSchema = ragDatasetRequestSchema.extend({
   query: z.string().min(3).max(500),
   topK: z.number().int().min(1).max(10).default(3),
   task: taskContractSchema.optional(),
+  sessionId: z.string().max(64).nullable().optional(), parentRunId: z.string().max(64).nullable().optional(),
 }).strict();
 export const ragRunRequestSchema = ragQueryRequestSchema.extend({
   contextFingerprint: z.string().length(64),
@@ -76,6 +77,7 @@ export const ragPreviewSchema = z.object({
   approvalToken: z.string(),
   preparedCall: preparedCallSchema, sourceBindings: z.array(sourceBindingSchema), task: taskContractSchema,
   canApprove: z.boolean(),
+  runId: z.string().nullable().optional(), sessionId: z.string().nullable().optional(),
 }).strict();
 
 export const ragCompressedEvidenceSchema = z.object({

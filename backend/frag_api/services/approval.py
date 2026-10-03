@@ -27,6 +27,10 @@ class ApprovalRegistry:
     def consume(self, token: str, fingerprint: str) -> bool:
         return self.consume_state(token, fingerprint)[0]
 
+    def clear(self) -> None:
+        with self._lock:
+            self._pending.clear()
+
     def consume_state(self, token: str, fingerprint: str) -> tuple[bool, Any]:
         with self._lock:
             stored = self._pending.pop(token, None)
@@ -57,3 +61,7 @@ class PendingInferenceRegistry:
         if stored is None or time.monotonic() >= stored[1] or not secrets.compare_digest(stored[0], fingerprint):
             return None
         return stored[2]
+
+    def clear(self) -> None:
+        with self._lock:
+            self._pending.clear()

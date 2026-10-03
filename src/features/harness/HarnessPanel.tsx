@@ -6,6 +6,9 @@ import { fetchLocalFileSources, inspectLocalFile } from '../../api/contextSource
 import { previewHarness, runHarness, runHarnessInference } from '../../api/harnessClient';
 import { fetchPlugins, fetchPluginScopes } from '../../api/pluginClient';
 import { PreparedCallPreview } from '../../components/common/PreparedCallPreview';
+import type { TaskContract } from '../../../shared/contracts/governance';
+import { emptyReviewTask, TaskChecklistEditor } from '../runtime/TaskChecklistEditor';
+import { SessionPicker } from '../runtime/SessionPicker';
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : 'The request could not be completed.';
@@ -23,6 +26,10 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
   const [inspection, setInspection] = useState<LocalFileInspectResponse>();
   const [selectedLocators, setSelectedLocators] = useState<string[]>([]);
   const [goal, setGoal] = useState('Summarize the selected evidence and identify uncertainty.');
+  const [task, setTask] = useState<TaskContract>(emptyReviewTask);
+  const [sessionId, setSessionId] = useState('');
+  const [lineage, setLineage] = useState<{ runId: string; sessionId: string }>();
+  const [previewInput, setPreviewInput] = useState<HarnessRequest>();
   const [preview, setPreview] = useState<HarnessPreview>();
   const [contextRun, setContextRun] = useState<HarnessContextRun>();
   const [run, setRun] = useState<HarnessRun>();
@@ -54,7 +61,7 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
 
   const resetOutput = () => {
     requestVersion.current += 1;
-    setPreview(undefined); setContextRun(undefined); setRun(undefined);
+    setPreview(undefined); setPreviewInput(undefined); setContextRun(undefined); setRun(undefined);
     setBusy('');
   };
   const selectPath = async (path: string) => {
@@ -68,7 +75,7 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
     finally { if (version === requestVersion.current) setBusy(''); }
   };
   const input: HarnessRequest = {
-    goal,
+    goal, task, sessionId: sessionId || lineage?.sessionId || undefined, parentRunId: lineage?.runId,
     fileSelections: mode === 'local' && selectedPath && selectedLocators.length ? [{
       relativePath: selectedPath, locatorIds: selectedLocators,
       relevanceReason: 'Explicitly selected for this evidence review.',
@@ -80,16 +87,19 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
     resetOutput();
     const version = requestVersion.current;
     setBusy('preview'); setError('');
-    try { const value = await previewHarness(input); if (version === requestVersion.current) setPreview(value); }
+    try { const value = await previewHarness(input); if (version === requestVersion.current) {
+      setPreview(value); setPreviewInput(input);
+      if (value.runId && value.sessionId) setLineage({ runId: value.runId, sessionId: value.sessionId });
+    } }
     catch (caught) { if (version === requestVersion.current) setError(message(caught)); }
     finally { if (version === requestVersion.current) setBusy(''); }
   };
   const generate = async () => {
-    if (!preview?.canApprove || !window.confirm(`Approve the displayed request to ${preview.preparedCall.endpoint}?`)) return;
+    if (!preview?.canApprove || !previewInput || !window.confirm(`Approve the displayed request to ${preview.preparedCall.endpoint}?`)) return;
     const version = requestVersion.current;
     setBusy('run'); setError('');
     try {
-      const value = await runHarness({ ...input, contextFingerprint: preview.contextFingerprint,
+      const value = await runHarness({ ...previewInput, contextFingerprint: preview.contextFingerprint,
         approvalToken: preview.approvalToken, approved: true });
       if (version === requestVersion.current) { setContextRun(value); setPreview(undefined); }
     } catch (caught) { if (version === requestVersion.current) setError(message(caught)); }
@@ -152,6 +162,11 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
       <label className="field">Review goal
         <textarea value={goal} maxLength={500} onChange={(event) => { setGoal(event.target.value); resetOutput(); }} />
       </label>
+      <TaskChecklistEditor task={task} disabled={!!busy} onChange={(value) => { setTask(value); resetOutput(); }} />
+      <SessionPicker value={sessionId || lineage?.sessionId || ''} disabled={!!busy} onChange={(value) => {
+        setSessionId(value); if (value !== lineage?.sessionId) setLineage(undefined); resetOutput();
+      }} />
+      {lineage && <p className="muted">The next prepared input creates a linked run in this session. Earlier input and output remain in Runs.</p>}
       <button className="button primary" type="button" disabled={!(mode === 'local' ? selectedLocators.length : recordIds.length) || goal.trim().length < 3 || !!busy}
         onClick={() => void buildPreview()}>{busy === 'preview' ? 'Preparing…' : 'Preview exact context'}</button>
     </section>

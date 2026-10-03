@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from frag_api.errors import (
     RagIndexNotReadyError, RagIndexStaleError, RagNotReadyError, RagOutputError,
     RagProviderError, RequestContractError,
     PolicyRejectedError, RequestBudgetError, RagRefusalError, RagIncompleteError, RagOutcomeUnknownError,
+    RuntimeConflictError, RuntimeNotFoundError,
 )
 from frag_api.http import BodyLimitMiddleware, error_response, issue_path
 from frag_api.plugin_host import DEFAULT_PLUGIN_ROOT, load_plugin
@@ -23,10 +25,13 @@ from frag_api.routers.harness import router as harness_router
 from frag_api.routers.health import router as health_router
 from frag_api.routers.plugins import router as plugins_router
 from frag_api.routers.rag import router as rag_router
+from frag_api.routers.runtime import router as runtime_router
+from frag_api.repositories.runtime_repository import RuntimeRepository
 from frag_api.services.context_source_service import ContextSourceService
 from frag_api.services.harness_service import HarnessService
 from frag_api.services.rag_service import RagService, create_rag_service
-from frag_api.services.runtime_policy import redact
+from frag_api.services.runtime_policy import redact, configured_secrets
+from frag_api.services.runtime_service import RuntimeService
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
@@ -40,6 +45,7 @@ def create_app(
     rag_source_root: str | Path | None = None,
     rag_eval_path: str | Path | None = None,
     plugin_root: str | Path = DEFAULT_PLUGIN_ROOT,
+    runtime_path: str | Path | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -53,9 +59,29 @@ def create_app(
             source_root=rag_source_root,
             eval_path=rag_eval_path,
         )
-        yield
+        path = Path(runtime_path or os.environ.get("FRAG_RUNTIME_PATH") or Path(__file__).resolve().parents[2] / ".local-runtime/runtime.sqlite3")
+        index_path = app.state.rag_service.repository.path
+        if path.resolve() == index_path.resolve() or (path.exists() and index_path.exists() and path.samefile(index_path)):
+            raise ValueError("Runtime storage must be separate from the RAG index.")
+        repository = RuntimeRepository(path)
+        with repository.owner_lease():
+            app.state.runtime = RuntimeService(repository)
+            app.state.runtime.secret_values = tuple(set(configured_secrets(app.state.harness_service.settings) + configured_secrets(app.state.rag_service.settings)))
+            services = (("harness", app.state.harness_service), ("rag", app.state.rag_service))
+            for kind, service in services:
+                service.approvals.clear()
+                service.pending_inference.clear()
+                service.flow.runtime, service.flow.kind = app.state.runtime, kind
+            try:
+                yield
+            finally:
+                for _, service in services:
+                    service.approvals.clear()
+                    service.pending_inference.clear()
+                    service.flow.runtime = None
+                app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.2.0", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.3.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.plugin_root = Path(plugin_root)
     app.state.plugin_hidden = False
@@ -82,6 +108,7 @@ def create_app(
     app.include_router(sources_router)
     app.include_router(harness_router)
     app.include_router(rag_router)
+    app.include_router(runtime_router)
     app.include_router(plugins_router)
     if plugin is not None:
         app.include_router(plugin.router)
@@ -119,6 +146,8 @@ def create_app(
         RagRefusalError: (502, "LLM_REFUSED", "The model refused this request; a new preview and approval are required."),
         RagIncompleteError: (502, "LLM_INCOMPLETE", "The model result was incomplete; a new preview and approval are required."),
         RagOutcomeUnknownError: (502, "LLM_OUTCOME_UNKNOWN", "The external call outcome is unknown; it will not be resent automatically."),
+        RuntimeNotFoundError: (404, "RUNTIME_NOT_FOUND", "The session or Run was not found."),
+        RuntimeConflictError: (409, "RUNTIME_CONFLICT", "The saved Run state does not permit this action; inspect history and prepare a fresh request."),
     }
     for error_type, (status, code, message) in failures.items():
         async def handler(_request: Request, _error: Exception, s=status, c=code, m=message):

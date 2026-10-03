@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { PreparedCallPreview } from '../common/PreparedCallPreview';
 import type {
-  RagContextRun, RagEvaluationReport, RagIndexStatus, RagPreview, RagRun, RagSearchResponse,
+  RagContextRun, RagEvaluationReport, RagIndexStatus, RagPreview, RagRun, RagSearchResponse, RagQueryRequest,
 } from '../../../shared/contracts/rag';
 import type { HarnessConfig } from '../../../shared/contracts/harness';
 import {
   evaluateRag, fetchRagStatus, previewRag, rebuildRagIndex, runRag, runRagInference, searchRag,
 } from '../../api/ragClient';
 import { PanelHeading } from '../common';
+import type { TaskContract } from '../../../shared/contracts/governance';
+import { emptyReviewTask, TaskChecklistEditor } from '../../features/runtime/TaskChecklistEditor';
+import { SessionPicker } from '../../features/runtime/SessionPicker';
 
 const dataset = { datasetId: 'synthetic-risk-review-v1' } as const;
 
@@ -23,6 +26,10 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
   const [status, setStatus] = useState<RagIndexStatus>();
   const [query, setQuery] = useState('What regulatory risks are mentioned in the source?');
   const [topK, setTopK] = useState(3);
+  const [task, setTask] = useState<TaskContract>(emptyReviewTask);
+  const [sessionId, setSessionId] = useState('');
+  const [lineage, setLineage] = useState<{ runId: string; sessionId: string }>();
+  const [previewInput, setPreviewInput] = useState<RagQueryRequest>();
   const [search, setSearch] = useState<RagSearchResponse>();
   const [preview, setPreview] = useState<RagPreview>();
   const [contextRun, setContextRun] = useState<RagContextRun>();
@@ -44,10 +51,10 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
 
   const resetQueryOutput = () => {
     requestVersion.current += 1;
-    setSearch(undefined); setPreview(undefined); setContextRun(undefined); setRun(undefined); setError('');
+    setSearch(undefined); setPreview(undefined); setPreviewInput(undefined); setContextRun(undefined); setRun(undefined); setError('');
     setBusy('');
   };
-  const input = { ...dataset, query, topK };
+  const input = { ...dataset, query, topK, task, sessionId: sessionId || lineage?.sessionId || undefined, parentRunId: lineage?.runId };
   const ready = status?.state === 'ready';
   const modelsReady = config?.context.ready && config.inference.ready;
 
@@ -70,7 +77,8 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
     setBusy('preview');
     try {
       const value = await previewRag(input);
-      if (version === requestVersion.current) { setPreview(value);
+      if (version === requestVersion.current) { setPreview(value); setPreviewInput(input);
+      if (value.runId && value.sessionId) setLineage({ runId: value.runId, sessionId: value.sessionId });
       setSearch({
         datasetId: value.datasetId, query: value.query, topK: value.topK,
         indexRevision: value.indexRevision, results: value.retrievalResults,
@@ -79,14 +87,14 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
     finally { if (version === requestVersion.current) setBusy(''); }
   };
   const generate = async () => {
-    if (!preview?.canApprove) return;
+    if (!preview?.canApprove || !previewInput) return;
     const approved = window.confirm(
       `Send ${preview.candidateEvidence.length} displayed chunks to the ${config?.context.provider} Context model?`,
     );
     if (!approved) return;
     const version = requestVersion.current;
     setBusy('run'); setError('');
-    try { const value = await runRag({ ...input, contextFingerprint: preview.contextFingerprint, approvalToken: preview.approvalToken, approved: true });
+    try { const value = await runRag({ ...previewInput, contextFingerprint: preview.contextFingerprint, approvalToken: preview.approvalToken, approved: true });
       if (version === requestVersion.current) { setContextRun(value); setPreview(undefined); } }
     catch (caught) { if (version === requestVersion.current) setError(safeMessage(caught)); }
     finally { if (version === requestVersion.current) setBusy(''); }
@@ -136,6 +144,11 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
       <label>Top K<select value={topK} disabled={busy !== ''} onChange={(event) => {
         setTopK(Number(event.target.value)); resetQueryOutput();
       }}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></label>
+      <TaskChecklistEditor task={task} disabled={busy !== ''} onChange={(value) => { setTask(value); resetQueryOutput(); }} />
+      <SessionPicker value={sessionId || lineage?.sessionId || ''} disabled={busy !== ''} onChange={(value) => {
+        setSessionId(value); if (value !== lineage?.sessionId) setLineage(undefined); resetQueryOutput();
+      }} />
+      {lineage && <p className="muted">The next prepared input creates a linked run in this session. Earlier input and output remain in Runs.</p>}
       <div className="rag-actions">
         <button type="button" className="secondary-button" disabled={!ready || query.trim().length < 3 || busy !== ''} onClick={() => void retrieve()}>
           {busy === 'search' ? 'Searching…' : '1. Retrieve Chunks'}

@@ -8,6 +8,7 @@ from frag_api.schemas.common import ApiModel, ExplicitApproval, HarnessConfig, S
 from frag_api.schemas.context_source import FileSourceSelection
 from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
 from frag_api.schemas.rag import InferencePreview, RagContextCompression, RagEvidence, RagGroundedAnswer
+from frag_api.schemas.runtime import RunLink
 
 
 class PluginEvidenceSelection(ApiModel):
@@ -16,7 +17,7 @@ class PluginEvidenceSelection(ApiModel):
     record_ids: list[str] = Field(alias="recordIds", min_length=1, max_length=10)
 
 
-class HarnessRequest(ApiModel):
+class HarnessRequest(RunLink):
     goal: str = Field(min_length=3, max_length=500)
     file_selections: list[FileSourceSelection] = Field(alias="fileSelections", default_factory=list, max_length=3)
     plugin_selection: PluginEvidenceSelection | None = Field(alias="pluginSelection", default=None)
@@ -36,6 +37,8 @@ class HarnessRunRequest(HarnessRequest, ExplicitApproval):
 
 
 class HarnessPreview(ApiModel):
+    run_id: str | None = Field(default=None, alias="runId")
+    session_id: str | None = Field(default=None, alias="sessionId")
     goal: str
     candidate_evidence: list[RagEvidence] = Field(alias="candidateEvidence")
     instructions: str

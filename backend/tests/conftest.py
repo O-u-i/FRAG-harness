@@ -7,6 +7,11 @@ from fastapi.testclient import TestClient
 from frag_api.main import create_app
 
 
+@pytest.fixture(autouse=True)
+def isolated_runtime(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("FRAG_RUNTIME_PATH", str(tmp_path / "runtime.sqlite3"))
+
+
 @pytest.fixture
 def source_root(tmp_path: Path) -> Path:
     root = tmp_path / "sources"

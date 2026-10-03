@@ -8,5 +8,5 @@ router = APIRouter()
 def health() -> JSONResponse:
     return JSONResponse(
         status_code=200,
-        content={"status": "ok", "service": "frag-harness", "serviceVersion": "1.2.0"},
+        content={"status": "ok", "service": "frag-harness", "serviceVersion": "1.3.0"},
     )

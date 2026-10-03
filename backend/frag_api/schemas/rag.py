@@ -16,6 +16,8 @@ class RagDatasetRequest(ApiModel):
 
 
 class RagQueryRequest(RagDatasetRequest):
+    session_id: str | None = Field(default=None, alias="sessionId", max_length=64)
+    parent_run_id: str | None = Field(default=None, alias="parentRunId", max_length=64)
     query: str = Field(min_length=3, max_length=500)
     top_k: int = Field(default=3, alias="topK", ge=1, le=10)
     task: TaskContract = Field(default_factory=TaskContract)
@@ -89,6 +91,8 @@ class RagEvidence(ApiModel):
 
 
 class RagPreview(ApiModel):
+    run_id: str | None = Field(default=None, alias="runId")
+    session_id: str | None = Field(default=None, alias="sessionId")
     dataset_id: RagDatasetId = Field(alias="datasetId")
     query: str
     top_k: int = Field(alias="topK")

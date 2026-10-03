@@ -17,3 +17,5 @@ class RequestBudgetError(Exception): pass
 class RagRefusalError(RagOutputError): pass
 class RagIncompleteError(RagOutputError): pass
 class RagOutcomeUnknownError(RagProviderError): pass
+class RuntimeNotFoundError(Exception): pass
+class RuntimeConflictError(Exception): pass
