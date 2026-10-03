@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "suiteId": "governed-synthetic-evidence",
+  "suiteVersion": "1.0.0",
+  "source": {
+    "kind": "synthetic",
+    "revision": "orchid-fixture-r1",
+    "sha256": "de02622cb53a61c2d3e94a6af412d5ccfba5a8135218f83ef0af3dec1d1ceb95",
+    "markdown": "# Export policy\nOnly synthetic datasets may be exported. Personal datasets must not be exported.\n\n# Approval\nExport requires explicit human approval before execution.\n\n# Retention\nDeletion is not enabled. Retention is limited to at most 14 days. The result limit is 8 MiB.\n\n# Timing\nThe synthetic policy became effective on 2026-10-01. The maintenance owner is unknown.\n"
+  },
+  "cases": [
+    {
+      "id": "all-export-conditions",
+      "query": "synthetic export approval",
+      "topK": 2,
+      "expectedChunkIds": [
+        "rag-synthetic-risk-review-v1-c001",
+        "rag-synthetic-risk-review-v1-c002"
+      ],
+      "expectedEvidenceIds": [
+        "rag-synthetic-risk-review-v1-parent-001",
+        "rag-synthetic-risk-review-v1-parent-002"
+      ],
+      "facts": [
+        {
+          "id": "synthetic-only",
+          "kind": "constraint",
+          "alternatives": [
+            "Only synthetic datasets may be exported"
+          ],
+          "forbidden": [
+            "Personal datasets may be exported"
+          ]
+        },
+        {
+          "id": "approval",
+          "kind": "constraint",
+          "alternatives": [
+            "explicit human approval before execution"
+          ],
+          "forbidden": [
+            "approval is optional"
+          ]
+        }
+      ],
+      "evaluateTools": true
+    },
+    {
+      "id": "negation-and-units",
+      "query": "Deletion retention limit",
+      "topK": 1,
+      "expectedChunkIds": [
+        "rag-synthetic-risk-review-v1-c003"
+      ],
+      "expectedEvidenceIds": [
+        "rag-synthetic-risk-review-v1-parent-003"
+      ],
+      "facts": [
+        {
+          "id": "deletion-disabled",
+          "kind": "negation",
+          "alternatives": [
+            "Deletion is not enabled"
+          ],
+          "forbidden": [
+            "Deletion is enabled"
+          ]
+        },
+        {
+          "id": "retention-cap",
+          "kind": "constraint",
+          "alternatives": [
+            "at most 14 days"
+          ],
+          "forbidden": [
+            "at least 14 days"
+          ]
+        },
+        {
+          "id": "result-unit",
+          "kind": "unit",
+          "alternatives": [
+            "8 MiB"
+          ],
+          "forbidden": [
+            "8 MB"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "effective-date",
+      "query": "effective policy maintenance owner",
+      "topK": 1,
+      "expectedChunkIds": [
+        "rag-synthetic-risk-review-v1-c004"
+      ],
+      "expectedEvidenceIds": [
+        "rag-synthetic-risk-review-v1-parent-004"
+      ],
+      "facts": [
+        {
+          "id": "effective-date",
+          "kind": "date",
+          "alternatives": [
+            "2026-10-01"
+          ],
+          "forbidden": [
+            "2026-11-01"
+          ]
+        },
+        {
+          "id": "owner-unknown",
+          "kind": "fact",
+          "alternatives": [
+            "maintenance owner is unknown"
+          ],
+          "forbidden": [
+            "maintenance owner is Alice"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retrieval-only",
+      "query": "Personal datasets synthetic export",
+      "topK": 1,
+      "expectedChunkIds": [
+        "rag-synthetic-risk-review-v1-c001"
+      ],
+      "expectedEvidenceIds": [
+        "rag-synthetic-risk-review-v1-parent-001"
+      ],
+      "facts": [
+        {
+          "id": "personal-prohibited",
+          "kind": "negation",
+          "alternatives": [
+            "Personal datasets must not be exported"
+          ],
+          "forbidden": [
+            "Personal datasets may be exported"
+          ]
+        }
+      ],
+      "mode": "retrieval"
+    }
+  ]
+}

@@ -62,7 +62,7 @@ class ToolRegistry:
             if cli_registry is None:
                 raise ValueError("A CLI carrier requires an executable CLI registration.")
             cli = cli_registry.get(definition.carrier_id)
-            if (json.loads(cli.definition.input_schema) != json.loads(definition.input_schema)
+            if (json.loads(cli.definition.tool_input_schema or cli.definition.input_schema) != json.loads(definition.input_schema)
                     or json.loads(cli.definition.output_schema) != json.loads(definition.output_schema)):
                 raise ValueError("Tool and CLI schemas must match.")
         self._bindings[definition.name] = ToolBinding(definition, input_model, output_model, execute)

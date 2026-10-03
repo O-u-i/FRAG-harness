@@ -8,7 +8,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from frag_api.schemas.common import ApiModel, ProviderKind
 
-HOST_VERSION = "1.3.0"
+HOST_VERSION = "1.4.0"
 POLICY_VERSION = "selected-read-v1"
 REDACTION_VERSION = "outbound-v1"
 TASK_TEMPLATE_VERSION = "evidence-review-v1"
@@ -156,6 +156,7 @@ class CLIDefinition(FrozenModel):
     environment_names: tuple[str, ...] = Field(alias="environmentNames", default=())
     input_schema: str = Field(alias="inputSchema")
     output_schema: str = Field(alias="outputSchema")
+    tool_input_schema: str | None = Field(default=None, alias="toolInputSchema")
     io_format: Literal["json-stdin-stdout"] = Field(default="json-stdin-stdout", alias="ioFormat")
 
 

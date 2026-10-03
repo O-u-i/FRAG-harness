@@ -9,6 +9,28 @@ from frag_api.services.rag_markdown import CHILD_SIZE, children_for, sections_fr
 DATASET = {"datasetId": "synthetic-risk-review-v1"}
 
 
+def test_explicit_rebuild_removes_replaced_parent_child_and_fts_content(tmp_path: Path):
+    sources = tmp_path / 'replacement-source'
+    sources.mkdir()
+    document = sources / 'synthetic-risk-review.md'
+    document.write_text('# Legacy\nlegacyneedle identifies the old synthetic source.',encoding='utf-8')
+    index = tmp_path / 'replacement.sqlite3'
+    app = create_app(rag_source_root=sources,rag_index_path=index,plugin_root=tmp_path/'plugins')
+    with TestClient(app,raise_server_exceptions=False) as client:
+        first = client.post('/api/rag/index/rebuild',json=DATASET).json()
+        assert client.post('/api/rag/search',json={**DATASET,'query':'legacyneedle'}).json()['results']
+        document.write_text('# Current\nfreshneedle identifies the replacement synthetic source.',encoding='utf-8')
+        assert client.post('/api/rag/search',json={**DATASET,'query':'legacyneedle'}).status_code == 409
+        second = client.post('/api/rag/index/rebuild',json=DATASET).json()
+        assert second['indexRevision'] != first['indexRevision'] and second['sourceHash'] != first['sourceHash']
+        assert client.post('/api/rag/search',json={**DATASET,'query':'legacyneedle'}).json()['results'] == []
+        assert client.post('/api/rag/search',json={**DATASET,'query':'freshneedle'}).json()['results']
+    with sqlite3.connect(index) as connection:
+        for table in ('rag_parents','rag_chunks','rag_chunks_fts'):
+            rows = connection.execute(f'SELECT content FROM {table}').fetchall()
+            assert rows and all('legacyneedle' not in row[0] for row in rows)
+
+
 def test_markdown_structure_and_recursive_children():
     source = ("---\n# YAML comment\nstate: ready\n---\nIntroduction.\n"
               "# Root\n## Detail\n```md\n# Not a heading\n```\n" +

@@ -151,7 +151,8 @@ class RuntimeService:
     def claim(self, run_id, call_id, prepared):
         def change(report):
             expected = "ready_context" if prepared.purpose == "context" else "awaiting_inference"
-            if report.run.status != expected or report.run.active_call_id != call_id:
+            if (report.run.status != expected or report.run.active_call_id != call_id
+                    or any(tool.status in ("dispatching", "outcome_unknown") for tool in report.tool_calls)):
                 raise RuntimeConflictError()
             call = next(c for c in report.requests if c.id == call_id)
             if call.status != "prepared" or call.prepared_call.fingerprint != prepared.fingerprint:

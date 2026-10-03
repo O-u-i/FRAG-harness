@@ -26,12 +26,16 @@ from frag_api.routers.health import router as health_router
 from frag_api.routers.plugins import router as plugins_router
 from frag_api.routers.rag import router as rag_router
 from frag_api.routers.runtime import router as runtime_router
+from frag_api.routers.tools import router as tools_router
+from frag_api.services.kb_tools import KBTools
+from frag_api.cli_client import host_cli_binding
 from frag_api.repositories.runtime_repository import RuntimeRepository
 from frag_api.services.context_source_service import ContextSourceService
 from frag_api.services.harness_service import HarnessService
 from frag_api.services.rag_service import RagService, create_rag_service
 from frag_api.services.runtime_policy import redact, configured_secrets
 from frag_api.services.runtime_service import RuntimeService
+from frag_api.services.runtime_registry import CLIRegistry, ToolRegistry
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
@@ -72,6 +76,11 @@ def create_app(
                 service.approvals.clear()
                 service.pending_inference.clear()
                 service.flow.runtime, service.flow.kind = app.state.runtime, kind
+            app.state.harness_service.cli_registry = CLIRegistry()
+            app.state.harness_service.tool_registry = ToolRegistry()
+            app.state.kb_tools = KBTools(app.state.runtime, app.state.harness_service, app.state.rag_service)
+            definition, execute = host_cli_binding()
+            app.state.harness_service.cli_registry.register(definition, execute)
             try:
                 yield
             finally:
@@ -81,7 +90,7 @@ def create_app(
                     service.flow.runtime = None
                 app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.3.0", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.4.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.plugin_root = Path(plugin_root)
     app.state.plugin_hidden = False
@@ -109,6 +118,7 @@ def create_app(
     app.include_router(harness_router)
     app.include_router(rag_router)
     app.include_router(runtime_router)
+    app.include_router(tools_router)
     app.include_router(plugins_router)
     if plugin is not None:
         app.include_router(plugin.router)

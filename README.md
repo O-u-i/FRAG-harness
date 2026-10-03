@@ -1,4 +1,4 @@
-# FRAG-harness v1.3.0
+# FRAG-harness v1.4.0
 
 FRAG-harness is a local application for governed evidence retrieval and two model API stages. It starts with no Finance Core installation, account, token, or database. The Context LLM compresses approved evidence; the Inference LLM produces a cited answer. Selection, redaction, token budgeting, approval, output validation, and citation checks are deterministic host code.
 
@@ -8,11 +8,13 @@ The React interface offers Harness, RAG Lab, Runs, and Plugins. The FastAPI back
 
 Both stages execute the server-owned `PreparedCall` that was previewed. It binds the complete request JSON, destination, transport, model, output schema, timeout, source revisions, selected locators, checklist and host policy versions. Revalidation rejects changed bindings; execution does not rebuild a request from evidence. Source hashing and parsing use one byte snapshot, and RAG hits, parent text and index revision share a database read snapshot. Input estimates include instructions and schemas; each stage and the cumulative run have budget checks.
 
-The host exposes CLI, tool and loop registration contracts through `GET /api/harness/capabilities`. The fixed runner is registered and used by both workflows. Product CLI and tool lists are currently empty; a Research runner and reviewed memory are pending implementation. Blocking checklist items require a reviewed `met` status before approval is available. Source authority and real-world freshness remain explicit unknowns. See [runtime contracts](docs/runtime-contracts.md) for the request, policy and registration boundaries.
+The host exposes executable CLI, tool and loop registrations through `GET /api/harness/capabilities`. The fixed runner is used by both workflows. `frag.host` operates the same running FastAPI host over loopback HTTP; `kb.search` searches explicitly selected evidence and `kb.read` starts a fixed CLI process to read the selected redacted snapshot. Tools cannot expand file, locator, revision or Workspace scope. A Research runner and reviewed memory remain pending. Blocking checklist items require a reviewed `met` status before approval is available. See [runtime contracts](docs/runtime-contracts.md), [host CLI](docs/host-cli.md) and [KB tools](docs/kb-tools.md).
 
 Runs stores explicitly selected, redacted snapshots and request specifications in an independent, Git-ignored `.local-runtime/runtime.sqlite3`. Use the session picker to group work. Editing input creates a linked new run; editing output creates a separate human revision while retaining the model original. The Runs page records acceptance, rejection and pause, and exports the same structured report as JSON or Markdown. A new revision requires its own review.
 
 Recovery requires explicit reselection matching the saved sources, scope, revisions and request configuration, then a fresh preview and approval. A validated Context checkpoint resumes at Inference. A durably saved response can finish deterministic validation after restart. An interrupted dispatch without a committed response becomes `outcome_unknown` and cannot resume in the same run. It is never resent automatically. See [sessions and recovery](docs/runtime-sessions.md) for state, privacy and endpoint details.
+
+Offline evaluation uses versioned synthetic Gold and the production retrieval, fixed model-stage validators, selected-read policy and tool carriers. It separates host enforcement, scripted model artifacts, missing checks and scorer failures. Literal fact checks do not establish semantic support; human review remains undetermined and Research trajectory is not run. See [offline evaluation](docs/offline-evaluation.md).
 
 ## Architecture review diagrams
 

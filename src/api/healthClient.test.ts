@@ -3,7 +3,7 @@ import { checkBackendHealth } from './healthClient';
 
 afterEach(() => vi.unstubAllGlobals());
 
-const context = { status: 'ok', service: 'frag-harness', serviceVersion: '1.3.0' };
+const context = { status: 'ok', service: 'frag-harness', serviceVersion: '1.4.0' };
 
 function healthFetch(payload: unknown = context) {
   return vi.fn(async (path: RequestInfo | URL) => new Response(

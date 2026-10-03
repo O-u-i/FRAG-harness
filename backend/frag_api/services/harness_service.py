@@ -57,7 +57,7 @@ class HarnessService:
 
     def capabilities(self) -> CapabilityCatalog:
         return CapabilityCatalog(cli=self.cli_registry.catalog(), tools=self.tool_registry.catalog(),
-                                 loops=self.flow.loops.catalog(), planned=["cli", "kb_tools", "research"])
+                                 loops=self.flow.loops.catalog(), planned=["research"])
 
     def _prepare_preview(self, request: HarnessRequest) -> HarnessPreview:
         evidence: list[RagEvidence] = []

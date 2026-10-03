@@ -34,6 +34,13 @@ export function RunReportView({ report }: { report: RunReport }) {
         <RuntimeAnswer answer={revision.result} /><p className="muted">{revision.note || 'No revision note.'}</p>
       </article>)}
     </section>}
+    {report.toolCalls.length > 0 && <section className="card"><div className="section-heading"><span className="eyebrow">Selected KB tools</span><h2>Tool observations</h2></div>
+      {report.toolCalls.map((tool) => <details key={tool.callId}><summary>{tool.name} · {tool.status} · {tool.carrier}</summary>
+        <p className="muted">{tool.callId} · {tool.createdAt}</p>
+        {tool.errorCode && <p className="alert">{tool.errorCode}</p>}
+        <pre className="runtime-data">{JSON.stringify(tool.result ?? { errorCode: tool.errorCode }, null, 2)}</pre>
+      </details>)}
+    </section>}
     <section className="card"><div className="section-heading"><span className="eyebrow">Provenance</span><h2>Selected snapshots and requests</h2></div>
       {report.selection.candidateEvidence.map((item) => <details key={item.evidenceId}><summary>{item.locatorLabel} · {item.evidenceId}</summary>
         <pre className="runtime-data">{item.text}</pre></details>)}

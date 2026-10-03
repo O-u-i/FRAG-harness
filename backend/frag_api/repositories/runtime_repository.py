@@ -132,11 +132,14 @@ class RuntimeRepository:
             for run_id, raw in db.execute("SELECT id,record FROM runs").fetchall():
                 report = RunReport.model_validate_json(raw)
                 pending = [item for item in report.requests if item.status == "dispatching"]
-                if not pending:
+                pending_tools = [item for item in report.tool_calls if item.status == "dispatching"]
+                if not pending and not pending_tools:
                     continue
                 for call in pending:
                     call.status, call.error_code, call.finished_at = "outcome_unknown", "INTERRUPTED_CALL", now
                     call.structural_validation = "ERROR"
+                for tool in pending_tools:
+                    tool.status, tool.error_code, tool.finished_at = "outcome_unknown", "INTERRUPTED_TOOL", now
                 report.run.status, report.run.updated_at = "outcome_unknown", now
                 report.run.active_call_id = None
                 report.run.version += 1

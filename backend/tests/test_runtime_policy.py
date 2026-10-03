@@ -74,8 +74,9 @@ def test_registration_requires_executable_and_matching_schema_bindings(tmp_path)
 def test_only_registered_fixed_runner_is_available_in_product(client):
     catalog = client.get("/api/harness/capabilities").json()
     assert [loop["name"] for loop in catalog["loops"]] == ["fixed"]
-    assert catalog["tools"] == catalog["cli"] == []
-    assert catalog["planned"] == ["cli", "kb_tools", "research"]
+    assert {tool["name"] for tool in catalog["tools"]} == {"kb.search", "kb.read"}
+    assert {cli["name"] for cli in catalog["cli"]} == {"kb.read.cli", "frag.host"}
+    assert catalog["planned"] == ["research"]
     loops = LoopRegistry()
     with pytest.raises(ValueError):
         loops.register(LoopDefinition(name="research", version="1.0.0", stages=("research", "context", "inference")), object())

@@ -1,6 +1,6 @@
 # Governed runtime contracts
 
-`GET /api/harness/capabilities` lists executable registrations separately from planned capabilities. The current runtime registers the fixed Context → Inference runner. `CLIRegistry` and `ToolRegistry` are implemented registration interfaces; the product does not yet install a CLI carrier or expose model tools. Research is planned and cannot be selected as an active runner.
+`GET /api/harness/capabilities` lists executable registrations separately from planned capabilities. The runtime registers the fixed Context → Inference runner, `frag.host` HTTP CLI, `kb.read.cli` carrier, native `kb.search` and CLI-backed `kb.read`. Tool arguments and private carrier input schemas are separately declared; the carrier receives only trusted selected snapshots after host authorization. Research is planned and cannot be selected as an active runner. Fixed model requests contain no model tools; actual model tool proposals and result feedback remain Phase 4.
 
 ## Prepared requests and approval
 

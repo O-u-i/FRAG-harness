@@ -33,6 +33,16 @@ export const revisionRecordSchema = revisionRequestSchema.extend({
   contentDigest: z.string().length(64).nullable().optional(),
 }).strict();
 export const runReportSchema = z.object({
+  toolCalls: z.array(z.object({
+    callId: z.string(), name: z.string(), toolVersion: z.string(), carrier: z.enum(['native', 'cli']),
+    arguments: z.record(z.string(), z.unknown()), status: z.enum(['dispatching', 'completed', 'failed', 'outcome_unknown']),
+    createdAt: z.string(), finishedAt: z.string().nullable(), durationMs: z.number().int().nonnegative().nullable(),
+    result: z.object({ callId: z.string(), evidence: z.array(ragEvidenceSchema), missingInformation: z.array(z.string()) }).strict().nullable(),
+    errorCode: z.string().nullable(),
+  }).strict().superRefine((call, context) => {
+    if ((call.status === 'completed') !== (call.result !== null)) context.addIssue({code: 'custom', path: ['result'], message: 'Only a completed tool call owns a result.'});
+    if (call.result && call.result.callId !== call.callId) context.addIssue({code: 'custom', path: ['result', 'callId'], message: 'Tool result and owning call identifiers must match.'});
+  })).default([]),
   snapshotDigest: z.string().length(64).nullable().optional(),
   schemaVersion: z.literal(1), session: sessionRecordSchema, run: runRecordSchema, selection: selectionSnapshotSchema,
   requests: z.array(attemptRecordSchema), context: ragContextCompressionSchema.nullable(), modelOutput: ragGroundedAnswerSchema.nullable(),

@@ -10,7 +10,7 @@ const run = { id: 'run-1', sessionId: session.id, parentRunId: null, kind: 'harn
 const selection = { goal: 'Review synthetic evidence', fileSelections: [{ relativePath: 'evidence.md',
   locatorIds: ['section-1'], relevanceReason: 'Explicit review selection' }], task: reviewTask, sessionId: session.id };
 const answer = { answer: 'Original model answer.', claims: [{ text: 'Synthetic fact.', evidenceIds: ['evidence-1'] }], missingInformation: [], disclaimer: 'Review first.' };
-const report = { schemaVersion: 1, session, run,
+const report = { schemaVersion: 1, session, run, toolCalls: [],
   selection: { goal: selection.goal, sourceBindings: [], candidateEvidence: [], task: reviewTask, input: selection },
   requests: [{ id: 'attempt-1', stage: 'inference', status: 'completed', preparedCall: preparedFixture('inference'),
     createdAt: session.createdAt, finishedAt: session.createdAt, usage: {inputTokens: 8, outputTokens: 6}, output: answer, errorCode: null, structuralValidation: 'PASS' }],
@@ -25,6 +25,16 @@ const recovery = { runId: run.id, kind: 'harness', stage: 'context', contextFing
 afterEach(() => vi.unstubAllGlobals());
 
 describe('runtime client boundaries', () => {
+  it('accepts legacy reports and validates bound durable tool observations', () => {
+    const { toolCalls: _legacyTools, ...legacy } = report;
+    expect(runReportSchema.parse(legacy).toolCalls).toEqual([]);
+    const tool = {callId: 'read-1', name: 'kb.read', toolVersion: '1.0.0', carrier: 'cli', arguments: {}, status: 'completed',
+      createdAt: session.createdAt, finishedAt: session.createdAt, durationMs: 12,
+      result: {callId: 'read-1', evidence: [], missingInformation: []}, errorCode: null};
+    expect(runReportSchema.parse({...report, toolCalls: [tool]}).toolCalls[0].result?.callId).toBe('read-1');
+    expect(runReportSchema.safeParse({...report, toolCalls: [{...tool, result: {...tool.result, callId: 'other'}}]}).success).toBe(false);
+    expect(runReportSchema.safeParse({...report, toolCalls: [{...tool, result: null}]}).success).toBe(false);
+  });
   it('reads session-scoped history without dispatching a model request', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(Response.json([session])).mockResolvedValueOnce(Response.json([run])).mockResolvedValueOnce(Response.json(report));
     vi.stubGlobal('fetch', fetchMock);

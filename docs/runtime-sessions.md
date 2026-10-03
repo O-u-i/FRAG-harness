@@ -1,6 +1,6 @@
 # Sessions, review and safe recovery
 
-The fixed Harness and synthetic RAG workflows share one application lifecycle owner. A Session groups related Runs. A Run owns its explicitly selected redacted snapshot, frozen request specifications, stage attempts, charged budget, reliable Context checkpoint, model original, human decisions and independent revisions. Runtime database schema version 1 is independent of the application version. RAG indexing remains a separate, rebuildable cache. Tool calls and Research turns are later capabilities.
+The fixed Harness and synthetic RAG workflows share one application lifecycle owner. A Session groups related Runs. A Run owns its explicitly selected redacted snapshot, frozen request specifications, stage attempts, charged budget, reliable Context checkpoint, model original, human decisions, independent revisions and selected-read tool observations. Runtime database schema version 1 is independent of the application version; older reports default to an empty toolCalls list. RAG indexing remains a separate, rebuildable cache. Research turns are a later capability.
 
 The default database is `.local-runtime/runtime.sqlite3`; `FRAG_RUNTIME_PATH` or `create_app(runtime_path=...)` can select another local path. Keep the database, WAL/SHM files, owner lock and exports outside Git. One app lifetime holds a nonblocking file lease; a second app cannot take ownership of the same database. SQLite transactions commit each dispatch claim, response, checkpoint or review as one record, and roll back incomplete writes. This is crash recovery, not tamper-proof storage or legal audit certification.
 
@@ -45,5 +45,6 @@ The page, JSON and Markdown render one `RunReport`. Structural validation and hu
 | `POST /api/runtime/runs/{id}/revisions` | Separate edited result; original preserved |
 | `POST /api/runtime/runs/{id}/resume/preview` | Explicit `{sourceRequest: ...}` and fresh preview |
 | `POST /api/runtime/runs/{id}/reopen` | Changed selection creates a linked Run/preview |
+| `POST /api/runtime/runs/{id}/tools/execute` | Host-validated selected KB read, with a unique call ID and explicit reselection |
 
-Execution uses the existing `/api/harness/run`, `/api/rag/run` and their `/inference/run` endpoints. Each stage needs its own exact preview and explicit one-use approval. Product CLI execution, tools, Research, Pi, curated memory, generic plugin protocol and real-KB acceptance remain later phases.
+Execution uses the existing `/api/harness/run`, `/api/rag/run` and their `/inference/run` endpoints. Each stage needs its own exact preview and explicit one-use approval. The host CLI uses these same HTTP boundaries, with terminal confirmation before each model stage. Selected KB tools are available before Context, limited to six serial calls. Unresolved tool calls prevent model dispatch; interrupted tools become outcome_unknown on restart. Research, Pi, curated memory, generic plugin protocol and real-KB acceptance remain later phases.

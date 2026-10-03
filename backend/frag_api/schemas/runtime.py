@@ -6,6 +6,7 @@ from pydantic import Field
 from frag_api.schemas.common import ApiModel, ProviderUsage
 from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
 from frag_api.schemas.rag import RagContextCompression, RagEvidence, RagGroundedAnswer
+from frag_api.schemas.tools import ToolCallRecord
 
 RunStatus = Literal["ready_context", "awaiting_inference", "awaiting_review", "paused", "accepted", "rejected", "error", "outcome_unknown"]
 Outcome = Literal["PASS", "FAIL", "ERROR", "NOT_RUN", "UNDETERMINED"]
@@ -85,6 +86,7 @@ class RevisionRecord(RevisionRequest):
 
 
 class RunReport(ApiModel):
+    tool_calls: list[ToolCallRecord] = Field(default_factory=list, alias="toolCalls")
     snapshot_digest: str | None = Field(default=None, alias="snapshotDigest", min_length=64, max_length=64)
     schema_version: Literal[1] = Field(default=1, alias="schemaVersion")
     session: SessionRecord

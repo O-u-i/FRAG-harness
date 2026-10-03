@@ -53,6 +53,7 @@ export const loopLimitsSchema = z.object({
   serialTools: z.literal(true),
 }).strict();
 export const cliDefinitionSchema = z.object({
+  toolInputSchema: z.string().nullable().optional(),
   name: z.string().min(1), version: z.string().regex(/^\d+\.\d+\.\d+$/), executable: z.string().min(1),
   subcommand: z.array(z.string()).min(1), workingDirectory: z.string().min(1), environmentNames: z.array(z.string()),
   inputSchema: z.string(), outputSchema: z.string(), ioFormat: z.literal('json-stdin-stdout'),
