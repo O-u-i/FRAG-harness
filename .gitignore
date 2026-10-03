@@ -12,6 +12,8 @@ tmp/
 .local-data/
 .local-index/
 .local-plugins/
+.local-runtime/
+.local-plan-b/
 .local-agent-context.json
 .pytest_cache/
 *.tsbuildinfo
@@ -20,7 +22,9 @@ vite.config.d.ts
 
 # Local agent instructions and design tooling are outside the application.
 AGENTS.md
+AGENTS.override.md
 .agents/
+.codex/
 docs/codex-skills/
 scripts/check-skill-lock.mjs
 docs/history-transition.md
