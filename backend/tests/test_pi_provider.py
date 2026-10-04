@@ -91,7 +91,8 @@ def test_optional_worker_absence_keeps_fake_available(monkeypatch, tmp_path):
     assert fake.ready is True and provider_for(fake).__class__.__name__ == 'FakeLlmProvider'
 
 
-def test_changed_worker_or_python_adapter_invalidates_old_preview(tmp_path, monkeypatch):
+@pytest.mark.parametrize('location,name', [('worker', 'wire.mjs'), ('host', 'pi.py'), ('host', '../request_spec.py')])
+def test_changed_worker_or_python_adapter_invalidates_old_preview(tmp_path, monkeypatch, location, name):
     from frag_api.providers import pi_integrity
     from frag_api.providers.pi_process import WORKER_ROOT
     provider_root = tmp_path / 'backend' / 'frag_api' / 'providers'
@@ -99,22 +100,18 @@ def test_changed_worker_or_python_adapter_invalidates_old_preview(tmp_path, monk
     provider_root.mkdir(parents=True)
     worker_root.mkdir(parents=True)
     original_root = Path(pi_integrity.__file__).parent
-    for name in pi_integrity.HOST_FILES:
-        shutil.copyfile(original_root / name, provider_root / name)
-    for name in (*pi_integrity.WORKER_FILES, 'package.json', 'package-lock.json', 'vendor/pi-ai/selection-manifest.json'):
-        target = worker_root / name
+    for filename in pi_integrity.HOST_FILES:
+        shutil.copyfile(original_root / filename, provider_root / filename)
+    for filename in (*pi_integrity.WORKER_FILES, 'package.json', 'package-lock.json', 'vendor/pi-ai/selection-manifest.json'):
+        target = worker_root / filename
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(WORKER_ROOT / name, target)
+        shutil.copyfile(WORKER_ROOT / filename, target)
     call = context_call()
     monkeypatch.setattr(pi_integrity, '__file__', str(provider_root / 'pi_integrity.py'))
     verify_prepared(call, SETTINGS)
-    target = worker_root / 'wire.mjs'
-    target.write_text(target.read_text(encoding='utf-8') + '\n// Synthetic changed implementation.\n', encoding='utf-8')
-    with pytest.raises(RagFingerprintError):
-        verify_prepared(call, SETTINGS)
-    shutil.copyfile(WORKER_ROOT / 'wire.mjs', target)
-    target = provider_root / 'pi.py'
-    target.write_text(target.read_text(encoding='utf-8') + '\n# Synthetic changed mapping.\n', encoding='utf-8')
+    target = (worker_root if location == 'worker' else provider_root) / name
+    comment = '// Synthetic changed mapping.' if location == 'worker' else '# Synthetic changed mapping.'
+    target.write_text(target.read_text(encoding='utf-8') + '\n' + comment + '\n', encoding='utf-8')
     with pytest.raises(RagFingerprintError):
         verify_prepared(call, SETTINGS)
 

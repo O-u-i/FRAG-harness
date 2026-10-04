@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from frag_api.schemas.common import ApiModel, ExplicitApproval, HarnessConfig, StageResult, TokenBudget
+from frag_api.schemas.common import ApiModel, ExplicitApproval, StageResult, TokenBudget
 from frag_api.schemas.context_source import FileSourceSelection
 from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
 from frag_api.schemas.rag import InferencePreview, RagContextCompression, RagEvidence, RagGroundedAnswer
@@ -68,4 +68,4 @@ class HarnessContextRun(ApiModel):
     inference_preview: InferencePreview = Field(alias="inferencePreview")
 
 
-__all__ = ["HarnessConfig", "HarnessRequest", "HarnessRunRequest", "HarnessPreview", "HarnessRun"]
+__all__ = ["HarnessRequest", "HarnessRunRequest", "HarnessPreview", "HarnessRun"]

@@ -9,13 +9,7 @@ from typing import Any, Callable, Protocol
 from pydantic import BaseModel
 
 from frag_api.errors import PolicyRejectedError
-from frag_api.schemas.governance import CLIDefinition, LoopDefinition, SourceBinding, ToolDefinition
-from frag_api.schemas.rag import RagEvidence
-
-
-class EvidenceReader(Protocol):
-    """Selected, versioned read port for native KB tools and future plugin adapters."""
-    def read_selected(self, binding: SourceBinding) -> tuple[RagEvidence, ...]: ...
+from frag_api.schemas.governance import CLIDefinition, LoopDefinition, ToolDefinition
 
 
 class LoopRunner(Protocol):

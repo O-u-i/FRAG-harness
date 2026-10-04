@@ -41,7 +41,7 @@ from frag_api.schemas.rag import (
     RagRunRequest,
     RagSearchResponse,
 )
-from frag_api.services.context_source_service import MAX_FILE_BYTES, ContextSourceError, ContextSourceService
+from frag_api.services.context_source_service import ContextSourceError, ContextSourceService
 from frag_api.services.rag_markdown import sections_from_markdown, children_for
 from frag_api.services.approval import ApprovalRegistry, PendingInferenceRegistry
 from frag_api.services.governed_flow import GovernedFlow
@@ -52,9 +52,8 @@ from frag_api.services.governed_context import (
     INFERENCE_OUTPUT_LIMIT,
     INPUT_BUDGET,
     RESERVED_PERCENT,
-    estimated_tokens,
-    fingerprint,
 )
+from frag_api.request_spec import estimated_tokens, fingerprint
 
 DATASET_ID = "synthetic-risk-review-v1"
 SOURCE_FILE = "synthetic-risk-review.md"
@@ -65,10 +64,6 @@ STOP_WORDS = {
     "a", "an", "and", "are", "did", "do", "does", "how", "in", "is", "of",
     "on", "source", "the", "to", "was", "were", "what", "which",
 }
-
-
-def _sha256(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _match_expression(query: str) -> str:
@@ -318,7 +313,7 @@ class RagService:
                     chunk_id=f"{DOCUMENT_ID}-c{number:03d}", document_id=DOCUMENT_ID,
                     source_id=SOURCE_ID, locator_id=section.locator_id,
                     locator_label=section.title_path, ordinal=number,
-                    text=child.text, text_hash=_sha256(child.text), parent_id=parent_id,
+                    text=child.text, text_hash=hashlib.sha256(child.text.encode("utf-8")).hexdigest(), parent_id=parent_id,
                     search_text=_search_text(child.text),
                 ))
         return parents, chunks

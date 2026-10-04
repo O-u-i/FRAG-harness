@@ -3,14 +3,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import os
 from pathlib import Path
 import subprocess
 import threading
 import time
-from typing import Any
 
+from frag_api.request_spec import strict_json
 from frag_api.schemas.governance import CLIDefinition
 
 INPUT_BYTES = 128 * 1024
@@ -31,26 +30,6 @@ def _file_digest(path: Path) -> str:
         for chunk in iter(lambda: stream.read(64 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def _pairs(pairs: list[tuple[str, Any]]) -> dict:
-    result = {}
-    for name, value in pairs:
-        if name in result:
-            raise ValueError("Duplicate JSON key")
-        result[name] = value
-    return result
-
-
-def _finite_constant(_: str) -> None:
-    raise ValueError("Nonfinite JSON number")
-
-
-def _finite_float(value: str) -> float:
-    number = float(value)
-    if not math.isfinite(number):
-        raise ValueError("Nonfinite JSON number")
-    return number
 
 
 class ControlledCLI:
@@ -224,8 +203,7 @@ class ControlledCLI:
         if io_error.is_set():
             raise ToolExecutionError("TOOL_IO") from None
         try:
-            result = json.loads(stdout.decode("utf-8"), object_pairs_hook=_pairs,
-                                parse_constant=_finite_constant, parse_float=_finite_float)
+            result = strict_json(stdout.decode("utf-8"))
             if not isinstance(result, dict):
                 raise ValueError("Object required")
             return result

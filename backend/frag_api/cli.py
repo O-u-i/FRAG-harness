@@ -8,7 +8,8 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from frag_api.cli_client import DEFAULT_BASE_URL, MAX_REQUEST_BYTES, HostClient, HostCLIError, strict_json
+from frag_api.cli_client import DEFAULT_BASE_URL, MAX_REQUEST_BYTES, HostClient, HostCLIError
+from frag_api.request_spec import strict_json
 from frag_api.schemas.cli import EMPTY_COMMANDS, RUN_COMMANDS, HostCLIRequest, source_payload
 from frag_api.schemas.harness import HarnessContextRun, HarnessPreview, HarnessRun, HarnessRunRequest
 from frag_api.schemas.rag import InferencePreview, InferenceRunRequest, RagContextRun, RagPreview, RagRun, RagRunRequest

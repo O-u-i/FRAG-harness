@@ -1,7 +1,6 @@
 """Prepare the complete Responses request before approval, without credentials."""
 from __future__ import annotations
 
-import json
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel
@@ -124,14 +123,3 @@ def output_model_for(call: PreparedCall) -> type[BaseModel]:
                     "schema": wire_model.model_json_schema(by_alias=True), "strict": True}):
             raise RagFingerprintError()
     return output_model
-
-
-def strict_json(text: str):
-    def pairs(items):
-        result = {}
-        for key, value in items:
-            if key in result:
-                raise ValueError("Duplicate JSON field.")
-            result[key] = value
-        return result
-    return json.loads(text, object_pairs_hook=pairs, parse_constant=lambda _value: (_ for _ in ()).throw(ValueError()))

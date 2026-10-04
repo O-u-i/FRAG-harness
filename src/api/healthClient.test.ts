@@ -6,7 +6,7 @@ afterEach(() => vi.unstubAllGlobals());
 const context = { status: 'ok', service: 'frag-harness', serviceVersion: '1.6.0' };
 
 function healthFetch(payload: unknown = context) {
-  return vi.fn(async (path: RequestInfo | URL) => new Response(
+  return vi.fn(async () => new Response(
     JSON.stringify(payload),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   ));

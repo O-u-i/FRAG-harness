@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import ipaddress
 import json
-import math
 import sys
 import time
 from pathlib import Path
@@ -12,6 +11,7 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import TypeAdapter, ValidationError
 
+from frag_api.request_spec import strict_json
 from frag_api.schemas.cli import HostCLIRequest, HostCLIResponse
 from frag_api.schemas.context_source import LocalFileInspectResponse, LocalFileSource
 from frag_api.schemas.governance import CapabilityCatalog, CLIDefinition
@@ -45,27 +45,6 @@ def loopback_url(value: str) -> str:
         return f"http://{host}:{port}"
     except (ValueError, TypeError) as error:
         raise HostCLIError("INVALID_HOST_URL", "Use a numeric loopback HTTP URL without credentials, path, query or fragment.") from error
-
-
-def strict_json(value: bytes | str):
-    def object_pairs(pairs):
-        result = {}
-        for key, item in pairs:
-            if key in result:
-                raise ValueError("Duplicate field.")
-            result[key] = item
-        return result
-
-    def constant(_):
-        raise ValueError("Nonfinite value.")
-
-    def finite_float(text):
-        number = float(text)
-        if not math.isfinite(number):
-            raise ValueError("Nonfinite value.")
-        return number
-
-    return json.loads(value, object_pairs_hook=object_pairs, parse_constant=constant, parse_float=finite_float)
 
 
 class HostClient:

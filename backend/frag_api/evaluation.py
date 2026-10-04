@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import re
 from collections import Counter
 from pathlib import Path
@@ -15,14 +14,15 @@ from pydantic import ValidationError
 from frag_api.errors import PolicyRejectedError, RagOutputError
 from frag_api.evaluation_scoring import aggregate, contains_literal, coverage, score_facts
 from frag_api.providers.llm import FakeLlmProvider, LlmCallResult, LlmSettings, LlmStageSettings
-from frag_api.providers.prepared import strict_json, verify_prepared
+from frag_api.providers.prepared import verify_prepared
+from frag_api.request_spec import estimated_tokens, strict_json
 from frag_api.repositories.rag_index_repository import RagIndexRepository
 from frag_api.schemas.evaluation import EvalCaseReport, EvalCheck, EvalReport, GoldCase, GoldSuite
 from frag_api.schemas.governance import HOST_VERSION, SourceBinding, SourceIdentity
 from frag_api.schemas.rag import InferenceRunRequest, RagDatasetRequest, RagQueryRequest, RagRunRequest
 from frag_api.services.context_source_service import ContextSourceService
 from frag_api.services.rag_service import DATASET_ID, SOURCE_FILE, RagService
-from frag_api.services.governed_context import CONTEXT_OUTPUT_LIMIT, INFERENCE_OUTPUT_LIMIT, estimated_tokens
+from frag_api.services.governed_context import CONTEXT_OUTPUT_LIMIT, INFERENCE_OUTPUT_LIMIT
 from frag_api.services.runtime_policy import HostPolicy
 from frag_api.services.runtime_registry import CLIRegistry, ToolRegistry
 

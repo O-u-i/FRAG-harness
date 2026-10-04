@@ -17,18 +17,17 @@ from frag_api.schemas.rag import (
 )
 from frag_api.services.approval import ApprovalRegistry, PendingInferenceRegistry
 from frag_api.services.governed_context import (
-    CONTEXT_OUTPUT_LIMIT, INFERENCE_OUTPUT_LIMIT, estimated_tokens,
+    CONTEXT_OUTPUT_LIMIT, INFERENCE_OUTPUT_LIMIT,
 )
 from frag_api.services.runtime_policy import HostPolicy, RunBudget, configured_secrets, redact_value
 from frag_api.services.runtime_registry import LoopRegistry
-from frag_api.request_spec import canonical_json, fingerprint
+from frag_api.request_spec import canonical_json, estimated_tokens, fingerprint
 
 
 class FlowState(TypedDict, total=False):
     source_request: Any
     request: Any
     preview: Any
-    issue_approval: bool
     compressed: RagContextCompression
     context_stage: StageResult
     inference_preview: InferencePreview
@@ -62,7 +61,6 @@ class GovernedFlow:
         self.pending_inference = pending_inference
         self.runtime = None
         self.kind = "harness"
-        self.preview_graph = self._compile([("prepare", self._prepare), ("issue", self._issue)])
         self.context_graph = self._compile([
             ("prepare", self._prepare), ("authorize", self._authorize),
             ("context_call", self._context_call), ("context_check", self._context_check),
@@ -92,10 +90,19 @@ class GovernedFlow:
             return graph.invoke(state, config={"callbacks": []})
 
     def preview(self, source_request: Any, *, issue_approval: bool = True) -> Any:
-        state = self._invoke(self.preview_graph, {
-            "source_request": source_request, "issue_approval": issue_approval,
-        })
-        return state["preview"]
+        with tracing_context(enabled=False):
+            preview = self.prepare_preview(source_request)
+            call_id = None
+            if issue_approval and self.runtime:
+                run_id, session_id, call_id = self.runtime.start(self.kind, source_request, preview)
+                preview.run_id, preview.session_id = run_id, session_id
+            if issue_approval and preview.can_approve:
+                # The caller receives a copy; only this server-owned snapshot may execute.
+                pending = (source_request.model_copy(deep=True), preview.model_copy(deep=True), call_id)
+                preview.approval_token = self.approvals.issue(preview.context_fingerprint, pending)
+                if self.runtime:
+                    self.runtime.remember_approval(preview.approval_token)
+            return preview
 
     def run_context(self, source_request: Any, request: Any) -> FlowState:
         return self._invoke(self.context_graph, {"source_request": source_request, "request": request})
@@ -106,19 +113,6 @@ class GovernedFlow:
     def _prepare(self, state: FlowState) -> FlowState:
         return {"preview": self.prepare_preview(state["source_request"]),
                 "goal": self.goal_for(state["source_request"])}
-
-    def _issue(self, state: FlowState) -> FlowState:
-        call_id = None
-        if state["issue_approval"] and self.runtime:
-            run_id, session_id, call_id = self.runtime.start(self.kind, state["source_request"], state["preview"])
-            state["preview"].run_id, state["preview"].session_id = run_id, session_id
-        if state["issue_approval"] and state["preview"].can_approve:
-            # The caller receives a copy; only this server-owned snapshot may execute.
-            pending = (state["source_request"].model_copy(deep=True), state["preview"].model_copy(deep=True), call_id)
-            state["preview"].approval_token = self.approvals.issue(state["preview"].context_fingerprint, pending)
-            if self.runtime:
-                self.runtime.remember_approval(state["preview"].approval_token)
-        return {"preview": state["preview"]}
 
     def _authorize(self, state: FlowState) -> FlowState:
         request = state["request"]

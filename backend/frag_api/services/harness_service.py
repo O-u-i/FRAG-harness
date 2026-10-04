@@ -13,7 +13,7 @@ from frag_api.schemas.rag import InferenceRunRequest, RagEvidence
 from frag_api.services.approval import ApprovalRegistry, PendingInferenceRegistry
 from frag_api.services.context_source_service import PARSER_VERSION, ContextSourceError, ContextSourceService
 from frag_api.services.governed_flow import GovernedFlow
-from frag_api.services.governed_context import fingerprint
+from frag_api.request_spec import fingerprint
 from frag_api.services.model_preview import context_preview_fields
 from frag_api.services.runtime_policy import configured_secrets, redact
 from frag_api.services.runtime_registry import CLIRegistry, ToolRegistry

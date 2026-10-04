@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   ragDatasetRequestSchema,
   ragEvaluationReportSchema,
@@ -46,10 +47,10 @@ const json = (body: object): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-function parse<T>(schema: { safeParse: (value: unknown) => { success: boolean; data?: T } }, payload: unknown, label: string): T {
+function parse<T>(schema: z.ZodType<T>, payload: unknown, label: string): T {
   const parsed = schema.safeParse(payload);
   if (!parsed.success) throw new Error(`Backend returned an invalid RAG ${label}.`);
-  return parsed.data as T;
+  return parsed.data;
 }
 
 export async function fetchRagStatus(): Promise<RagIndexStatus> {

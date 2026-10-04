@@ -11,7 +11,7 @@ PI_ADAPTER = {"name": "pi-openai-responses", "version": "1.0.0",
               "piCommit": "a13d35a742c6ef8462812a28fbe1d8c8b7431c32", "protocolVersion": 1, "wireVersion": 1}
 MANIFEST_HASH = "378bb2d79b440bbba3a77c9c24de0a4de4335419bbce9f4edd68ca4e348c88dd"
 WORKER_FILES = ("worker.mjs", "wire.mjs", "verify-package.mjs")
-HOST_FILES = ("pi.py", "pi_process.py", "pi_integrity.py", "llm.py", "prepared.py", "research_native.py", "response_items.py")
+HOST_FILES = ("pi.py", "pi_process.py", "pi_integrity.py", "llm.py", "prepared.py", "research_native.py", "response_items.py", "../request_spec.py")
 
 
 def adapter_binding() -> dict:

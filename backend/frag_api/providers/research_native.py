@@ -5,8 +5,7 @@ import hashlib
 from pydantic import ValidationError
 
 from frag_api.errors import RagOutputError
-from frag_api.providers.prepared import strict_json
-from frag_api.request_spec import canonical_json, fingerprint
+from frag_api.request_spec import canonical_json, fingerprint, strict_json
 from frag_api.schemas.research import NativeResearchReplay, NativeResearchReplayV2, ResearchDecision, ResearchFinish
 from frag_api.schemas.tools import ReadArguments, SearchArguments
 from frag_api.providers.response_items import SOL_MODEL, output_content, require_sol_profile, validate_sol_response

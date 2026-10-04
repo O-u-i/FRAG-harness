@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable
 
 from fastapi import Request
 from fastapi.responses import JSONResponse

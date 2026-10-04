@@ -12,8 +12,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from frag_api.errors import RagNotReadyError, RagOutcomeUnknownError, RagProviderError
-from frag_api.providers.prepared import strict_json
-from frag_api.request_spec import canonical_json
+from frag_api.request_spec import canonical_json, strict_json
 
 WORKER_ROOT = Path(__file__).resolve().parents[2] / "pi-worker"
 STDOUT_LIMIT = 256 * 1024

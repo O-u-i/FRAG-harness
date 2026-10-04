@@ -11,7 +11,8 @@ from frag_api.errors import (
     RagIncompleteError, RagNotReadyError, RagOutcomeUnknownError, RagOutputError,
     RagProviderError, RagRefusalError,
 )
-from frag_api.providers.prepared import output_model_for, strict_json, verify_prepared
+from frag_api.providers.prepared import output_model_for, verify_prepared
+from frag_api.request_spec import strict_json
 from frag_api.schemas.common import ProviderKind, ProviderUsage
 from frag_api.schemas.governance import PreparedCall
 from frag_api.schemas.rag import (
