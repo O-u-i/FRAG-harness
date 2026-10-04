@@ -1,5 +1,6 @@
 import type { RunReport } from '../../../shared/contracts/runtime';
 import { PreparedCallPreview } from '../../components/common/PreparedCallPreview';
+import { ResearchTrajectoryView } from './ResearchTrajectoryView';
 
 type Answer = NonNullable<RunReport['modelOutput']>;
 export function RuntimeAnswer({ answer }: { answer: Answer }) {
@@ -23,6 +24,7 @@ export function RunReportView({ report }: { report: RunReport }) {
         <p>Human semantic review <strong>{report.semanticReview}</strong><small>{report.revisions.length ? 'Latest human revision' : 'Model original'}</small></p></div>
       {report.limitations.map((item, index) => <p className="notice" key={index}>{item}</p>)}
     </section>
+    <ResearchTrajectoryView report={report} />
     <section className="card"><div className="section-heading"><span className="eyebrow">Model original</span><h2>Original output</h2>
       <p>Human revisions are separate records. Review citation support against the selected evidence.</p></div>
       {report.modelOutput ? <RuntimeAnswer answer={report.modelOutput} /> : <p className="muted">No completed Inference output is saved.</p>}

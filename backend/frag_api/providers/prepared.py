@@ -41,7 +41,7 @@ def prepare_call(*, settings, purpose: str, instructions: str, payload: dict,
                     "redactionVersion": REDACTION_VERSION, "promptVersion": f"{purpose}-v2",
                     "outputContract": {"name": output_model.__name__, "version": 1,
                                        "schemaHash": fingerprint(output_model.model_json_schema(by_alias=True))},
-                    "memoryVersions": binding.get("memoryVersions", []), "toolVersions": []}
+                    "memoryVersions": binding.get("memoryVersions", []), "toolVersions": binding.get("toolVersions", [])}
     estimate = estimated_tokens(body)
     if estimate > 6000 * 75 // 100:
         raise RequestBudgetError()
@@ -67,7 +67,8 @@ def verify_prepared(call: PreparedCall, settings) -> None:
 
 def output_model_for(call: PreparedCall) -> type[BaseModel]:
     from frag_api.schemas.rag import RagContextCompression, RagGroundedAnswer
-    models = {"context": RagContextCompression, "inference": RagGroundedAnswer}
+    from frag_api.schemas.research import ResearchDecision
+    models = {"context": RagContextCompression, "inference": RagGroundedAnswer, "research": ResearchDecision}
     output_model = models.get(call.purpose)
     if output_model is None:
         raise RagFingerprintError()

@@ -9,7 +9,7 @@ function report(id: string): RunReport {
   return { schemaVersion: 1, session: {id: 'session', title: 'Synthetic', createdAt: 'now'}, run: {id, sessionId: 'session', parentRunId: null,
     kind: 'harness', status: 'ready_context', createdAt: 'now', updatedAt: 'now', version: 1, activeCallId: null},
     selection: {goal: selection(id).goal, sourceBindings: [], candidateEvidence: [], task: reviewTask, input: selection(id)},
-    requests: [], toolCalls: [], context: null, modelOutput: null, reviews: [], revisions: [], consumedTokens: 0, runTokenLimit: 30000,
+    requests: [], toolCalls: [], research: null, context: null, modelOutput: null, reviews: [], revisions: [], consumedTokens: 0, runTokenLimit: 30000,
     structuralValidation: 'NOT_RUN', semanticReview: 'NOT_RUN', limitations: [] };
 }
 const recovery: RecoveryPreview = {runId: 'A', kind: 'harness', stage: 'context', contextFingerprint: 'a'.repeat(64), preview: {

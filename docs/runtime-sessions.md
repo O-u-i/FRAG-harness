@@ -1,6 +1,6 @@
 # Sessions, review and safe recovery
 
-The fixed Harness and synthetic RAG workflows share one application lifecycle owner. A Session groups related Runs. A Run owns its explicitly selected redacted snapshot, frozen request specifications, stage attempts, charged budget, reliable Context checkpoint, model original, human decisions, independent revisions and selected-read tool observations. Runtime database schema version 1 is independent of the application version; older reports default to an empty toolCalls list. RAG indexing remains a separate, rebuildable cache. Research turns are a later capability.
+Fixed and optional Research workflows share one application lifecycle owner. A Session groups related Runs. A Run owns its explicitly selected redacted snapshot, frozen request specifications, stage attempts, charged budget, reliable Context checkpoint, model original, human decisions, independent revisions and selected-read tool observations. Runtime database schema version 1 is independent of the application version; older reports default to an empty toolCalls list and null research state. RAG indexing remains a separate, rebuildable cache.
 
 The default database is `.local-runtime/runtime.sqlite3`; `FRAG_RUNTIME_PATH` or `create_app(runtime_path=...)` can select another local path. Keep the database, WAL/SHM files, owner lock and exports outside Git. One app lifetime holds a nonblocking file lease; a second app cannot take ownership of the same database. SQLite transactions commit each dispatch claim, response, checkpoint or review as one record, and roll back incomplete writes. This is crash recovery, not tamper-proof storage or legal audit certification.
 
@@ -46,5 +46,32 @@ The page, JSON and Markdown render one `RunReport`. Structural validation and hu
 | `POST /api/runtime/runs/{id}/resume/preview` | Explicit `{sourceRequest: ...}` and fresh preview |
 | `POST /api/runtime/runs/{id}/reopen` | Changed selection creates a linked Run/preview |
 | `POST /api/runtime/runs/{id}/tools/execute` | Host-validated selected KB read, with a unique call ID and explicit reselection |
+| `POST /api/runtime/research/preview` | Explicit kind and sourceRequest start a Research Run and exact first preview |
+| `POST /api/runtime/runs/{id}/research/preview` | Explicit original sourceRequest revalidates and previews the next Research, Context or Inference checkpoint |
+| `POST /api/runtime/runs/{id}/research/execute` | One freshly approved frozen checkpoint, followed by its allowed serial read tools; returns the canonical report |
 
-Execution uses the existing `/api/harness/run`, `/api/rag/run` and their `/inference/run` endpoints. Each stage needs its own exact preview and explicit one-use approval. The host CLI uses these same HTTP boundaries, with terminal confirmation before each model stage. Selected KB tools are available before Context, limited to six serial calls. Unresolved tool calls prevent model dispatch; interrupted tools become outcome_unknown on restart. Research, Pi, curated memory, generic plugin protocol and real-KB acceptance remain later phases.
+Fixed execution uses the existing `/api/harness/run`, `/api/rag/run` and their `/inference/run` endpoints. Each stage needs its own exact preview and explicit one-use approval. The host CLI uses these same HTTP boundaries, with terminal confirmation before each model stage. Selected KB tools are available before Context, limited to six serial calls. Unresolved tool calls prevent model dispatch; interrupted tools become outcome_unknown on restart. Pi, curated memory, generic plugin protocol and real-KB acceptance remain later phases.
+
+## Research history and restoration
+
+A Research Run begins at `ready_research`. Its separate `research` state records
+numbered turns, attempt identities, validated continue/finish decisions, observed
+evidence selection and missing information. Attempt preparation and its pending
+turn pointer update atomically. A stale preview cannot override a later human
+pause. Direct fixed execution and manually submitted tools cannot bypass the
+Research runner's decisions.
+
+Research preserves the complete original typed selection for continuation.
+Changing inputs uses an explicitly linked new Run. A complete approved decision
+may execute its selected read tools automatically; preparing the next model turn
+is explicit and requires a fresh approval. After finish, Context receives only
+observed selected evidence. Context and Inference remain separate approved calls.
+
+Startup can validate a reliably saved response without repeating its model call.
+Pending selected tools resume only on an explicit revalidated continuation; the
+host skips reliably completed calls. Interrupted model/tool dispatches become
+unknown and cannot resume in the same Run. Saved histories must match the frozen
+proposal, tool version/carrier, per-call selected scope, result pairing and
+response digest. Restored formal stages apply the same evidence, gap and budget
+checks as live validation. These consistency checks do not make local storage
+tamper-proof. See [Research loop](research-loop.md).

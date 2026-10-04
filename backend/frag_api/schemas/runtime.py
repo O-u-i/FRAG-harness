@@ -7,8 +7,9 @@ from frag_api.schemas.common import ApiModel, ProviderUsage
 from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
 from frag_api.schemas.rag import RagContextCompression, RagEvidence, RagGroundedAnswer
 from frag_api.schemas.tools import ToolCallRecord
+from frag_api.schemas.research import ResearchState
 
-RunStatus = Literal["ready_context", "awaiting_inference", "awaiting_review", "paused", "accepted", "rejected", "error", "outcome_unknown"]
+RunStatus = Literal["ready_research", "ready_context", "awaiting_inference", "awaiting_review", "paused", "accepted", "rejected", "error", "outcome_unknown"]
 Outcome = Literal["PASS", "FAIL", "ERROR", "NOT_RUN", "UNDETERMINED"]
 
 
@@ -49,7 +50,7 @@ class SelectionSnapshot(ApiModel):
 
 class AttemptRecord(ApiModel):
     id: str
-    stage: Literal["context", "inference"]
+    stage: Literal["research", "context", "inference"]
     status: Literal["prepared", "dispatching", "completed", "failed", "outcome_unknown"]
     prepared_call: PreparedCall = Field(alias="preparedCall")
     created_at: str = Field(alias="createdAt")
@@ -86,6 +87,7 @@ class RevisionRecord(RevisionRequest):
 
 
 class RunReport(ApiModel):
+    research: ResearchState | None = None
     tool_calls: list[ToolCallRecord] = Field(default_factory=list, alias="toolCalls")
     snapshot_digest: str | None = Field(default=None, alias="snapshotDigest", min_length=64, max_length=64)
     schema_version: Literal[1] = Field(default=1, alias="schemaVersion")
@@ -111,6 +113,6 @@ class ReselectionRequest(ApiModel):
 class RecoveryPreview(ApiModel):
     run_id: str = Field(alias="runId")
     kind: Literal["harness", "rag"]
-    stage: Literal["context", "inference"]
+    stage: Literal["research", "context", "inference"]
     context_fingerprint: str = Field(alias="contextFingerprint")
     preview: dict[str, Any]

@@ -71,17 +71,19 @@ def test_registration_requires_executable_and_matching_schema_bindings(tmp_path)
     registry.register(cli_tool, input_model=ReadInput, output_model=ReadOutput, execute=lambda value: value, cli_registry=cli)
 
 
-def test_only_registered_fixed_runner_is_available_in_product(client):
+def test_fixed_and_research_runners_have_distinct_executable_interfaces(client):
     catalog = client.get("/api/harness/capabilities").json()
-    assert [loop["name"] for loop in catalog["loops"]] == ["fixed"]
+    assert [loop["name"] for loop in catalog["loops"]] == ["fixed", "research"]
     assert {tool["name"] for tool in catalog["tools"]} == {"kb.search", "kb.read"}
     assert {cli["name"] for cli in catalog["cli"]} == {"kb.read.cli", "frag.host"}
-    assert catalog["planned"] == ["research"]
+    assert catalog["planned"] == []
     loops = LoopRegistry()
     with pytest.raises(ValueError):
         loops.register(LoopDefinition(name="research", version="1.0.0", stages=("research", "context", "inference")), object())
-    with pytest.raises(PolicyRejectedError):
-        client.app.state.harness_service.flow.loops.get("research")
+    research = client.app.state.harness_service.flow.loops.get("research").runner
+    assert all(callable(getattr(research, name)) for name in ("start", "preview", "execute"))
+    with pytest.raises(ValueError):
+        loops.register(LoopDefinition(name="fixed", version="1.0.0", stages=("context", "inference")), research)
 
 
 def test_complete_input_budget_includes_schema_and_instructions(client, monkeypatch):

@@ -26,16 +26,16 @@ def parser():
     commands = result.add_subparsers(dest="command", required=True, parser_class=Parser)
     names = ["health", "capabilities", "sources", "source-inspect", "sessions", "session-create",
              "runs", "report", "preview", "recovery-preview", "reopen", "review", "revision", "tool-execute",
-             "execute-context", "execute-inference", "json"]
+             "research-preview", "execute-context", "execute-inference", "execute-research", "json"]
     for name in names:
         command = commands.add_parser(name)
         if name not in EMPTY_COMMANDS:
             command.add_argument("--input", help="Explicit JSON request file; otherwise read bounded JSON from stdin.")
         if name in RUN_COMMANDS or name == "execute-inference":
             command.add_argument("--run-id", required=True)
-        elif name == "execute-context":
+        elif name in {"execute-context", "research-preview", "execute-research"}:
             command.add_argument("--run-id", help="Resume this Run instead of preparing a new Run.")
-        if name in {"preview", "execute-context", "execute-inference"}:
+        if name in {"preview", "research-preview", "execute-context", "execute-inference", "execute-research"}:
             command.add_argument("--kind", choices=["harness", "rag"], required=True)
         if name == "runs":
             command.add_argument("--session-id")
@@ -133,6 +133,32 @@ def execute_stage(client, args, payload):
     return without_tokens(result)
 
 
+def execute_research(client, args, payload):
+    """Approve one Research/Context/Inference checkpoint, never a whole loop."""
+    from frag_api.schemas.research import ResearchPreview
+    from frag_api.schemas.runtime import RunReport
+    if not args.approve or not sys.stdin.isatty() or not sys.stderr.isatty():
+        raise HostCLIError("INTERACTIVE_APPROVAL_REQUIRED", "Model execution requires --approve, a terminal and exact interactive confirmation.")
+    operation = HostCLIRequest(command="research-preview", kind=args.kind, runId=args.run_id,
+                               payload=source_payload(payload, args.kind))
+    preview = ResearchPreview.model_validate(client.operate(operation).result)
+    if not preview.can_approve or not preview.approval_token:
+        raise HostCLIError("PREVIEW_BLOCKED", "The host preview is blocked; resolve its source or checklist conditions.")
+    if (preview.prepared_call.purpose != preview.stage or preview.prepared_call.fingerprint != preview.fingerprint
+            or (args.run_id and preview.run_id != args.run_id)):
+        raise HostCLIError("INVALID_HOST_PREVIEW", "The host preview does not match the selected Run and exact request.")
+    HostCLIRequest(command="report", runId=preview.run_id)
+    confirm(preview.prepared_call)
+    result = client.request("POST", f"/api/runtime/runs/{preview.run_id}/research/execute", {
+        "sourceRequest": operation.payload, "fingerprint": preview.fingerprint,
+        "approvalToken": preview.approval_token, "approved": True,
+    }, timeout=185 if preview.stage == "research" else 125)
+    report = RunReport.model_validate(result)
+    if report.run.id != preview.run_id or report.run.kind != args.kind or report.research is None:
+        raise HostCLIError("INVALID_HOST_RESPONSE", "The host returned a different Run after execution.")
+    return without_tokens(result)
+
+
 def main(argv=None):
     try:
         args = parser().parse_args(argv)
@@ -143,6 +169,8 @@ def main(argv=None):
         if args.command == "json":
             response = client.operate(HostCLIRequest.model_validate(payload))
             result = response.model_dump(by_alias=True)
+        elif args.command == "execute-research":
+            result = execute_research(client, args, payload)
         elif args.command.startswith("execute-"):
             result = execute_stage(client, args, payload)
         else:

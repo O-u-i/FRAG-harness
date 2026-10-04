@@ -52,8 +52,8 @@ class KBTools:
         return ToolResult(callId=payload["callId"], evidence=rows,
             missingInformation=[] if rows else ["No selected evidence matched this lexical query."])
 
-    def _selected(self, report, source_request):
-        if report.run.status != "ready_context":
+    def _selected(self, report, source_request, *, research=False):
+        if report.run.status != ("ready_research" if research else "ready_context") or bool(report.research) != research:
             raise RuntimeConflictError()
         if fingerprint(report.selection.model_dump(by_alias=True)) != report.snapshot_digest:
             raise RuntimeConflictError()
@@ -63,6 +63,8 @@ class KBTools:
             source = model.model_validate(source_request)
         except ValidationError as error:
             raise RequestContractError([]) from error
+        if research:
+            return service.research.validate_source(report, source)
         # Never touch FC/plugin routes as part of KB tools, including mixed selections.
         if any(binding.identity.kind == "fc_record" for binding in report.selection.source_bindings):
             raise PolicyRejectedError()
@@ -78,7 +80,7 @@ class KBTools:
         HostPolicy.require_task(report.reviews[-1].checklist if report.reviews else report.selection.task)
         return fresh
 
-    def execute(self, run_id, source_request, call):
+    def execute(self, run_id, source_request, call, *, research=False):
         if redact_value(call.call_id, self.runtime.redaction_secrets) != call.call_id:
             raise PolicyRejectedError()
         report = self.runtime.repository.get(run_id)
@@ -89,7 +91,9 @@ class KBTools:
             raise RequestContractError([]) from error
         binding = HostPolicy.require_tool(tool.definition, frozenset(("kb.search", "kb.read")),
             report.selection.source_bindings, arguments.identity, arguments.revision, arguments.locator_ids)
-        fresh = self._selected(report, source_request)
+        fresh = self._selected(report, source_request, research=research)
+        if research and not any(turn.status == "tools_pending" and call in turn.decision.tool_calls for turn in report.research.turns):
+            raise PolicyRejectedError()
         evidence = [row for row in fresh.candidate_evidence
                     if row.evidence_id in binding.evidence_ids and row.locator_id in arguments.locator_ids]
         if isinstance(arguments, ReadArguments):
@@ -102,7 +106,7 @@ class KBTools:
             carrier=tool.definition.carrier, arguments=redact_value(call.arguments, self.runtime.redaction_secrets),
             status="dispatching", createdAt=now())
         def claim(current):
-            if (current.run.status != "ready_context" or current.run.version != report.run.version
+            if (current.run.status != ("ready_research" if research else "ready_context") or current.run.version != report.run.version
                     or any(item.status == "dispatching" for item in current.requests)
                     or len(current.tool_calls) >= 6 or any(item.call_id == call.call_id or item.status in ("dispatching", "outcome_unknown") for item in current.tool_calls)):
                 raise RuntimeConflictError()

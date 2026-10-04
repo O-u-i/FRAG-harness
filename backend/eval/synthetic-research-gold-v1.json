@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "suiteId": "governed-synthetic-research",
+  "suiteVersion": "1.0.0",
+  "source": {
+    "kind": "synthetic",
+    "revision": "orchid-fixture-r1",
+    "sha256": "de02622cb53a61c2d3e94a6af412d5ccfba5a8135218f83ef0af3dec1d1ceb95",
+    "markdown": "# Export policy\nOnly synthetic datasets may be exported. Personal datasets must not be exported.\n\n# Approval\nExport requires explicit human approval before execution.\n\n# Retention\nDeletion is not enabled. Retention is limited to at most 14 days. The result limit is 8 MiB.\n\n# Timing\nThe synthetic policy became effective on 2026-10-01. The maintenance owner is unknown.\n"
+  },
+  "researchCases": [
+    {
+      "id": "actual-cli-read-before-finish",
+      "query": "synthetic export approval",
+      "steps": [{"action": "read"}, {"action": "finish"}],
+      "expectedStatus": "awaiting_context",
+      "expectedToolNames": ["kb.read"]
+    },
+    {
+      "id": "native-search-then-cli-read",
+      "query": "synthetic export approval",
+      "steps": [{"action": "search", "query": "synthetic"}, {"action": "read"}, {"action": "finish"}],
+      "expectedStatus": "awaiting_context",
+      "expectedToolNames": ["kb.search", "kb.read"]
+    },
+    {
+      "id": "missing-search-then-recover",
+      "query": "synthetic export approval",
+      "steps": [{"action": "search", "query": "quasar heliosphere"}, {"action": "read"},
+                {"action": "finish", "missingInformation": ["The selected query returned no matching evidence."]}],
+      "expectedStatus": "awaiting_context",
+      "expectedToolNames": ["kb.search", "kb.read"],
+      "requiredMissingInformation": ["no matching evidence"]
+    },
+    {
+      "id": "restart-retains-result-history",
+      "query": "synthetic export approval",
+      "steps": [{"action": "read"}, {"action": "finish"}],
+      "restartAfterTurn": 1,
+      "expectedStatus": "awaiting_context",
+      "expectedToolNames": ["kb.read"]
+    },
+    {
+      "id": "sanitized-tool-error-then-recover",
+      "query": "synthetic export approval",
+      "steps": [{"action": "read"}, {"action": "read"}, {"action": "finish"}],
+      "toolFailure": "TOOL_TIMEOUT",
+      "expectedStatus": "awaiting_context",
+      "expectedToolNames": ["kb.read", "kb.read"],
+      "expectedToolStatuses": ["failed", "completed"]
+    }
+  ]
+}

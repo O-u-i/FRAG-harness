@@ -22,8 +22,8 @@ def redact(text: str, secrets: tuple[str, ...] = ()) -> str:
 
 
 def configured_secrets(settings) -> tuple[str, ...]:
-    return tuple(stage.api_key for stage in (settings.context, settings.inference)
-                 if stage.provider == "openai" and stage.api_key)
+    return tuple(stage.api_key for stage in (settings.context, settings.inference, getattr(settings, "research", None))
+                 if stage is not None and stage.provider == "openai" and stage.api_key)
 
 
 def redact_value(value, secrets: tuple[str, ...] = ()):

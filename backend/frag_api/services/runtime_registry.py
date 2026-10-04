@@ -24,6 +24,12 @@ class LoopRunner(Protocol):
     def run_inference(self, request: Any) -> Any: ...
 
 
+class ResearchLoopRunner(Protocol):
+    def start(self, kind: str, source: Any) -> Any: ...
+    def preview(self, run_id: str, source: Any) -> Any: ...
+    def execute(self, run_id: str, source: Any, fingerprint: str, token: str) -> Any: ...
+
+
 @dataclass(frozen=True)
 class ToolBinding:
     definition: ToolDefinition
@@ -41,7 +47,7 @@ class CLIBinding:
 @dataclass(frozen=True)
 class LoopBinding:
     definition: LoopDefinition
-    runner: LoopRunner
+    runner: LoopRunner | ResearchLoopRunner
 
 
 def _schema_matches(text: str, model: type[BaseModel]) -> bool:
@@ -104,9 +110,10 @@ class LoopRegistry:
     def __init__(self):
         self._bindings: dict[str, LoopBinding] = {}
 
-    def register(self, definition: LoopDefinition, runner: LoopRunner) -> None:
+    def register(self, definition: LoopDefinition, runner: LoopRunner | ResearchLoopRunner) -> None:
+        methods = ("start", "preview", "execute") if definition.name == "research" else ("preview", "run_context", "run_inference")
         if (definition.name in self._bindings
-                or not all(callable(getattr(runner, name, None)) for name in ("preview", "run_context", "run_inference"))):
+                or not all(callable(getattr(runner, name, None)) for name in methods)):
             raise ValueError("Loop registration requires a unique executable runner.")
         self._bindings[definition.name] = LoopBinding(definition, runner)
 

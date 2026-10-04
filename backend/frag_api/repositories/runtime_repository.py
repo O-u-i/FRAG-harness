@@ -144,4 +144,9 @@ class RuntimeRepository:
                 report.run.active_call_id = None
                 report.run.version += 1
                 report.structural_validation = "ERROR"
+                if report.research:
+                    report.research.status = "outcome_unknown"
+                    for turn in report.research.turns:
+                        if turn.status in ("model_pending", "tools_pending"):
+                            turn.status, turn.error_code = "outcome_unknown", "INTERRUPTED_RESEARCH"
                 db.execute("UPDATE runs SET record=? WHERE id=?", (report.model_dump_json(by_alias=True), run_id))

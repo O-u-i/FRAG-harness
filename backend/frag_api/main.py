@@ -27,7 +27,9 @@ from frag_api.routers.plugins import router as plugins_router
 from frag_api.routers.rag import router as rag_router
 from frag_api.routers.runtime import router as runtime_router
 from frag_api.routers.tools import router as tools_router
+from frag_api.routers.research import router as research_router
 from frag_api.services.kb_tools import KBTools
+from frag_api.services.research_flow import ResearchFlow
 from frag_api.cli_client import host_cli_binding
 from frag_api.repositories.runtime_repository import RuntimeRepository
 from frag_api.services.context_source_service import ContextSourceService
@@ -81,16 +83,18 @@ def create_app(
             app.state.kb_tools = KBTools(app.state.runtime, app.state.harness_service, app.state.rag_service)
             definition, execute = host_cli_binding()
             app.state.harness_service.cli_registry.register(definition, execute)
+            app.state.research = ResearchFlow(app.state.runtime, app.state.harness_service, app.state.rag_service, app.state.kb_tools)
             try:
                 yield
             finally:
+                app.state.research.close()
                 for _, service in services:
                     service.approvals.clear()
                     service.pending_inference.clear()
                     service.flow.runtime = None
                 app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.4.0", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.5.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.plugin_root = Path(plugin_root)
     app.state.plugin_hidden = False
@@ -119,6 +123,7 @@ def create_app(
     app.include_router(rag_router)
     app.include_router(runtime_router)
     app.include_router(tools_router)
+    app.include_router(research_router)
     app.include_router(plugins_router)
     if plugin is not None:
         app.include_router(plugin.router)

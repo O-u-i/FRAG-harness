@@ -40,6 +40,7 @@ class LlmStageSettings:
 class LlmSettings:
     context: LlmStageSettings
     inference: LlmStageSettings
+    research: LlmStageSettings | None = None
 
     @classmethod
     def from_environment(cls) -> "LlmSettings":
@@ -61,7 +62,7 @@ class LlmSettings:
                 timeout_seconds=timeout,
             )
 
-        return cls(context=stage("CONTEXT"), inference=stage("INFERENCE"))
+        return cls(context=stage("CONTEXT"), inference=stage("INFERENCE"), research=stage("RESEARCH"))
 
 
 @dataclass(frozen=True)
@@ -78,11 +79,28 @@ class FakeLlmProvider:
     def execute_prepared(self, call: PreparedCall) -> LlmCallResult:
         output_model_for(call)
         payload = json.loads(call.request_body()["input"])
+        if call.purpose == "research":
+            from frag_api.schemas.research import ResearchDecision
+            observed = sorted({row["evidenceId"] for tool in payload["observations"]
+                               if tool.get("result") for row in tool["result"]["evidence"]})
+            if observed:
+                decision = ResearchDecision(action="finish", toolCalls=[], evidenceIds=observed, missingInformation=[])
+            else:
+                source = payload["manifest"][0]
+                decision = ResearchDecision(action="continue", toolCalls=[{
+                    "callId":f"fake-read-{payload['turn']}", "name":"kb.read", "arguments":{
+                        "identity":source["identity"], "revision":source["revision"],
+                        "locatorIds":source["locatorIds"], "evidenceIds":source["evidenceIds"][:10]}}],
+                    evidenceIds=[], missingInformation=[])
+            return LlmCallResult(decision, ProviderUsage(inputTokens=120, outputTokens=80))
         if call.purpose == "context":
-            return self.generate_rag_context([RagEvidence.model_validate(item) for item in payload["evidence"]],
-                                             call.request_body()["max_output_tokens"])
-        return self.generate_rag_answer(RagContextCompression.model_validate(payload["context"]),
-                                        payload["query"], call.request_body()["max_output_tokens"])
+            result = self.generate_rag_context([RagEvidence.model_validate(item) for item in payload["evidence"]],
+                                               call.request_body()["max_output_tokens"])
+        else:
+            result = self.generate_rag_answer(RagContextCompression.model_validate(payload["context"]),
+                                              payload["query"], call.request_body()["max_output_tokens"])
+        result.output.missing_information = list(dict.fromkeys(result.output.missing_information + payload.get("researchMissingInformation", [])))
+        return result
 
     def generate_rag_context(self, evidence: list[RagEvidence], max_output_tokens: int) -> LlmCallResult:
         output = RagContextCompression(

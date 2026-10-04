@@ -57,7 +57,7 @@ def read_selected(payload):
     if any(evidence_id not in by_id for evidence_id in evidence_ids):
         raise ValueError("Evidence outside selected snapshot")
     selected = [by_id[evidence_id] for evidence_id in evidence_ids]
-    if {row["locatorId"] for row in selected} != set(locators):
+    if not {row["locatorId"] for row in selected}.issubset(locators):
         raise ValueError("Locator selection mismatch")
     return {"callId": payload["callId"], "evidence": selected, "missingInformation": []}
 

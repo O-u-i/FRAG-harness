@@ -1,6 +1,6 @@
 # Governed runtime contracts
 
-`GET /api/harness/capabilities` lists executable registrations separately from planned capabilities. The runtime registers the fixed Context → Inference runner, `frag.host` HTTP CLI, `kb.read.cli` carrier, native `kb.search` and CLI-backed `kb.read`. Tool arguments and private carrier input schemas are separately declared; the carrier receives only trusted selected snapshots after host authorization. Research is planned and cannot be selected as an active runner. Fixed model requests contain no model tools; actual model tool proposals and result feedback remain Phase 4.
+`GET /api/harness/capabilities` lists executable registrations separately from planned capabilities. The runtime registers the fixed Context → Inference runner, optional Research → Context → Inference runner, `frag.host` HTTP CLI, `kb.read.cli` carrier, native `kb.search` and CLI-backed `kb.read`. Tool arguments and private carrier input schemas are separately declared; the carrier receives only trusted selected snapshots after host authorization. Fixed model requests contain no model tools. Research accepts complete typed model proposals, validates them and feeds actual observations into the next separately approved turn. Native Pi tool-call transport remains a later integration.
 
 ## Prepared requests and approval
 
@@ -26,6 +26,15 @@ Authority, freshness, relevance and provenance use known/unknown metadata. A use
 
 Input estimation covers the complete request JSON, including instructions, schema and tools. The existing 6,000-token budget reserves 25%, allowing an estimated 4,500 input tokens per stage. Context and Inference output limits remain 1,500 and 2,000. These input estimates use UTF-8 byte length, not a model-specific tokenizer.
 
-The default cumulative run limit is 30,000 input-plus-output tokens. Each call reserves estimated input plus its output ceiling before dispatch; completed calls charge reported usage, falling back to the reservation for unknown components. The budget carries across both stages. The future Research contract retains three model turns, six serial tools, ten seconds per tool, 16 KiB results and an 800-token loop output cap. A declared future limit is not proof that a Research runner exists.
+The default cumulative run limit is 30,000 input-plus-output tokens. Each call reserves estimated input plus its output ceiling before dispatch; completed calls charge reported usage, falling back to the reservation for unknown components. The budget carries across Research, Context and Inference. Research allows three model turns, six serial tools, ten seconds per tool, 16 KiB results and an 800-token output cap per loop model request. Exhaustion stops the loop visibly; no extra model call is sent to manufacture a finish.
+
+Research freezes its registered tool schemas/versions, selected source manifest and
+durable trajectory into the prepared request. The initial request contains source
+metadata and allowed IDs without the selected evidence bodies. Later turns include
+actual call-bound observations. A finish decision selects only observed allowed
+evidence; the resulting Context preview contains that subset and recorded missing
+information. Each checkpoint requires a new preview and single-use approval. See
+[Research loop](research-loop.md) for the typed proposals, source revalidation,
+pause/recovery and exact HTTP contracts.
 
 Refusal, incomplete output and unknown transport outcomes have separate sanitized API errors. Invalid output remains `INVALID_LLM_OUTPUT`. A timeout or connection failure is `LLM_OUTCOME_UNKNOWN`; neither the host nor provider automatically resends it. Redaction covers goal/query, selected evidence, checklist payloads, model responses and subsequent model inputs, including known configured model keys and common secret/email patterns. It cannot identify every private value. The application lifecycle owner persists outcomes and checkpoints in a separate SQLite runtime database. Known responses complete deterministic validation after restart; unknown dispatch outcomes do not resume. Runs, JSON and Markdown use the same structured report. See [sessions and recovery](runtime-sessions.md).

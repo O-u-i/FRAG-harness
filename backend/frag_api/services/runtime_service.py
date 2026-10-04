@@ -8,7 +8,7 @@ from collections import OrderedDict
 from threading import RLock
 from pydantic import ValidationError
 
-from frag_api.errors import RuntimeConflictError, RequestBudgetError
+from frag_api.errors import RuntimeConflictError, RequestBudgetError, RagOutputError
 from frag_api.repositories.runtime_repository import RuntimeRepository
 from frag_api.schemas.common import ProviderUsage
 from frag_api.schemas.governance import PreparedCall
@@ -74,11 +74,18 @@ class RuntimeService:
                 if call.status != "completed" or call.structural_validation != "UNDETERMINED":
                     continue
                 try:
+                    if report.consumed_tokens > report.run_token_limit:
+                        self.failure(report.run.id, call.id, "REQUEST_BUDGET_EXCEEDED")
+                        continue
                     if call.output_digest and call.output_digest != fingerprint(call.output):
                         raise ValueError()
+                    if call.stage == "research":
+                        from frag_api.services.research_checkpoint import checkpoint_research
+                        checkpoint_research(self, report.run.id, call.id, call.output)
+                        continue
                     if call.stage == "context":
                         output = RagContextCompression.model_validate(call.output)
-                        allowed = {e.evidence_id for e in report.selection.candidate_evidence}
+                        allowed = set(report.research.selected_evidence_ids) if report.research else {e.evidence_id for e in report.selection.candidate_evidence}
                         ids = [e.evidence_id for e in output.evidence]
                         valid = set(ids) == allowed and len(ids) == len(allowed) and estimated_tokens(output.model_dump(by_alias=True)) <= 1500
                     else:
@@ -88,7 +95,13 @@ class RuntimeService:
                         valid = bool(cited) and cited.issubset(allowed) and estimated_tokens(output.model_dump(by_alias=True)) <= 2000
                     if not valid or report.consumed_tokens > report.run_token_limit:
                         raise ValueError()
-                except (ValidationError, ValueError):
+                    if report.research:
+                        missing = set(report.research.missing_information)
+                        if call.stage == "inference" and report.context:
+                            missing.update(report.context.missing_information)
+                        if not missing.issubset(output.missing_information):
+                            raise ValueError()
+                except (ValidationError, ValueError, RagOutputError):
                     self.failure(report.run.id, call.id, "INVALID_PERSISTED_OUTPUT")
                     continue
                 self.checkpoint(report.run.id, call.id, output, stage=call.stage)
@@ -96,7 +109,7 @@ class RuntimeService:
     def create_session(self, title="Evidence review") -> SessionRecord:
         return self.repository.create_session(SessionRecord(id=identifier(), title=durable_value(title, self.redaction_secrets), createdAt=now()))
 
-    def start(self, kind, source_request, preview) -> tuple[str, str, str]:
+    def start(self, kind, source_request, preview, *, research=None) -> tuple[str, str, str]:
         parent_id = source_request.parent_run_id
         if parent_id:
             parent = self.repository.get(parent_id)
@@ -114,11 +127,12 @@ class RuntimeService:
         )
         snapshot = SelectionSnapshot.model_validate(durable_value(snapshot, self.redaction_secrets))
         report = RunReport(
+            research=research,
             snapshotDigest=fingerprint(snapshot.model_dump(by_alias=True)),
             session=session, run=RunRecord(id=run_id, sessionId=session.id, parentRunId=parent_id,
-                kind=kind, status="ready_context" if preview.can_approve else "paused",
+                kind=kind, status=("ready_research" if research else "ready_context") if preview.can_approve else "paused",
                 createdAt=stamp, updatedAt=stamp, version=1, activeCallId=call_id),
-            selection=snapshot, requests=[AttemptRecord(id=call_id, stage="context", status="prepared", preparedCall=prepared, createdAt=stamp)],
+            selection=snapshot, requests=[AttemptRecord(id=call_id, stage=prepared.purpose, status="prepared", preparedCall=prepared, createdAt=stamp)],
             context=None, modelOutput=None, reviews=[], revisions=[], consumedTokens=0,
             runTokenLimit=prepared.run_token_limit, structuralValidation="NOT_RUN", semanticReview="NOT_RUN",
             limitations=["Source quality fields describe known metadata; they do not verify factual truth.",
@@ -126,13 +140,18 @@ class RuntimeService:
                          "Automatic redaction cannot identify every private value.",
                          "Input tokens are estimates when provider usage is unavailable."],
         )
+        if research:
+            from frag_api.schemas.research import ResearchTurn
+            research.turns.append(ResearchTurn(number=1, attemptId=call_id, status="model_pending"))
         self.repository.create(report)
         return run_id, session.id, call_id
 
-    def prepare(self, run_id, prepared, stage, *, allow_paused=False) -> str:
+    def prepare(self, run_id, prepared, stage, *, allow_paused=False, expected_version=None) -> str:
         call_id = identifier()
         safe_call = PreparedCall.model_validate(durable_value(prepared, self.redaction_secrets))
         def change(report):
+            if expected_version is not None and report.run.version != expected_version:
+                raise RuntimeConflictError()
             if (report.run.status in ("outcome_unknown", "accepted", "rejected")
                     or (report.run.status == "paused" and not allow_paused)
                     or any(c.status == "dispatching" or (c.status == "completed" and c.structural_validation == "UNDETERMINED") for c in report.requests)):
@@ -143,14 +162,26 @@ class RuntimeService:
             if report.consumed_tokens + reservation > report.run_token_limit:
                 raise RequestBudgetError()
             report.requests.append(AttemptRecord(id=call_id, stage=stage, status="prepared", preparedCall=safe_call, createdAt=now()))
-            report.run.status = "ready_context" if stage == "context" else "awaiting_inference"
+            if stage == "research":
+                from frag_api.schemas.research import ResearchTurn
+                if report.research is None:
+                    raise RuntimeConflictError()
+                pending = next((turn for turn in report.research.turns if turn.status == "model_pending"), None)
+                if pending:
+                    pending.attempt_id = call_id
+                elif len(report.research.turns) < 3:
+                    report.research.turns.append(ResearchTurn(number=len(report.research.turns)+1,
+                        attemptId=call_id, status="model_pending"))
+                else:
+                    raise RuntimeConflictError()
+            report.run.status = {"research":"ready_research", "context":"ready_context", "inference":"awaiting_inference"}[stage]
             report.run.active_call_id, report.run.updated_at = call_id, now()
         self.repository.update(run_id, change)
         return call_id
 
     def claim(self, run_id, call_id, prepared):
         def change(report):
-            expected = "ready_context" if prepared.purpose == "context" else "awaiting_inference"
+            expected = {"research":"ready_research", "context":"ready_context", "inference":"awaiting_inference"}[prepared.purpose]
             if (report.run.status != expected or report.run.active_call_id != call_id
                     or any(tool.status in ("dispatching", "outcome_unknown") for tool in report.tool_calls)):
                 raise RuntimeConflictError()
@@ -193,6 +224,12 @@ class RuntimeService:
                 report.run.status = "error"
             report.run.active_call_id, report.run.updated_at = None, now()
             report.structural_validation = outcome
+            if report.research and code == "REQUEST_BUDGET_EXCEEDED":
+                report.research.status = "exhausted"
+            if report.research and call.stage == "research":
+                report.research.status = "outcome_unknown" if unknown else ("exhausted" if code == "REQUEST_BUDGET_EXCEEDED" else "error")
+                turn = next(item for item in report.research.turns if item.attempt_id == call_id)
+                turn.status, turn.error_code = ("outcome_unknown" if unknown else "failed"), code
         self.repository.update(run_id, change)
 
     def checkpoint(self, run_id, call_id, output, *, stage):

@@ -3,8 +3,9 @@ import { preparedCallSchema, sourceBindingSchema, taskContractSchema } from './g
 import { harnessPreviewSchema } from './harness';
 import { stageResultSchema } from './modelStages';
 import { inferencePreviewSchema, ragContextCompressionSchema, ragEvidenceSchema, ragGroundedAnswerSchema, ragPreviewSchema } from './rag';
+import { researchStateSchema } from './research';
 
-export const runStatusSchema = z.enum(['ready_context', 'awaiting_inference', 'awaiting_review', 'paused', 'accepted', 'rejected', 'error', 'outcome_unknown']);
+export const runStatusSchema = z.enum(['ready_research', 'ready_context', 'awaiting_inference', 'awaiting_review', 'paused', 'accepted', 'rejected', 'error', 'outcome_unknown']);
 export const outcomeSchema = z.enum(['PASS', 'FAIL', 'ERROR', 'NOT_RUN', 'UNDETERMINED']);
 export const sessionCreateSchema = z.object({ title: z.string().min(1).max(200) }).strict();
 export const sessionRecordSchema = z.object({ id: z.string(), title: z.string(), createdAt: z.string() }).strict();
@@ -17,7 +18,7 @@ export const selectionSnapshotSchema = z.object({
   task: taskContractSchema, input: z.record(z.string(), z.unknown()),
 }).strict();
 export const attemptRecordSchema = z.object({
-  id: z.string(), stage: z.enum(['context', 'inference']), status: z.enum(['prepared', 'dispatching', 'completed', 'failed', 'outcome_unknown']),
+  id: z.string(), stage: z.enum(['research', 'context', 'inference']), status: z.enum(['prepared', 'dispatching', 'completed', 'failed', 'outcome_unknown']),
   preparedCall: preparedCallSchema, createdAt: z.string(), finishedAt: z.string().nullable().optional(),
   usage: stageResultSchema.shape.usage.nullable().optional(), output: z.record(z.string(), z.unknown()).nullable().optional(),
   errorCode: z.string().nullable().optional(), structuralValidation: outcomeSchema,
@@ -33,6 +34,7 @@ export const revisionRecordSchema = revisionRequestSchema.extend({
   contentDigest: z.string().length(64).nullable().optional(),
 }).strict();
 export const runReportSchema = z.object({
+  research: researchStateSchema.nullable().default(null),
   toolCalls: z.array(z.object({
     callId: z.string(), name: z.string(), toolVersion: z.string(), carrier: z.enum(['native', 'cli']),
     arguments: z.record(z.string(), z.unknown()), status: z.enum(['dispatching', 'completed', 'failed', 'outcome_unknown']),

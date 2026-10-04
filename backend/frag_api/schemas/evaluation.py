@@ -54,16 +54,46 @@ class GoldCase(ApiModel):
         return self
 
 
+class GoldResearchStep(ApiModel):
+    """Bounded fixture instructions, never network or filesystem authority."""
+    action: Literal["read", "search", "finish", "unknown-tool", "scope-escape", "malformed-call", "duplicate-call"]
+    query: str = Field(default="synthetic", min_length=1, max_length=500)
+    count: int = Field(default=1, ge=1, le=6, strict=True)
+    missing_information: list[str] = Field(default_factory=list, alias="missingInformation", max_length=10)
+
+
+class GoldResearchCase(ApiModel):
+    id: str = Field(min_length=1, max_length=80)
+    query: str = Field(min_length=3, max_length=500)
+    steps: list[GoldResearchStep] = Field(min_length=1, max_length=3)
+    expected_status: Literal["awaiting_context", "exhausted", "error"] = Field(alias="expectedStatus")
+    expected_tool_names: list[Literal["kb.read", "kb.search"]] = Field(default_factory=list, alias="expectedToolNames", max_length=6)
+    expected_tool_statuses: list[Literal["completed", "failed"]] = Field(default_factory=list, alias="expectedToolStatuses", max_length=6)
+    required_missing_information: list[str] = Field(default_factory=list, alias="requiredMissingInformation", max_length=10)
+    restart_after_turn: int | None = Field(default=None, alias="restartAfterTurn", ge=1, le=2, strict=True)
+    tool_failure: Literal["TOOL_TIMEOUT", "TOOL_OUTPUT_LIMIT"] | None = Field(default=None, alias="toolFailure")
+
+    @model_validator(mode="after")
+    def paired_expectations(self):
+        if self.expected_tool_statuses and len(self.expected_tool_statuses) != len(self.expected_tool_names):
+            raise ValueError("Research tool statuses must pair with expected tool names.")
+        if self.restart_after_turn is not None and self.restart_after_turn >= len(self.steps):
+            raise ValueError("Research restart must precede a scripted continuation.")
+        return self
+
+
 class GoldSuite(ApiModel):
     schema_version: Literal[1] = Field(alias="schemaVersion")
     suite_id: str = Field(alias="suiteId", min_length=1, max_length=100)
     suite_version: str = Field(alias="suiteVersion", pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
     source: GoldSource
-    cases: list[GoldCase] = Field(min_length=1, max_length=100)
+    cases: list[GoldCase] = Field(default_factory=list, max_length=100)
+    research_cases: list[GoldResearchCase] = Field(default_factory=list, alias="researchCases", max_length=30)
 
     @model_validator(mode="after")
     def unique_cases(self):
-        if len({case.id for case in self.cases}) != len(self.cases):
+        combined = self.cases + self.research_cases
+        if not combined or len({case.id for case in combined}) != len(combined):
             raise ValueError("Gold case identifiers must be unique.")
         return self
 
@@ -84,13 +114,17 @@ class EvalCaseReport(ApiModel):
     host_enforcement_status: EvalStatus = Field(alias="hostEnforcementStatus")
     model_quality_status: EvalStatus = Field(alias="modelQualityStatus")
     earliest_observed_deviation: str | None = Field(default=None, alias="earliestObservedDeviation")
+    secondary_observed_failures: list[str] = Field(default_factory=list, alias="secondaryObservedFailures")
+    causal_attribution: Literal["UNDETERMINED"] = Field(default="UNDETERMINED", alias="causalAttribution")
+    unknown_causes: list[str] = Field(default_factory=lambda: [
+        "Unique root cause and causal contribution were not determined from this observed execution."], alias="unknownCauses")
     checks: list[EvalCheck]
     trace: dict[str, Any] = Field(default_factory=dict)
 
 
 class EvalReport(ApiModel):
     schema_version: Literal[1] = Field(default=1, alias="schemaVersion")
-    runner_version: Literal["1.0.0"] = Field(default="1.0.0", alias="runnerVersion")
+    runner_version: Literal["1.1.0"] = Field(default="1.1.0", alias="runnerVersion")
     scorer_version: Literal["literal-facts-v1"] = Field(default="literal-facts-v1", alias="scorerVersion")
     host_version: str = Field(alias="hostVersion")
     suite_id: str | None = Field(default=None, alias="suiteId")
@@ -100,7 +134,7 @@ class EvalReport(ApiModel):
     provider: Literal["offline-scripted-fake"] = "offline-scripted-fake"
     status: EvalStatus
     semantic_review_status: Literal["UNDETERMINED"] = Field(default="UNDETERMINED", alias="semanticReviewStatus")
-    trajectory_status: Literal["NOT_RUN"] = Field(default="NOT_RUN", alias="trajectoryStatus")
+    trajectory_status: EvalStatus = Field(default="NOT_RUN", alias="trajectoryStatus")
     counts: dict[EvalStatus, int]
     cases: list[EvalCaseReport]
     errors: list[str] = Field(default_factory=list)
@@ -108,5 +142,5 @@ class EvalReport(ApiModel):
         "PASS covers executed deterministic synthetic checks only; no real model or LLM judge was used.",
         "Literal facts are declared fixture checks, not proof of semantic support or factual truth.",
         "The earliest observed deviation does not establish a unique cause.",
-        "Research trajectory is not implemented in Phase 3; real semantic review is undetermined.",
+        "Research trajectory covers declared synthetic paths only when explicitly requested; real semantic review is undetermined.",
     ])

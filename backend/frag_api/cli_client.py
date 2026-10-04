@@ -82,7 +82,7 @@ class HostClient:
                 raise HostCLIError("INVALID_INPUT", "Provide a valid structured JSON object.") from error
             if len(body) > MAX_REQUEST_BYTES:
                 raise HostCLIError("INPUT_TOO_LARGE", "Input exceeds the 16 KiB host request limit.")
-        if not 0 < timeout <= 125:
+        if not 0 < timeout <= 185:
             raise HostCLIError("INVALID_TIMEOUT", "The host timeout is outside its allowed range.")
         deadline = time.monotonic() + timeout
         headers = {"Accept": "text/markdown" if markdown else "application/json"}
@@ -139,7 +139,21 @@ class HostClient:
                  "preview":f"/api/{request.kind}/preview", "recovery-preview":f"/api/runtime/runs/{run_id}/resume/preview",
                  "reopen":f"/api/runtime/runs/{run_id}/reopen", "review":f"/api/runtime/runs/{run_id}/review",
                  "revision":f"/api/runtime/runs/{run_id}/revisions", "tool-execute":f"/api/runtime/runs/{run_id}/tools/execute"}
-        if command in paths:
+        if command == "research-preview":
+            from frag_api.schemas.research import ResearchPreview
+            body = {"sourceRequest": request.payload}
+            path = f"/api/runtime/runs/{run_id}/research/preview" if run_id else "/api/runtime/research/preview"
+            if not run_id:
+                body["kind"] = request.kind
+            else:
+                saved = RunReport.model_validate(self.request("GET", f"/api/runtime/runs/{run_id}/report.json"))
+                if saved.run.id != run_id or saved.run.kind != request.kind or saved.research is None:
+                    raise HostCLIError("INVALID_HOST_RESPONSE", "The selected Run does not match the Research continuation.")
+                # Research binds the original complete typed selection, including lineage.
+                # The caller must retain that selection; a changed input requires Reopen.
+            result = self.request("POST", path, body)
+            ResearchPreview.model_validate(result)
+        elif command in paths:
             params = {"sessionId":request.session_id} if request.session_id else None
             result = self.request("GET", paths[command], params=params)
         elif command == "report":

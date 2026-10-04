@@ -213,13 +213,14 @@ def _case(case: GoldCase, service: RagService) -> EvalCaseReport:
         EvalCheck(id="semantic.review", stage="semantic", category="semantic_review", status="UNDETERMINED",
                   detail="Human review of semantic support and real model quality was not performed."),
         EvalCheck(id="research.trajectory", stage="trajectory", category="trajectory", status="NOT_RUN",
-                  detail="Research loop trajectory belongs to Phase 4."),
+                  detail="This fixed-flow case did not request a Research trajectory."),
     ])
     failures = [check for check in checks if check.status == "FAIL"]
     return EvalCaseReport(id=case.id, query=case.query, status=aggregate([item.status for item in checks]),
         hostEnforcementStatus=aggregate([item.status for item in checks if item.category == "host_enforcement"]),
         modelQualityStatus=aggregate([item.status for item in checks if item.category == "model_quality"]),
-        earliestObservedDeviation=failures[0].stage if failures else None, checks=checks, trace=trace)
+        earliestObservedDeviation=failures[0].stage if failures else None,
+        secondaryObservedFailures=[item.id for item in failures[1:]], checks=checks, trace=trace)
 
 
 def run_gold(path: str | Path, *, work_dir: str | Path | None = None) -> EvalReport:
@@ -249,10 +250,15 @@ def run_gold(path: str | Path, *, work_dir: str | Path | None = None) -> EvalRep
                              LlmSettings(context=stage, inference=stage))
         service.rebuild(RagDatasetRequest(datasetId=DATASET_ID))
         cases = [_case(case, service) for case in suite.cases]
+        if suite.research_cases:
+            from frag_api.research_evaluation import evaluate_research
+            cases.extend(evaluate_research(case, service, workspace) for case in suite.research_cases)
         counts = Counter(check.status for case in cases for check in case.checks)
         return EvalReport(hostVersion=HOST_VERSION, suiteId=suite.suite_id, suiteVersion=suite.suite_version,
                           sourceRevision=suite.source.revision, sourceHash=source_hash,
                           status=aggregate([case.status for case in cases]), cases=cases,
+                          trajectoryStatus=aggregate([check.status for case in cases for check in case.checks
+                                                      if check.category == "trajectory"]),
                           counts={status: counts[status] for status in STATUSES})
     except (OSError, ValueError, ValidationError):
         return EvalReport(hostVersion=HOST_VERSION, suiteId=suite.suite_id if suite else None,

@@ -11,6 +11,9 @@ import type { RagQueryRequest } from '../../../shared/contracts/rag';
 import { RunRecoveryPanel, type RecoveryContinuation } from './RunRecoveryPanel';
 import { RunReportView } from './RunReportView';
 import { RunReviewPanel } from './RunReviewPanel';
+import { ResearchPanel, type ResearchContinuation } from './ResearchPanel';
+import { executeResearch, parseResearchSelection, previewResearch, type ResearchKind } from '../../api/researchClient';
+import type { ResearchPreview } from '../../../shared/contracts/research';
 import './runtime.css';
 
 function errorMessage(error: unknown): string {
@@ -34,6 +37,7 @@ export function RuntimePanel() {
   const [refresh, setRefresh] = useState(0);
   const [recoveryReset, setRecoveryReset] = useState(0);
   const [continuation, setContinuation] = useState<RecoveryContinuation>();
+  const [researchContinuation, setResearchContinuation] = useState<ResearchContinuation>();
   const [historyLoading, setHistoryLoading] = useState(true);
   const [reportLoading, setReportLoading] = useState(false);
   const [busy, setBusy] = useState('');
@@ -45,7 +49,7 @@ export function RuntimePanel() {
     if (selectedIdRef.current !== id) selectionEpoch.current += 1;
     selectedIdRef.current = id;
     setSelectedId(id); setReport((current) => current?.run.id === id ? current : undefined);
-    setContinuation(undefined); setRecoveryReset((value) => value + 1); setError('');
+    setContinuation(undefined); setResearchContinuation(undefined); setRecoveryReset((value) => value + 1); setError('');
   };
 
   useEffect(() => {
@@ -86,13 +90,13 @@ export function RuntimePanel() {
   const recordReview = (input: ReviewRequest) => {
     if (!report || report.run.id !== selectedIdRef.current) return;
     void action('review', () => reviewRun(report.run.id, input)).then((value) => {
-      setReport(value); setContinuation(undefined); setRecoveryReset((value) => value + 1); setRefresh((value) => value + 1);
+      setReport(value); setContinuation(undefined); setResearchContinuation(undefined); setRecoveryReset((value) => value + 1); setRefresh((value) => value + 1);
     }).catch(() => undefined);
   };
   const recordRevision = (input: RevisionRequest) => {
     if (!report || report.run.id !== selectedIdRef.current) return;
     void action('revision', () => saveRevision(report.run.id, input)).then((value) => {
-      setReport(value); setContinuation(undefined); setRecoveryReset((value) => value + 1); setRefresh((value) => value + 1);
+      setReport(value); setContinuation(undefined); setResearchContinuation(undefined); setRecoveryReset((value) => value + 1); setRefresh((value) => value + 1);
     }).catch(() => undefined);
   };
   const prepare = (input: unknown, reopen: boolean) => action('prepare', async (epoch) => {
@@ -149,6 +153,34 @@ export function RuntimePanel() {
       download(value, `frag-run-${report.run.id}.${format}`, format === 'json' ? 'application/json' : 'text/markdown');
     }).catch(() => undefined);
   };
+  const prepareResearch = (kind: ResearchKind, input: unknown, runId?: string) => action('Research preview', async (epoch) => {
+    if (runId && (runId !== selectedIdRef.current || report?.run.id !== runId)) throw new Error('Select the owning Research run.');
+    const sourceRequest = parseResearchSelection(kind, input);
+    const preview = await previewResearch(kind, sourceRequest, runId);
+    const nextReport = await fetchRunReport(preview.runId);
+    if (selectionEpoch.current !== epoch) throw new Error('Run selection changed.');
+    if (nextReport.run.kind !== kind || !nextReport.research || nextReport.run.sessionId !== preview.sessionId) throw new Error('Research preview belongs to another selection.');
+    setReport(nextReport); selectedIdRef.current = preview.runId; setSelectedId(preview.runId);
+    setContinuation(undefined); setResearchContinuation({ runId: preview.runId, kind, preview, sourceRequest }); setRefresh((value) => value + 1);
+    return preview;
+  });
+  const dispatchResearch = (preview: ResearchPreview, input: unknown) => action('Research stage', async (epoch) => {
+    if (!report?.research || report.run.id !== selectedIdRef.current || preview.runId !== selectedIdRef.current
+      || researchContinuation?.runId !== preview.runId || researchContinuation.preview.fingerprint !== preview.fingerprint
+      || JSON.stringify(parseResearchSelection(report.run.kind, input)) !== JSON.stringify(researchContinuation.sourceRequest)) {
+      throw new Error('The displayed Research request was invalidated. Prepare it again.');
+    }
+    setResearchContinuation(undefined);
+    try {
+      const value = await executeResearch(report.run.id, report.run.kind, input, preview);
+      if (selectionEpoch.current !== epoch) throw new Error('Run selection changed.');
+      setReport(value); setRefresh((value) => value + 1); setRecoveryReset((value) => value + 1);
+    } catch (caught) {
+      try { const value = await fetchRunReport(report.run.id); if (selectionEpoch.current === epoch) { setReport(value); setRefresh((value) => value + 1); } }
+      catch { /* Leave an uncertain outcome explicit; history can be refreshed separately. */ }
+      throw caught;
+    }
+  });
   return <div className="runtime-layout">
     <section className="card runtime-history"><div className="section-heading"><span className="eyebrow">Local history</span><h2>Sessions and runs</h2></div>
       <label className="field">Session filter<select value={filter} disabled={!!busy} onChange={(event) => { chooseRun(''); setFilter(event.target.value); }}>
@@ -159,11 +191,11 @@ export function RuntimePanel() {
           void action('session', () => createSession(title)).then((session) => { chooseRun(''); setFilter(session.id); setRefresh((value) => value + 1); }).catch(() => undefined);
         }}>Create session</button></div>
       <button className="button" type="button" disabled={!!busy || historyLoading} onClick={() => {
-        setRefresh((value) => value + 1); setContinuation(undefined); setRecoveryReset((value) => value + 1);
+        setRefresh((value) => value + 1); setContinuation(undefined); setResearchContinuation(undefined); setRecoveryReset((value) => value + 1);
         if (selectedId) void action('refresh', () => fetchRunReport(selectedId)).then(setReport).catch(() => undefined);
       }}>Refresh history</button>
       {historyLoading && <p className="muted" role="status">Loading history…</p>}
-      {!historyLoading && runs.length === 0 && <p className="empty-state">No saved runs. Prepare a request in Harness or RAG Lab to begin.</p>}
+      {!historyLoading && runs.length === 0 && <p className="empty-state">No saved runs. Start Research here, or prepare a fixed request in Harness or RAG Lab.</p>}
       <div className="runtime-run-list">{runs.map((run) => <button type="button" key={run.id} disabled={!!busy}
         className={`runtime-run-option ${run.id === selectedId ? 'selected' : ''}`} onClick={() => chooseRun(run.id)}>
         <strong>{run.kind} · {run.status}</strong><small>{run.createdAt}</small><code>{run.id}</code>
@@ -173,13 +205,16 @@ export function RuntimePanel() {
       {error && <p className="alert" role="alert">{error}</p>}
       {busy && <p className="muted" role="status">Processing {busy}…</p>}
       {reportLoading && <p className="muted" role="status">Loading saved report…</p>}
+      {!reportLoading && <ResearchPanel key={`research-${selectedId}-${recoveryReset}`} report={report?.run.id === selectedId ? report : undefined}
+        busy={!!busy} continuation={researchContinuation} onInvalidate={() => setResearchContinuation(undefined)}
+        onPrepare={prepareResearch} onDispatch={dispatchResearch} />}
       {report && report.run.id === selectedId && <>
         <div className="rag-actions"><button className="button" type="button" disabled={!!busy} onClick={() => exportReport('json')}>Export JSON</button>
           <button className="button" type="button" disabled={!!busy} onClick={() => exportReport('md')}>Export Markdown</button></div>
         <RunReportView report={report} />
         <RunReviewPanel key={`review-${report.run.id}-${report.run.version}`} report={report} busy={!!busy} onReview={recordReview} onRevision={recordRevision} />
-        <RunRecoveryPanel key={`recovery-${report.run.id}-${recoveryReset}`} report={report} busy={!!busy} continuation={continuation}
-          onInvalidate={() => setContinuation(undefined)} onPrepare={prepare} onDispatch={dispatch} />
+        {!report.research && <RunRecoveryPanel key={`recovery-${report.run.id}-${recoveryReset}`} report={report} busy={!!busy} continuation={continuation}
+          onInvalidate={() => setContinuation(undefined)} onPrepare={prepare} onDispatch={dispatch} />}
       </>}
     </div>
   </div>;

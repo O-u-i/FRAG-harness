@@ -1,6 +1,6 @@
-# FRAG-harness v1.4.0
+# FRAG-harness v1.5.0
 
-FRAG-harness is a local application for governed evidence retrieval and two model API stages. It starts with no Finance Core installation, account, token, or database. The Context LLM compresses approved evidence; the Inference LLM produces a cited answer. Selection, redaction, token budgeting, approval, output validation, and citation checks are deterministic host code.
+FRAG-harness is a local application for governed evidence retrieval, an optional bounded Research loop and two formal model stages. It starts with no Finance Core installation, account, token, or database. Research collects selected evidence through real read tools; the Context LLM compresses approved evidence and the Inference LLM produces a cited answer. Selection, redaction, token budgeting, approval, output validation, and citation checks are deterministic host code.
 
 ## What runs in the core
 
@@ -8,17 +8,17 @@ The React interface offers Harness, RAG Lab, Runs, and Plugins. The FastAPI back
 
 Both stages execute the server-owned `PreparedCall` that was previewed. It binds the complete request JSON, destination, transport, model, output schema, timeout, source revisions, selected locators, checklist and host policy versions. Revalidation rejects changed bindings; execution does not rebuild a request from evidence. Source hashing and parsing use one byte snapshot, and RAG hits, parent text and index revision share a database read snapshot. Input estimates include instructions and schemas; each stage and the cumulative run have budget checks.
 
-The host exposes executable CLI, tool and loop registrations through `GET /api/harness/capabilities`. The fixed runner is used by both workflows. `frag.host` operates the same running FastAPI host over loopback HTTP; `kb.search` searches explicitly selected evidence and `kb.read` starts a fixed CLI process to read the selected redacted snapshot. Tools cannot expand file, locator, revision or Workspace scope. A Research runner and reviewed memory remain pending. Blocking checklist items require a reviewed `met` status before approval is available. See [runtime contracts](docs/runtime-contracts.md), [host CLI](docs/host-cli.md) and [KB tools](docs/kb-tools.md).
+The host exposes executable CLI, tool and loop registrations through `GET /api/harness/capabilities`. The fixed runner remains available; optional Research proposes selected read calls, executes them through host policy, and returns observations to a later separately approved model turn. `frag.host` operates the same running FastAPI host over loopback HTTP; `kb.search` searches explicitly selected evidence and `kb.read` starts a fixed CLI process to read the selected redacted snapshot. Tools cannot expand file, locator, revision or Workspace scope. Reviewed memory remains pending. Blocking checklist items require a reviewed `met` status before approval is available. See [Research loop](docs/research-loop.md), [runtime contracts](docs/runtime-contracts.md), [host CLI](docs/host-cli.md) and [KB tools](docs/kb-tools.md).
 
 Runs stores explicitly selected, redacted snapshots and request specifications in an independent, Git-ignored `.local-runtime/runtime.sqlite3`. Use the session picker to group work. Editing input creates a linked new run; editing output creates a separate human revision while retaining the model original. The Runs page records acceptance, rejection and pause, and exports the same structured report as JSON or Markdown. A new revision requires its own review.
 
 Recovery requires explicit reselection matching the saved sources, scope, revisions and request configuration, then a fresh preview and approval. A validated Context checkpoint resumes at Inference. A durably saved response can finish deterministic validation after restart. An interrupted dispatch without a committed response becomes `outcome_unknown` and cannot resume in the same run. It is never resent automatically. See [sessions and recovery](docs/runtime-sessions.md) for state, privacy and endpoint details.
 
-Offline evaluation uses versioned synthetic Gold and the production retrieval, fixed model-stage validators, selected-read policy and tool carriers. It separates host enforcement, scripted model artifacts, missing checks and scorer failures. Literal fact checks do not establish semantic support; human review remains undetermined and Research trajectory is not run. See [offline evaluation](docs/offline-evaluation.md).
+Offline evaluation uses versioned synthetic Gold and the production retrieval, model-stage validators, selected-read policy and tool carriers. Research cases record actual approved turns, serial tool execution, result feedback and finish decisions. Evaluation separates host enforcement, scripted model artifacts, trajectory checks, missing checks and scorer failures. Literal fact and trajectory checks do not establish semantic support; human review remains undetermined. See [offline evaluation](docs/offline-evaluation.md).
 
 ## Architecture review diagrams
 
-These static SVG exports summarize the current host code. Each has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration.
+These static SVG exports describe the fixed Harness and RAG Lab paths. Optional Research precedes their formal model stages; its bounded lifecycle is documented in [Research loop](docs/research-loop.md). Each fixed-flow diagram has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration.
 
 ### Harness
 
@@ -107,6 +107,6 @@ npm run test:python
 
 Tests use synthetic sources and temporary indexes. Backend-only keys and optional FC tokens must never enter browser assets, prompts, logs, tracked files, or error responses. Model answers require human review. FRAG does not connect to trading, banking, payment, or live-market APIs. The [plugin handoff](docs/finance-core-plugin-handoff.md) defines the optional FC integration boundary.
 
-LangGraph runs embedded in FastAPI for Preview, Context Run, and Inference Run orchestration in Harness and RAG Lab. Host code still owns evidence selection, budgets, approval tokens, provider calls, and validation. The graphs have no checkpointer, external Agent Server, or LangSmith tracing. [Future Agent Server assessment](docs/horizon/horizon-1.md). Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
+LangGraph runs embedded in FastAPI for Preview, Research turn/tool routing, Context Run, and Inference Run orchestration. Host code still owns evidence selection, budgets, approval tokens, provider calls, validation and durable checkpoints. The graphs have no LangGraph checkpointer, external Agent Server, or LangSmith tracing. Research currently uses complete typed model proposals with Fake/scripted acceptance; native Pi tool-call transport and live GPT acceptance are a later delivery. [Future Agent Server assessment](docs/horizon/horizon-1.md). Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
 
 Thanks to [Archify](https://github.com/tt-a1i/archify) for the diagram tooling.

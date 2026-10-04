@@ -12,7 +12,7 @@ from frag_api.schemas.tools import ToolExecutionRequest
 
 HostCommand = Literal[
     "health", "capabilities", "sources", "source-inspect", "sessions", "session-create",
-    "runs", "report", "preview", "recovery-preview", "reopen", "review", "revision", "tool-execute",
+    "runs", "report", "preview", "recovery-preview", "reopen", "review", "revision", "tool-execute", "research-preview",
 ]
 EMPTY_COMMANDS = {"health", "capabilities", "sources", "sessions", "runs", "report"}
 RUN_COMMANDS = {"report", "recovery-preview", "reopen", "review", "revision", "tool-execute"}
@@ -35,13 +35,13 @@ class HostCLIRequest(ApiModel):
     def operation_contract(self):
         if self.command in RUN_COMMANDS and self.run_id is None:
             raise ValueError("This operation requires a Run ID.")
-        if self.command not in RUN_COMMANDS and self.run_id is not None:
+        if self.command not in RUN_COMMANDS | {"research-preview"} and self.run_id is not None:
             raise ValueError("This operation has no Run ID.")
         if self.command != "runs" and self.session_id is not None:
             raise ValueError("Only Runs accepts a Session filter.")
         if self.command != "report" and self.format != "json":
             raise ValueError("Only reports support Markdown.")
-        if self.command not in {"preview", "recovery-preview", "reopen", "tool-execute"} and self.kind is not None:
+        if self.command not in {"preview", "recovery-preview", "reopen", "tool-execute", "research-preview"} and self.kind is not None:
             raise ValueError("This operation does not take a source kind.")
         if self.command in EMPTY_COMMANDS and self.payload:
             raise ValueError("This operation has no input body.")
@@ -49,7 +49,7 @@ class HostCLIRequest(ApiModel):
                   "review": ReviewRequest, "revision": RevisionRequest}
         if self.command in models:
             self.payload = models[self.command].model_validate(self.payload).model_dump(by_alias=True)
-        elif self.command == "preview":
+        elif self.command in {"preview", "research-preview"}:
             if self.kind is None:
                 raise ValueError("Preview requires a source kind.")
             self.payload = source_payload(self.payload, self.kind)

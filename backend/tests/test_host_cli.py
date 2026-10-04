@@ -40,6 +40,7 @@ def application(tmp_path, source_root):
     stage = LlmStageSettings("fake", "synthetic-cli", None, None, 120)
     harness = HarnessService(ContextSourceService(source_root), settings=LlmSettings(stage, stage),
                              context_provider=provider, inference_provider=provider)
+    harness.research_provider = provider
     app = create_app(context_source_root=source_root, harness_service=harness,
                      runtime_path=tmp_path / "runtime.sqlite3", rag_index_path=tmp_path / "rag.sqlite3",
                      plugin_root=tmp_path / "absent-plugins")
@@ -280,3 +281,68 @@ def test_registered_host_carrier_launches_real_process_to_running_fastapi(applic
         thread.join(timeout=5)
         listener.close()
         assert not thread.is_alive()
+
+
+def test_research_cli_preview_and_each_approved_checkpoint_share_run(application, monkeypatch):
+    from argparse import Namespace
+    app, provider = application
+    with TestClient(app) as api:
+        client, source = via_api(api), source_for(api)
+        args = Namespace(command="execute-research", kind="harness", run_id=None, approve=True)
+        monkeypatch.setattr(sys, "stdin", Terminal("cancel\n"))
+        monkeypatch.setattr(sys, "stderr", Terminal())
+        with pytest.raises(HostCLIError) as caught:
+            cli.execute_research(client, args, source)
+        assert caught.value.code == "APPROVAL_CANCELLED" and provider.calls == []
+        approved = []
+        original_confirm = cli.confirm
+        def exact_confirmation(prepared):
+            approved.append(prepared)
+            monkeypatch.setattr(sys, "stdin", Terminal(f"APPROVE {prepared.fingerprint}\n"))
+            original_confirm(prepared)
+        monkeypatch.setattr(cli, "confirm", exact_confirmation)
+        monkeypatch.setattr(sys, "stdin", Terminal())
+        result = cli.execute_research(client, args, source)
+        args.run_id = result["run"]["id"]
+        assert provider.calls == ["research"]
+        assert len(result["toolCalls"]) == 1 and result["toolCalls"][0]["status"] == "completed"
+        for expected in (["research", "research"], ["research", "research", "context"],
+                         ["research", "research", "context", "inference"]):
+            result = cli.execute_research(client, args, source)
+            assert provider.calls == expected and result["run"]["id"] == args.run_id
+        assert [call.purpose for call in approved] == ["research", "research", "context", "inference"]
+        assert result["run"]["status"] == "awaiting_review" and result["modelOutput"]["claims"]
+        assert "approvalToken" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("payload", [
+    {"command":"execute-research", "kind":"harness", "approved":True},
+    {"command":"research-preview", "kind":"harness", "payload":{"sourceRequest":{}}},
+    {"command":"research-preview", "runId":"../elsewhere", "payload":{}},
+])
+def test_research_structured_carrier_never_grants_execution(payload):
+    with pytest.raises(ValidationError):
+        HostCLIRequest.model_validate(payload)
+
+
+def test_research_noninteractive_command_never_contacts_host(monkeypatch, capsys):
+    class NoContact:
+        def __init__(self, *_):
+            pass
+        def operate(self, _):
+            pytest.fail("A model command must require a terminal before preparing a request")
+    monkeypatch.setattr(cli, "HostClient", NoContact)
+    monkeypatch.setattr(sys, "stdin", io.StringIO("{}"))
+    assert cli.main(["execute-research", "--kind", "harness", "--approve"]) == 2
+    assert "INTERACTIVE_APPROVAL_REQUIRED" in capsys.readouterr().err
+
+
+def test_research_structured_preview_requires_no_outbound_approval(application):
+    app, provider = application
+    with TestClient(app) as api:
+        client, source = via_api(api), source_for(api)
+        initial = client.operate(HostCLIRequest(command="research-preview", kind="harness", payload=source)).result
+        fresh = client.operate(HostCLIRequest(command="research-preview", kind="harness",
+            runId=initial["runId"], payload=source)).result
+        assert fresh["runId"] == initial["runId"] and provider.calls == []
+        assert fresh["approvalToken"] != initial["approvalToken"]

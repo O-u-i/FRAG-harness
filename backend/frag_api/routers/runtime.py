@@ -72,6 +72,10 @@ def resume_preview(request: Request, run_id: str, body: Annotated[ReselectionReq
     if ((selected.session_id and selected.session_id != saved.run.session_id)
             or (selected.parent_run_id and selected.parent_run_id != saved.run.parent_run_id)):
         raise RuntimeConflictError()
+    if saved.research:
+        preview = request.app.state.research.preview(run_id, selected)
+        return RecoveryPreview(runId=run_id, kind=saved.run.kind, stage=preview.stage,
+            contextFingerprint=preview.context_fingerprint or preview.fingerprint, preview=preview.model_dump(by_alias=True))
     stage, preview, fingerprint = service.flow.resume_preview(run_id, selected)
     return RecoveryPreview(runId=run_id, kind=saved.run.kind, stage=stage, contextFingerprint=fingerprint, preview=preview.model_dump(by_alias=True))
 
@@ -80,5 +84,9 @@ def resume_preview(request: Request, run_id: str, body: Annotated[ReselectionReq
 def reopen(request: Request, run_id: str, body: Annotated[ReselectionRequest, Body()]):
     saved, service, selected = reselect(request, run_id, body)
     selected.session_id, selected.parent_run_id = saved.run.session_id, saved.run.id
+    if saved.research:
+        preview = request.app.state.research.start(saved.run.kind, selected)
+        return RecoveryPreview(runId=preview.run_id, kind=saved.run.kind, stage="research",
+            contextFingerprint=preview.fingerprint, preview=preview.model_dump(by_alias=True))
     preview = service.preview(selected)
     return RecoveryPreview(runId=preview.run_id, kind=saved.run.kind, stage="context", contextFingerprint=preview.context_fingerprint, preview=preview.model_dump(by_alias=True))

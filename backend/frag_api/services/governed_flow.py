@@ -286,6 +286,8 @@ class GovernedFlow:
         if self.runtime is None:
             raise RuntimeConflictError()
         saved = self.runtime.repository.get(run_id)
+        if saved.research:
+            raise RuntimeConflictError()
         if saved.snapshot_digest and saved.snapshot_digest != fingerprint(saved.selection.model_dump(by_alias=True)):
             raise RagFingerprintError()
         if (saved.run.kind != self.kind or saved.model_output is not None

@@ -17,7 +17,9 @@ port can be supplied using `--base-url` before the command. Public hosts, DNS na
 HTTPS, URL credentials, path prefixes, query strings and fragments are rejected.
 Proxy environment variables and redirects are disabled. Ordinary operations have
 a ten-second HTTP timeout; an explicitly approved model stage allows up to 125
-seconds for the host's bounded model call and response. No operation retries.
+seconds for the host's bounded model call and response. An approved Research turn
+allows up to 185 seconds, covering its 120-second model deadline and at most six
+serial ten-second tools. No operation retries.
 
 ## Inputs and commands
 
@@ -37,6 +39,7 @@ request echoes or connection details.
 | `runs [--session-id ID]` | List Runs, optionally within one Session. |
 | `report --run-id ID [--format json\|markdown]` | Read the canonical report or its deterministic Markdown rendering. |
 | `preview --kind harness\|rag` | An explicit Harness or RAG source request creates a Run and exact Context preview. |
+| `research-preview --kind harness\|rag [--run-id ID]` | An explicit source request starts Research or previews the next checkpoint of an existing Research Run. No model request is sent. |
 | `recovery-preview --run-id ID` | `{"sourceRequest":{...}}` revalidates the explicit selection and prepares a fresh checkpoint approval. |
 | `reopen --run-id ID` | `{"sourceRequest":{...}}` starts a linked new Run. |
 | `review --run-id ID` | The existing review contract: target, decision, checklist and note. |
@@ -44,6 +47,7 @@ request echoes or connection details.
 | `tool-execute --run-id ID` | `{"sourceRequest":{...},"call":{"callId":"read-1","name":"kb.read","arguments":{...}}}` executes a selected read tool. |
 | `execute-context --kind harness\|rag [--run-id ID] --approve` | Prepare and interactively approve only Context; supplying a Run ID resumes its Context checkpoint. |
 | `execute-inference --kind harness\|rag --run-id ID --approve` | Revalidate the explicit source request and interactively approve only Inference. |
+| `execute-research --kind harness\|rag [--run-id ID] --approve` | Freshly preview and approve exactly one Research, Context or Inference checkpoint; return the same canonical Run report. |
 | `json` | Execute a declared structured host operation from stdin; model-execution commands are excluded. |
 
 Harness requests contain `goal` and explicitly selected `fileSelections` or the
@@ -122,3 +126,28 @@ unknown fields, path escapes and executable model commands fail validation. This
 entry is a user-operated host interface; it is not exposed as a Research model tool.
 Semantic acceptance remains human review; CLI or Fake-provider success does not
 establish that evidence supports a real-world claim.
+
+## Research checkpoints
+
+Use the same explicitly selected Harness or synthetic RAG source JSON:
+
+```powershell
+.venv/Scripts/python.exe -X utf8 -m frag_api.cli execute-research --kind harness --input ../.local-runtime/selected-request.json --approve
+```
+
+The first request shows the selected source manifest and allowed tool contracts.
+The model's complete, validated proposals execute real selected read tools. The CLI
+returns the canonical report after this single model turn and its serial tools.
+It neither approves nor sends another model request. Copy the returned Run ID and
+invoke the command again with `--run-id RUN_ID` to inspect and approve the next
+checkpoint. That checkpoint can be another Research turn, Context using observed
+selected evidence, or Inference. Each requires a fresh exact confirmation.
+Retain the complete original source request for Research continuation. Its lineage
+is part of the frozen selection; the CLI does not substitute metadata from another
+run. A linked Research Reopen uses the new selection stored in its report.
+
+`research-preview` can run in structured mode because previewing sends no model
+request. `execute-research` is excluded from the registered structured process
+contract and requires an interactive terminal. A changed source or unresolved
+external outcome rejects continuation. See [Research loop](research-loop.md) for
+the three-turn/six-tool limits, recovery and the synthetic acceptance boundary.
