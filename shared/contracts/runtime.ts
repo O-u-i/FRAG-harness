@@ -3,7 +3,7 @@ import { preparedCallSchema, sourceBindingSchema, taskContractSchema } from './g
 import { harnessPreviewSchema } from './harness';
 import { stageResultSchema } from './modelStages';
 import { inferencePreviewSchema, ragContextCompressionSchema, ragEvidenceSchema, ragGroundedAnswerSchema, ragPreviewSchema } from './rag';
-import { researchStateSchema } from './research';
+import { nativeResearchReplaySchema, researchStateSchema } from './research';
 
 export const runStatusSchema = z.enum(['ready_research', 'ready_context', 'awaiting_inference', 'awaiting_review', 'paused', 'accepted', 'rejected', 'error', 'outcome_unknown']);
 export const outcomeSchema = z.enum(['PASS', 'FAIL', 'ERROR', 'NOT_RUN', 'UNDETERMINED']);
@@ -23,6 +23,8 @@ export const attemptRecordSchema = z.object({
   usage: stageResultSchema.shape.usage.nullable().optional(), output: z.record(z.string(), z.unknown()).nullable().optional(),
   errorCode: z.string().nullable().optional(), structuralValidation: outcomeSchema,
   outputDigest: z.string().length(64).nullable().optional(),
+  nativeReplay: nativeResearchReplaySchema.nullable().optional(),
+  nativeReplayDigest: z.string().length(64).nullable().optional(),
 }).strict();
 export const reviewRequestSchema = z.object({
   target: z.string().min(1).max(64), decision: z.enum(['accepted', 'rejected', 'paused']), checklist: taskContractSchema, note: z.string().max(4000),

@@ -21,7 +21,7 @@ from frag_api.services.governed_context import (
 )
 from frag_api.services.runtime_policy import HostPolicy, RunBudget, configured_secrets, redact_value
 from frag_api.services.runtime_registry import LoopRegistry
-from frag_api.request_spec import fingerprint
+from frag_api.request_spec import canonical_json, fingerprint
 
 
 class FlowState(TypedDict, total=False):
@@ -218,7 +218,7 @@ class GovernedFlow:
         body = prepared.request_body()
         return {"inference_preview": InferencePreview(
             provider=self.settings.inference.provider, model=self.settings.inference.model,
-            instructions=body["instructions"], input=body["input"], maxOutputTokens=INFERENCE_OUTPUT_LIMIT,
+            instructions=body["instructions"], input=body["input"] if isinstance(body["input"], str) else canonical_json(body["input"]), maxOutputTokens=INFERENCE_OUTPUT_LIMIT,
             inferenceFingerprint=prepared.fingerprint, approvalToken=token, preparedCall=prepared,
         )}
 
@@ -294,6 +294,12 @@ class GovernedFlow:
                 or saved.run.status in ("accepted", "rejected", "outcome_unknown")
                 or any(c.status == "dispatching" or (c.status == "completed" and c.structural_validation == "UNDETERMINED") for c in saved.requests)):
             raise RuntimeConflictError()
+        if saved.context is not None:
+            completed = next((call for call in saved.requests if call.stage == "context" and call.structural_validation == "PASS"), None)
+            if completed and completed.prepared_call.transport == "pi-responses-v1":
+                if (completed.output_digest != fingerprint(completed.output)
+                        or saved.context.model_dump(by_alias=True) != completed.output):
+                    raise RagFingerprintError()
         current = self.prepare_preview(source_request)
         old = saved.requests[0].prepared_call
         new = current.prepared_call

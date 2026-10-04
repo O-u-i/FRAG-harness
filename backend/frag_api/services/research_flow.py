@@ -178,10 +178,11 @@ class ResearchFlow:
             if state["prepared"].purpose == "research":
                 # Reject malformed raw args before durable_value can remove forbidden keys.
                 validate_decision(self.runtime.repository.get(state["run_id"]), raw, self.runtime.redaction_secrets)
+            self.runtime.returned(state["run_id"], state["call_id"], result.output, result.usage,
+                                  native_replay=getattr(result, "native_replay", None))
         except (ValueError, ValidationError, RagOutputError) as error:
             self.runtime.failure(state["run_id"], state["call_id"], "INVALID_LLM_OUTPUT")
             raise RagOutputError() from error
-        self.runtime.returned(state["run_id"], state["call_id"], result.output, result.usage)
         return {"result":result}
 
     def _checkpoint(self, state):

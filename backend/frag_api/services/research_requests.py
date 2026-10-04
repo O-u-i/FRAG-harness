@@ -1,5 +1,6 @@
 """Freeze research manifests/observations and the evidence subset for formal stages."""
 import json
+import re
 from frag_api.errors import PolicyRejectedError, RagFingerprintError, RuntimeConflictError
 from frag_api.providers.llm import context_input, inference_input
 from frag_api.providers.prepared import prepare_call, stage_route
@@ -9,6 +10,7 @@ from frag_api.schemas.research import ResearchDecision
 from frag_api.schemas.tools import ReadArguments, SearchArguments, ToolResult
 from frag_api.services.runtime_policy import HostPolicy, redact_value
 from frag_api.services.research_checkpoint import validate_decision
+from frag_api.services.research_native import prepare_native_wire, validate_attempt_native
 
 
 def validate_history(report, secrets, tools):
@@ -22,7 +24,7 @@ def validate_history(report, secrets, tools):
         if (stage is None or stage.output_digest != fingerprint(stage.output)
                 or report.context.model_dump(by_alias=True) != stage.output):
             raise RagFingerprintError()
-    calls = {}
+    calls, native_ids, native_items = {}, set(), set()
     for turn in report.research.turns:
         attempt = next((item for item in report.requests if item.id == turn.attempt_id), None)
         if attempt is None or attempt.stage != "research":
@@ -32,14 +34,33 @@ def validate_history(report, secrets, tools):
                     or turn.decision.model_dump(by_alias=True) != attempt.output):
                 raise RagFingerprintError()
             validate_decision(report, turn.decision, secrets, restoring=True)
+            replay = validate_attempt_native(attempt, turn.decision)
+            if replay:
+                if replay.version == 2:
+                    for item in replay.output_items:
+                        if item["id"] in native_items:
+                            raise RagFingerprintError()
+                        native_items.add(item["id"])
+                for native in replay.calls:
+                    if native.call_id in native_ids or (replay.version == 1 and native.item_id in native_items):
+                        raise RagFingerprintError()
+                    native_ids.add(native.call_id)
+                    if replay.version == 1:
+                        native_items.add(native.item_id)
             for call in turn.decision.tool_calls:
                 if call.call_id in calls:
                     raise RagFingerprintError()
                 calls[call.call_id] = call
+    if tool_ids != list(calls)[:len(tool_ids)]:
+        raise RagFingerprintError()
     allowed = {row.evidence_id:row for row in report.selection.candidate_evidence}
     for tool in report.tool_calls:
         proposal = calls.get(tool.call_id)
         if proposal is None or proposal.name != tool.name or proposal.arguments != tool.arguments:
+            raise RagFingerprintError()
+        if (tool.status == "completed" and tool.error_code is not None
+                or tool.status == "failed" and (tool.error_code is None
+                    or re.fullmatch(r"[A-Z][A-Z0-9_]{0,79}", tool.error_code) is None)):
             raise RagFingerprintError()
         definition = tools.registry.get(tool.name).definition
         if tool.tool_version != definition.version or tool.carrier != definition.carrier:
@@ -146,5 +167,8 @@ def prepare_request(service, report, fresh, tools, definition, stage):
         settings, model, limit = service.settings.inference, RagGroundedAnswer, 2000
         context_call = next(call for call in reversed(report.requests) if call.stage == "context" and call.structural_validation == "PASS")
         base["contextFingerprint"] = context_call.prepared_call.fingerprint
+    wire = (prepare_native_wire(report, redact_value(payload, secrets), tools)
+            if stage == "research" and getattr(settings, "adapter", None) == "pi" else None)
     return prepare_call(settings=settings, purpose=stage, instructions=instructions,
-        payload=redact_value(payload, secrets), output_model=model, max_output_tokens=limit, binding=base)
+        payload=redact_value(payload, secrets), output_model=model, max_output_tokens=limit, binding=base,
+        wire_overrides=wire)

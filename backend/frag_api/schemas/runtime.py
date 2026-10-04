@@ -7,7 +7,7 @@ from frag_api.schemas.common import ApiModel, ProviderUsage
 from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
 from frag_api.schemas.rag import RagContextCompression, RagEvidence, RagGroundedAnswer
 from frag_api.schemas.tools import ToolCallRecord
-from frag_api.schemas.research import ResearchState
+from frag_api.schemas.research import NativeResearchReplayRecord, ResearchState
 
 RunStatus = Literal["ready_research", "ready_context", "awaiting_inference", "awaiting_review", "paused", "accepted", "rejected", "error", "outcome_unknown"]
 Outcome = Literal["PASS", "FAIL", "ERROR", "NOT_RUN", "UNDETERMINED"]
@@ -58,6 +58,8 @@ class AttemptRecord(ApiModel):
     usage: ProviderUsage | None = None
     output: dict[str, Any] | None = None
     output_digest: str | None = Field(default=None, alias="outputDigest", min_length=64, max_length=64)
+    native_replay: NativeResearchReplayRecord | None = Field(default=None, alias="nativeReplay")
+    native_replay_digest: str | None = Field(default=None, alias="nativeReplayDigest", min_length=64, max_length=64)
     error_code: str | None = Field(default=None, alias="errorCode")
     structural_validation: Outcome = Field(default="NOT_RUN", alias="structuralValidation")
 

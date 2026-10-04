@@ -26,9 +26,13 @@ class LlmStageSettings:
     base_url: str | None
     api_key: str | None
     timeout_seconds: float
+    adapter: str = "native"
 
     @property
     def ready(self) -> bool:
+        if self.adapter == "pi":
+            from frag_api.providers.pi_process import worker_ready
+            return self.provider == "openai" and bool(self.api_key) and worker_ready(self.model, self.base_url)
         if self.provider == "fake":
             return True
         if not self.model:
@@ -49,6 +53,9 @@ class LlmSettings:
         def stage(name: str) -> LlmStageSettings:
             prefix = f"FRAG_{name}_LLM"
             provider = os.environ.get(f"{prefix}_PROVIDER", "fake").lower()
+            adapter = os.environ.get(f"{prefix}_ADAPTER", "native").lower()
+            if adapter not in {"native", "pi"} or (adapter == "pi" and provider != "openai"):
+                raise RagNotReadyError()
             if provider not in {"fake", "openai", "ollama"}:
                 raise RagNotReadyError()
             base_url = os.environ.get(f"{prefix}_BASE_URL")
@@ -60,6 +67,7 @@ class LlmSettings:
                 base_url=base_url,
                 api_key=os.environ.get("OPENAI_API_KEY") if provider == "openai" else "ollama",
                 timeout_seconds=timeout,
+                adapter=adapter,
             )
 
         return cls(context=stage("CONTEXT"), inference=stage("INFERENCE"), research=stage("RESEARCH"))
@@ -69,6 +77,7 @@ class LlmSettings:
 class LlmCallResult:
     output: BaseModel
     usage: ProviderUsage
+    native_replay: dict | None = None
 
 
 class LlmProvider(Protocol):
@@ -182,4 +191,7 @@ def inference_input(compressed: RagContextCompression, query: str) -> tuple[str,
 
 
 def provider_for(settings: LlmStageSettings) -> LlmProvider:
+    if settings.adapter == "pi":
+        from frag_api.providers.pi import PiProvider
+        return PiProvider(settings)
     return FakeLlmProvider() if settings.provider == "fake" else OpenAICompatibleProvider(settings)

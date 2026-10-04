@@ -133,3 +133,9 @@ local-sources/**
 # Keep source placeholder examples when intentionally created
 !.env.example
 !README.md
+
+# Reviewed, original Pi Responses modules and dependency notices are source artifacts.
+!backend/pi-worker/vendor/pi-ai/dist/
+!backend/pi-worker/vendor/pi-ai/dist/**
+!backend/pi-worker/licenses/openai/
+!backend/pi-worker/licenses/openai/**

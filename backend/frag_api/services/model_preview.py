@@ -1,6 +1,6 @@
 """Build a redacted, version-bound Context preview for both fixed workflow sources."""
 from frag_api.providers.llm import LlmSettings, context_input, inference_input
-from frag_api.request_spec import fingerprint
+from frag_api.request_spec import canonical_json, fingerprint
 from frag_api.providers.prepared import prepare_call, stage_route
 from frag_api.schemas.common import TokenBudget
 from frag_api.schemas.governance import SourceBinding, TaskContract
@@ -32,7 +32,7 @@ def context_preview_fields(*, settings: LlmSettings, evidence: list[RagEvidence]
     )
     body = call.request_body()
     return {"candidateEvidence": [RagEvidence.model_validate(item) for item in call.request_body_input()["evidence"]],
-            "instructions": body["instructions"], "input": body["input"],
+            "instructions": body["instructions"], "input": body["input"] if isinstance(body["input"], str) else canonical_json(body["input"]),
             "preparedCall": call, "sourceBindings": sources,
             "task": TaskContract.model_validate(redact_value(task.model_dump(by_alias=True), secrets)),
             "canApprove": bool(evidence) and not task.blocking_ids, "contextFingerprint": call.fingerprint, "approvalToken": "",

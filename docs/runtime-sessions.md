@@ -50,7 +50,7 @@ The page, JSON and Markdown render one `RunReport`. Structural validation and hu
 | `POST /api/runtime/runs/{id}/research/preview` | Explicit original sourceRequest revalidates and previews the next Research, Context or Inference checkpoint |
 | `POST /api/runtime/runs/{id}/research/execute` | One freshly approved frozen checkpoint, followed by its allowed serial read tools; returns the canonical report |
 
-Fixed execution uses the existing `/api/harness/run`, `/api/rag/run` and their `/inference/run` endpoints. Each stage needs its own exact preview and explicit one-use approval. The host CLI uses these same HTTP boundaries, with terminal confirmation before each model stage. Selected KB tools are available before Context, limited to six serial calls. Unresolved tool calls prevent model dispatch; interrupted tools become outcome_unknown on restart. Pi, curated memory, generic plugin protocol and real-KB acceptance remain later phases.
+Fixed execution uses the existing `/api/harness/run`, `/api/rag/run` and their `/inference/run` endpoints. Each stage needs its own exact preview and explicit one-use approval. The host CLI uses these same HTTP boundaries, with terminal confirmation before each model stage. Selected KB tools are available before Context, limited to six serial calls. Unresolved tool calls prevent model dispatch; interrupted tools become outcome_unknown on restart. The optional [Pi adapter](pi-adapter.md) preserves native replay receipts in the same Run history; live GPT acceptance remains a Phase 5 gate. Curated memory, generic plugin protocol and real-KB acceptance remain later phases.
 
 ## Research history and restoration
 

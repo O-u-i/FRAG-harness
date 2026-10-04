@@ -5,6 +5,7 @@ from frag_api.request_spec import estimated_tokens
 from frag_api.schemas.research import ResearchDecision
 from frag_api.schemas.tools import ReadArguments, SearchArguments
 from frag_api.services.runtime_policy import HostPolicy, redact_value
+from frag_api.services.research_native import validate_attempt_native
 
 
 def validate_decision(report, output, secrets=(), *, restoring=False):
@@ -43,6 +44,8 @@ def validate_decision(report, output, secrets=(), *, restoring=False):
 def checkpoint_research(runtime, run_id, call_id, output):
     report = runtime.repository.get(run_id)
     decision = validate_decision(report, output, runtime.redaction_secrets)
+    attempt = next(item for item in report.requests if item.id == call_id)
+    validate_attempt_native(attempt, decision)
     def change(current):
         call = next(item for item in current.requests if item.id == call_id)
         turn = next(item for item in current.research.turns if item.attempt_id == call_id)

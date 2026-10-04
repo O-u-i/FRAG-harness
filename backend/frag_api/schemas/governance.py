@@ -8,7 +8,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from frag_api.schemas.common import ApiModel, ProviderKind
 
-HOST_VERSION = "1.5.0"
+HOST_VERSION = "1.6.0"
 POLICY_VERSION = "selected-read-v1"
 REDACTION_VERSION = "outbound-v1"
 TASK_TEMPLATE_VERSION = "evidence-review-v1"
@@ -107,7 +107,7 @@ class PreparedCall(FrozenModel):
     provider: ProviderKind
     model: str
     endpoint: str
-    transport: Literal["fake", "responses-v1"]
+    transport: Literal["fake", "responses-v1", "pi-responses-v1"]
     body: str
     binding: str
     timeout_seconds: float = Field(alias="timeoutSeconds", gt=0, le=120)
@@ -128,7 +128,10 @@ class PreparedCall(FrozenModel):
         return json.loads(self.body)
 
     def request_body_input(self) -> dict:
-        return json.loads(self.request_body()["input"])
+        value = self.request_body()["input"]
+        if isinstance(value, list):
+            value = value[0]["content"][0]["text"]
+        return json.loads(value)
 
     def request_binding(self) -> dict:
         return json.loads(self.binding)

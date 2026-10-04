@@ -8,7 +8,7 @@ from collections import OrderedDict
 from threading import RLock
 from pydantic import ValidationError
 
-from frag_api.errors import RuntimeConflictError, RequestBudgetError, RagOutputError
+from frag_api.errors import RuntimeConflictError, RequestBudgetError, RagFingerprintError, RagOutputError
 from frag_api.repositories.runtime_repository import RuntimeRepository
 from frag_api.schemas.common import ProviderUsage
 from frag_api.schemas.governance import PreparedCall
@@ -77,7 +77,8 @@ class RuntimeService:
                     if report.consumed_tokens > report.run_token_limit:
                         self.failure(report.run.id, call.id, "REQUEST_BUDGET_EXCEEDED")
                         continue
-                    if call.output_digest and call.output_digest != fingerprint(call.output):
+                    if ((call.prepared_call.transport == "pi-responses-v1" and not call.output_digest)
+                            or (call.output_digest and call.output_digest != fingerprint(call.output))):
                         raise ValueError()
                     if call.stage == "research":
                         from frag_api.services.research_checkpoint import checkpoint_research
@@ -101,7 +102,7 @@ class RuntimeService:
                             missing.update(report.context.missing_information)
                         if not missing.issubset(output.missing_information):
                             raise ValueError()
-                except (ValidationError, ValueError, RagOutputError):
+                except (ValidationError, ValueError, RagFingerprintError, RagOutputError):
                     self.failure(report.run.id, call.id, "INVALID_PERSISTED_OUTPUT")
                     continue
                 self.checkpoint(report.run.id, call.id, output, stage=call.stage)
@@ -196,15 +197,28 @@ class RuntimeService:
             report.run.updated_at = now()
         self.repository.update(run_id, change)
 
-    def returned(self, run_id, call_id, output, usage: ProviderUsage):
+    def returned(self, run_id, call_id, output, usage: ProviderUsage, *, native_replay=None):
         safe_output = durable_value(output, self.redaction_secrets)
+        safe_native = durable_value(native_replay, self.redaction_secrets)
+        if safe_native != native_replay:
+            raise RagOutputError()
         def change(report):
             call = next(c for c in report.requests if c.id == call_id)
             if call.status != "dispatching":
                 raise RuntimeConflictError()
+            from frag_api.providers.research_native import validate_native_replay
+            from frag_api.schemas.research import ResearchDecision
+            if call.stage == "research":
+                replay = validate_native_replay(call.prepared_call, ResearchDecision.model_validate(safe_output), safe_native)
+            else:
+                if native_replay is not None:
+                    raise RagOutputError()
+                replay = None
             call.status, call.finished_at = "completed", now()
             call.output, call.usage, call.structural_validation = safe_output, usage, "UNDETERMINED"
             call.output_digest = fingerprint(safe_output)
+            call.native_replay = replay
+            call.native_replay_digest = fingerprint(safe_native) if replay is not None else None
             prepared = call.prepared_call
             reservation = prepared.estimated_input_tokens + prepared.request_body()["max_output_tokens"]
             count = (usage.input_tokens if usage.input_tokens is not None else prepared.estimated_input_tokens) + (usage.output_tokens if usage.output_tokens is not None else prepared.request_body()["max_output_tokens"])

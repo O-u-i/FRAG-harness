@@ -1,10 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 
-const ROOTS = ['src', 'shared', 'backend/frag_api', 'backend/tests', 'scripts'];
+const ROOTS = ['src', 'shared', 'backend/frag_api', 'backend/tests', 'backend/pi-worker', 'scripts'];
 const ROOT_FILES = ['vite.config.ts'];
 const EXTENSIONS = new Set(['.ts', '.tsx', '.py', '.css', '.mjs']);
-const IGNORED_PARTS = new Set(['node_modules', '.venv', '__pycache__', 'dist', '.tmp']);
+const IGNORED_PARTS = new Set(['node_modules', '.venv', '__pycache__', 'dist', '.tmp', 'vendor']);
 const WARNING_LINES = 350;
 const MAX_LINES = 500;
 

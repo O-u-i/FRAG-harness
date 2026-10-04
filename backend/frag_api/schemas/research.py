@@ -1,9 +1,62 @@
 """Bounded evidence-collection decisions and durable, approval-free checkpoints."""
-from typing import Literal
-from pydantic import Field, model_validator
+from typing import Annotated, Any, Literal
+from pydantic import Field, field_validator, model_validator
 from frag_api.schemas.common import ApiModel, ExplicitApproval
 from frag_api.schemas.governance import PreparedCall
 from frag_api.schemas.tools import ToolCall
+
+
+class ResearchFinish(ApiModel):
+    action: Literal["finish"]
+    evidence_ids: list[str] = Field(alias="evidenceIds", max_length=60)
+    missing_information: list[str] = Field(alias="missingInformation", max_length=20)
+
+
+class NativeResearchCall(ApiModel):
+    call_id: str = Field(alias="callId", min_length=1, max_length=256, strict=True)
+    item_id: str = Field(alias="itemId", min_length=1, max_length=256, strict=True)
+    name: Literal["kb_read", "kb_search"]
+    arguments_text: str = Field(alias="argumentsText", min_length=2, max_length=16 * 1024, strict=True)
+    host_call_id: str = Field(alias="hostCallId", pattern=r"^pi_[a-f0-9]{64}$")
+
+
+class NativeResearchReplay(ApiModel):
+    version: Literal[1]
+    calls: list[NativeResearchCall] = Field(min_length=1, max_length=6)
+
+    @model_validator(mode="after")
+    def unique_calls(self):
+        for field in ("call_id", "item_id", "host_call_id"):
+            values = [getattr(call, field) for call in self.calls]
+            if len(values) != len(set(values)):
+                raise ValueError("Native call identifiers must be unique.")
+        return self
+
+
+class NativeResearchReplayV2(ApiModel):
+    version: Literal[2]
+    calls: list[NativeResearchCall] = Field(max_length=6)
+    output_items: list[dict[str, Any]] = Field(alias="outputItems", min_length=1, max_length=64)
+
+    @field_validator("output_items", mode="before")
+    @classmethod
+    def raw_items(cls, value):
+        from frag_api.providers.response_items import validate_output_items
+        try:
+            return validate_output_items(value)
+        except (ValueError, TypeError, RecursionError, UnicodeError) as error:
+            raise ValueError("Invalid raw Responses output items") from error
+
+    @model_validator(mode="after")
+    def unique_calls(self):
+        for field in ("call_id", "item_id", "host_call_id"):
+            values = [getattr(call, field) for call in self.calls]
+            if len(values) != len(set(values)):
+                raise ValueError("Native call identifiers must be unique.")
+        return self
+
+
+NativeResearchReplayRecord = Annotated[NativeResearchReplay | NativeResearchReplayV2, Field(discriminator="version")]
 
 
 class ResearchDecision(ApiModel):

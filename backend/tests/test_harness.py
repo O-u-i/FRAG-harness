@@ -17,7 +17,7 @@ def selection(client: TestClient) -> dict:
 
 
 def test_core_starts_without_finance_core(client: TestClient):
-    assert client.get("/api/health").json() == {"status": "ok", "service": "frag-harness", "serviceVersion": "1.5.0"}
+    assert client.get("/api/health").json() == {"status": "ok", "service": "frag-harness", "serviceVersion": "1.6.0"}
     assert client.get("/api/harness/config").json()["context"]["provider"] == "fake"
     paths = client.get("/openapi.json").json()["paths"]
     assert "/api/harness/preview" in paths
