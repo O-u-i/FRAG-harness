@@ -12,7 +12,7 @@
     { "id": "terminal", "label": "Exit or restart" }
   ],
   "states": [
-    { "id": "selection", "type": "start", "label": "Selection", "sublabel": "goal and locators", "lane": "main", "col": 0, "step": "01" },
+    { "id": "selection", "type": "start", "label": "Selection", "sublabel": "sources + memory refs", "lane": "main", "col": 0, "step": "01" },
     { "id": "contextPreview", "type": "waiting", "label": "Context preview", "sublabel": "frozen request + token", "lane": "main", "col": 1, "step": "02" },
     { "id": "contextCall", "type": "active", "label": "Context call", "sublabel": "compression checked", "lane": "main", "col": 2, "step": "03" },
     { "id": "inferencePreview", "type": "waiting", "label": "Inference preview", "sublabel": "frozen request + token", "lane": "main", "col": 3, "step": "04" },
@@ -32,7 +32,7 @@
   ],
   "cards": [
     { "dot": "amber", "title": "Approval and validation", "items": [
-      "Tokens expire after ten minutes and are consumed once; changed evidence requires a new preview.",
+      "Tokens expire after ten minutes and are consumed once; changed source or memory versions reject old previews.",
       "FRAG checks schemas and citation IDs; factual support still requires human review."
     ] }
   ]

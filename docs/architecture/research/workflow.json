@@ -37,7 +37,7 @@
       "col": 0,
       "type": "frontend",
       "label": "Select KB evidence",
-      "sublabel": "files + locators",
+      "sublabel": "sources + optional memory",
       "width": 160
     },
     {
@@ -55,7 +55,7 @@
       "col": 2,
       "type": "security",
       "label": "Approve once",
-      "sublabel": "revalidate bindings",
+      "sublabel": "source + memory versions",
       "width": 160
     },
     {
@@ -166,7 +166,7 @@
       "title": "Selected scope only",
       "items": [
         "Tools cannot expand files, locators or revisions; Finance Core stays on the fixed path.",
-        "Invalid decisions, failed calls and exhausted budgets stop progression; no automatic model retry."
+        "Confirmed active memory stays background on every turn and formal stage; version changes reject dispatch."
       ]
     },
     {

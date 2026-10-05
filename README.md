@@ -22,7 +22,7 @@ Memory candidates come from a saved model output or human revision. Editing, rev
 
 ## Architecture review diagrams
 
-These SVG exports describe the fixed Harness, RAG Lab and optional Research paths. Each Archify diagram has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration. The optional reviewed-memory input follows the same preview and approval gates; its lifecycle is described in [runtime memory](docs/runtime-memory.md).
+These six SVG exports describe the fixed Harness, RAG Lab, optional Research and reviewed-memory paths. Each Archify diagram has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration. Reviewed memory follows the same exact preview, version revalidation and one-use approval gates.
 
 ### Harness
 
@@ -30,7 +30,7 @@ The Harness path assembles only explicitly selected local excerpts or optional, 
 
 ![Harness data flow from selected evidence through the Context and Inference gates to human review](docs/architecture/harness/dataflow.svg)
 
-Each stage requires a separate exact-input preview and a single-use approval. The host re-reads evidence and checks the fingerprint before a call; invalid approval stops that stage. [Explore the Harness approval lifecycle](docs/architecture/harness/lifecycle.html).
+Each stage requires a separate exact-input preview and a single-use approval. The host re-reads evidence and checks source bindings and confirmed memory versions before a call; invalid approval stops that stage. [Explore the Harness approval lifecycle](docs/architecture/harness/lifecycle.html).
 
 ![Harness lifecycle with separate Context and Inference approval gates and human review](docs/architecture/harness/lifecycle.svg)
 
@@ -66,6 +66,25 @@ flowchart TD
     Restore -->|Model stage remains| Preview[Fresh exact preview for next model call]
     Preview --> Approval[Fresh one-use approval]
     Approval --> Execute[Execute frozen PreparedCall]
+```
+
+### Reviewed memory
+
+A saved Run supplies a candidate, not reusable authority. Human editing, review and promotion produce an active version. Scope and conflict filtering precede FTS5 recommendations; you confirm at most three exact versions before a fresh preview. The host revalidates them before each Research, Context or Inference dispatch. Memory stays separate from current evidence, the rebuildable RAG index and shared Mei storage. [Explore the memory workflow](docs/architecture/memory/workflow.html) · [Editable source](docs/architecture/memory/workflow.json) · [Runtime memory details](docs/runtime-memory.md).
+
+![Reviewed memory workflow from a saved Run through human promotion and scoped recommendation to approved dispatch](docs/architecture/memory/workflow.svg)
+
+The lifecycle below summarizes human-controlled version changes. Retired and known-conflict records are excluded from normal recommendations; editing an active record requires review again. Historical outputs retain the versions they used.
+
+```mermaid
+flowchart LR
+    Saved[Saved model output or human revision] --> Candidate[Editable candidate]
+    Candidate -->|Human review and promotion| Active[Active reviewed version]
+    Active -->|Edit creates a new version| Candidate
+    Active -->|Record known conflict| Conflict[Excluded pending reviewed resolution]
+    Conflict -->|Review current versions and resolve| Active
+    Active -->|Human retirement| Retired[Retired with history retained]
+    Candidate -->|Human retirement| Retired
 ```
 
 ## Start locally

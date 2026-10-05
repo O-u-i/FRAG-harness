@@ -18,7 +18,7 @@
     { "id": "browser", "type": "frontend", "label": "Harness UI", "stage": 0, "row": 1 },
     { "id": "files", "type": "database", "label": "Local files", "stage": 1, "row": 0 },
     { "id": "fc", "type": "external", "label": "Finance Core API", "stage": 1, "row": 2 },
-    { "id": "contextGate", "type": "security", "label": "FRAG Context gate", "stage": 2, "row": 1 },
+    { "id": "contextGate", "type": "security", "label": "Context / memory gate", "width": 160, "stage": 2, "row": 1 },
     { "id": "contextModel", "type": "external", "label": "Context LLM", "stage": 2, "row": 0 },
     { "id": "inferenceGate", "type": "security", "label": "FRAG Inference gate", "stage": 3, "row": 1 },
     { "id": "inferenceModel", "type": "external", "label": "Inference LLM", "stage": 4, "row": 0 },
@@ -35,12 +35,12 @@
   ],
   "cards": [
     { "dot": "rose", "title": "Host-owned boundaries", "items": [
-      "FRAG revalidates source revisions and executes the previewed, frozen PreparedCall.",
+      "FRAG revalidates sources and confirmed memory versions before executing the frozen PreparedCall.",
       "Provider and Finance Core credentials remain backend-only."
     ] },
     { "dot": "emerald", "title": "Scope", "items": [
       "Finance Core is optional; its adapter reads selected Workspace records, at most ten.",
-      "RAG Lab uses a separate synthetic FTS5 index and is not this Harness path."
+      "Optional reviewed memory is background, not current evidence; citations remain restricted to selected evidence."
     ] }
   ]
 }

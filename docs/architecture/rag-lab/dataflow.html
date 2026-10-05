@@ -5498,7 +5498,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>&bull; Explicit Build indexes only bundled synthetic Markdown child chunks and parent sections.</li>
-          <li>&bull; Queries do not rebuild; source or index-strategy changes require Build.</li>
+          <li>&bull; Queries do not rebuild; reviewed memory uses separate tables in the Run database, not this index.</li>
         </ul>
       </div>
 
@@ -5509,7 +5509,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>&bull; Search ranks child retrieval chunkId values; Preview deduplicates parent sections and bounds long hits.</li>
-          <li>&bull; Preview assigns each Context evidenceId to a parent or bounded window, then freezes the request and issues a one-time token; no model call.</li>
+          <li>&bull; Preview assigns Context evidenceId values and binds confirmed memory versions; no model call or automatic memory selection.</li>
         </ul>
       </div>
     </div>

@@ -5172,9 +5172,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text x="960" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">05 / Result</text>
 
         <!-- Flow paths -->
-        <path data-edge-from="browser" data-edge-to="contextGate" data-edge-label="goal + selected IDs" data-edge-key="0" data-edge-id="selection" data-composition-points="156,271;474,271" d="M 156 271 L 474 271" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="files" data-edge-to="contextGate" data-edge-label="selected excerpts + hashes" data-edge-key="1" data-edge-id="localEvidence" data-composition-points="371,157;422.5,157;422.5,258;474,258" d="M 371 157 L 422.5 157 L 422.5 258 L 474 258" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="fc" data-edge-to="contextGate" data-edge-label="Workspace-scoped records" data-edge-key="2" data-edge-id="fcEvidence" data-composition-points="371,385;422.5,385;422.5,284;474,284" d="M 371 385 L 422.5 385 L 422.5 284 L 474 284" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="browser" data-edge-to="contextGate" data-edge-label="goal + selected IDs" data-edge-key="0" data-edge-id="selection" data-composition-points="156,271;450,271" d="M 156 271 L 450 271" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="files" data-edge-to="contextGate" data-edge-label="selected excerpts + hashes" data-edge-key="1" data-edge-id="localEvidence" data-composition-points="371,157;410.5,157;410.5,258;450,258" d="M 371 157 L 410.5 157 L 410.5 258 L 450 258" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="fc" data-edge-to="contextGate" data-edge-label="Workspace-scoped records" data-edge-key="2" data-edge-id="fcEvidence" data-composition-points="371,385;410.5,385;410.5,284;450,284" d="M 371 385 L 410.5 385 L 410.5 284 L 450 284" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="contextGate" data-edge-to="contextModel" data-edge-label="approved exact input" data-edge-key="3" data-edge-id="contextOutbound" data-composition-points="530,242;530,186" d="M 530 242 L 530 186" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="contextModel" data-edge-to="inferenceGate" data-edge-label="compressed evidence" data-edge-key="4" data-edge-id="compression" data-composition-points="586,157;637.5,157;637.5,271;689,271" d="M 586 157 L 637.5 157 L 637.5 271 L 689 271" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="inferenceGate" data-edge-to="inferenceModel" data-edge-label="approved exact input" data-edge-key="5" data-edge-id="inferenceOutbound" data-composition-points="801,271;852.5,271;852.5,157;904,157" d="M 801 271 L 852.5 271 L 852.5 157 L 904 157" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
@@ -5216,15 +5216,15 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <text data-node-label="" x="315" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Finance Core API</text>
         </g>
 
-        <g id="node-contextGate" data-node-id="contextGate" data-node-label="FRAG Context gate" tabindex="0" role="button" aria-label="Focus FRAG Context gate, 03 / Context stage" aria-pressed="false" data-node-kind="security" data-node-context="03 / Context stage">
-          <title>FRAG Context gate · 03 / Context stage</title>
-          <rect x="474" y="242" width="112" height="58" rx="6" class="c-mask"/>
-          <rect x="474" y="242" width="112" height="58" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(480 248) scale(0.6875)">
+        <g id="node-contextGate" data-node-id="contextGate" data-node-label="Context / memory gate" tabindex="0" role="button" aria-label="Focus Context / memory gate, 03 / Context stage" aria-pressed="false" data-node-kind="security" data-node-context="03 / Context stage">
+          <title>Context / memory gate · 03 / Context stage</title>
+          <rect x="450" y="242" width="160" height="58" rx="6" class="c-mask"/>
+          <rect x="450" y="242" width="160" height="58" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(456 248) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" x="530" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">FRAG Context gate</text>
+          <text data-node-label="" x="530" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Context / memory gate</text>
         </g>
 
         <g id="node-contextModel" data-node-id="contextModel" data-node-label="Context LLM" tabindex="0" role="button" aria-label="Focus Context LLM, 03 / Context stage" aria-pressed="false" data-node-kind="external" data-node-context="03 / Context stage">
@@ -5275,19 +5275,19 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
         <!-- Flow labels -->
         <g data-detail="context" data-edge-from="browser" data-edge-to="contextGate" data-edge-label="goal + selected IDs" data-edge-key="0" data-edge-id="selection">
-          <rect x="262.45" y="250" width="105.1" height="27" rx="4" class="c-mask"/>
-          <text x="315" y="261" class="t-muted" font-size="8" text-anchor="middle">goal + selected IDs</text>
-        <text data-detail="fine" x="315" y="272" class="t-dim" font-size="7" text-anchor="middle">browser request</text>
+          <rect x="250.45" y="250" width="105.1" height="27" rx="4" class="c-mask"/>
+          <text x="303" y="261" class="t-muted" font-size="8" text-anchor="middle">goal + selected IDs</text>
+        <text data-detail="fine" x="303" y="272" class="t-dim" font-size="7" text-anchor="middle">browser request</text>
         </g>
         <g data-detail="context" data-edge-from="files" data-edge-to="contextGate" data-edge-label="selected excerpts + hashes" data-edge-key="1" data-edge-id="localEvidence">
-          <rect x="352.8" y="186.5" width="139.4" height="27" rx="4" class="c-mask"/>
-          <text x="422.5" y="197.5" class="t-security" font-size="8" text-anchor="middle">selected excerpts + hashes</text>
-        <text data-detail="fine" x="422.5" y="208.5" class="t-dim" font-size="7" text-anchor="middle">local evidence</text>
+          <rect x="340.8" y="186.5" width="139.4" height="27" rx="4" class="c-mask"/>
+          <text x="410.5" y="197.5" class="t-security" font-size="8" text-anchor="middle">selected excerpts + hashes</text>
+        <text data-detail="fine" x="410.5" y="208.5" class="t-dim" font-size="7" text-anchor="middle">local evidence</text>
         </g>
         <g data-detail="context" data-edge-from="fc" data-edge-to="contextGate" data-edge-label="Workspace-scoped records" data-edge-key="2" data-edge-id="fcEvidence">
-          <rect x="357.7" y="313.5" width="129.6" height="27" rx="4" class="c-mask"/>
-          <text x="422.5" y="324.5" class="t-security" font-size="8" text-anchor="middle">Workspace-scoped records</text>
-        <text data-detail="fine" x="422.5" y="335.5" class="t-dim" font-size="7" text-anchor="middle">optional read-only</text>
+          <rect x="345.7" y="313.5" width="129.6" height="27" rx="4" class="c-mask"/>
+          <text x="410.5" y="324.5" class="t-security" font-size="8" text-anchor="middle">Workspace-scoped records</text>
+        <text data-detail="fine" x="410.5" y="335.5" class="t-dim" font-size="7" text-anchor="middle">optional read-only</text>
         </g>
         <g data-detail="context" data-edge-from="contextGate" data-edge-to="contextModel" data-edge-label="approved exact input" data-edge-key="3" data-edge-id="contextOutbound">
           <rect x="475" y="349" width="110" height="27" rx="4" class="c-mask"/>
@@ -5522,7 +5522,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Host-owned boundaries</h3>
         </div>
         <ul>
-          <li>&bull; FRAG revalidates source revisions and executes the previewed, frozen PreparedCall.</li>
+          <li>&bull; FRAG revalidates sources and confirmed memory versions before executing the frozen PreparedCall.</li>
           <li>&bull; Provider and Finance Core credentials remain backend-only.</li>
         </ul>
       </div>
@@ -5534,7 +5534,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>&bull; Finance Core is optional; its adapter reads selected Workspace records, at most ten.</li>
-          <li>&bull; RAG Lab uses a separate synthetic FTS5 index and is not this Harness path.</li>
+          <li>&bull; Optional reviewed memory is background, not current evidence; citations remain restricted to selected evidence.</li>
         </ul>
       </div>
     </div>
