@@ -1,22 +1,30 @@
 """Build a redacted, version-bound Context preview for both fixed workflow sources."""
 from frag_api.providers.llm import LlmSettings, context_input, inference_input
 from frag_api.request_spec import canonical_json, fingerprint
-from frag_api.providers.prepared import prepare_call, stage_route
+from frag_api.providers.prepared import MEMORY_BACKGROUND_INSTRUCTIONS, prepare_call, stage_route
 from frag_api.schemas.common import TokenBudget
 from frag_api.schemas.governance import SourceBinding, TaskContract
 from frag_api.schemas.rag import RagContextCompression, RagEvidence, RagGroundedAnswer
 from frag_api.services.governed_context import CONTEXT_OUTPUT_LIMIT, INFERENCE_OUTPUT_LIMIT
 from frag_api.services.runtime_policy import configured_secrets, redact_value
+from frag_api.errors import PolicyRejectedError
 
 
 def context_preview_fields(*, settings: LlmSettings, evidence: list[RagEvidence], goal: str,
                            task: TaskContract, sources: tuple[SourceBinding, ...], selection_hash: str,
-                           loop_definition: dict, redaction_secrets: tuple[str, ...] = ()) -> dict:
+                           loop_definition: dict, redaction_secrets: tuple[str, ...] = (),
+                           selected_memory=(), memory_service=None) -> dict:
     instructions, payload = context_input(evidence)
     payload.update(goal=goal, task=task.model_dump(by_alias=True))
     secrets = configured_secrets(settings) + redaction_secrets
     sources = tuple(SourceBinding.model_validate(redact_value(source.model_dump(by_alias=True), secrets)) for source in sources)
+    if selected_memory:
+        if memory_service is None:
+            raise PolicyRejectedError()
+        payload["memory"] = memory_service.select(selected_memory, sources)
     inference_instructions, _ = inference_input(RagContextCompression(evidence=[], missingInformation=[]), "")
+    if selected_memory:
+        inference_instructions += MEMORY_BACKGROUND_INSTRUCTIONS
     call = prepare_call(
         settings=settings.context, purpose="context", instructions=instructions,
         payload=redact_value(payload, secrets), output_model=RagContextCompression,
@@ -24,6 +32,7 @@ def context_preview_fields(*, settings: LlmSettings, evidence: list[RagEvidence]
         binding=redact_value({"selectionHash": selection_hash,
                               "sources": [source.model_dump(by_alias=True) for source in sources],
                               "task": task.model_dump(by_alias=True),
+                              "memoryVersions": [item.model_dump(by_alias=True) for item in selected_memory],
                               "loop": loop_definition,
                               "inferenceContract": {"instructionsHash":fingerprint(inference_instructions),
                                   "outputSchemaHash":fingerprint(RagGroundedAnswer.model_json_schema(by_alias=True)),

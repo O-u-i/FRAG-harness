@@ -3,6 +3,8 @@ import type { ResearchPreview } from '../../../shared/contracts/research';
 import type { RunReport } from '../../../shared/contracts/runtime';
 import { parseResearchSelection, type ResearchKind } from '../../api/researchClient';
 import { PreparedCallPreview } from '../../components/common/PreparedCallPreview';
+import type { MemorySelection } from '../../../shared/contracts/memory';
+import { MemoryPicker } from '../memory/MemoryPicker';
 
 export type ResearchContinuation = { runId: string; kind: ResearchKind; preview: ResearchPreview; sourceRequest: unknown };
 type Props = {
@@ -13,6 +15,17 @@ type Props = {
 export function matchingResearchContinuation(report: RunReport | undefined, continuation: ResearchContinuation | undefined) {
   return report?.research && continuation?.runId === report.run.id && continuation.preview.runId === report.run.id
     && continuation.preview.sessionId === report.run.sessionId && continuation.kind === report.run.kind ? continuation : undefined;
+}
+function memoryInput(kind: ResearchKind, text: string) {
+  try { return parseResearchSelection(kind, JSON.parse(text) as unknown); }
+  catch { return undefined; }
+}
+function sourceKey(input: ReturnType<typeof memoryInput>) {
+  return input ? JSON.stringify('goal' in input ? {
+    fileSelections: input.fileSelections.map(({ relativePath, locatorIds }) => ({ relativePath, locatorIds })),
+    pluginSelection: input.pluginSelection ?? null,
+  }
+    : { datasetId: input.datasetId, query: input.query, topK: input.topK }) : undefined;
 }
 
 export function ResearchPanel({ report, busy, continuation, onInvalidate, onPrepare, onDispatch }: Props) {
@@ -25,16 +38,32 @@ export function ResearchPanel({ report, busy, continuation, onInvalidate, onPrep
   const [inputError, setInputError] = useState('');
   const inputEpoch = useRef(0);
   const existing = Boolean(report?.research);
+  const parsedInput = memoryInput(kind, sourceText);
+  const selectedMemory = parsedInput?.selectedMemory ?? [];
+  const savedInput = report ? memoryInput(report.run.kind, JSON.stringify(report.selection.input)) : undefined;
+  const memoryChanged = existing && JSON.stringify(selectedMemory) !== JSON.stringify(savedInput?.selectedMemory ?? []);
+  const recommendRunId = report && sourceKey(parsedInput) === sourceKey(savedInput) ? report.run.id : undefined;
   const cannotContinue = existing && (['accepted', 'rejected', 'error', 'outcome_unknown'].includes(report!.run.status)
     || ['error', 'exhausted', 'outcome_unknown'].includes(report!.research!.status) || Boolean(report!.modelOutput));
   const invalidate = () => { inputEpoch.current += 1; setPrepared(undefined); setSourceRequest(undefined); setInputError(''); onInvalidate(); };
+  const confirmMemory = (items: MemorySelection[]) => {
+    if (parsedInput) setSourceText(JSON.stringify({ ...parsedInput, selectedMemory: items }, null, 2));
+    invalidate();
+  };
+  const editSource = (text: string) => {
+    const next = memoryInput(kind, text);
+    if (next && JSON.stringify({ ...next, selectedMemory: undefined }) !== JSON.stringify({ ...parsedInput, selectedMemory: undefined })) {
+      setSourceText(JSON.stringify({ ...next, selectedMemory: [] }, null, 2));
+    } else setSourceText(text);
+    invalidate();
+  };
   const prepare = async (linked = false) => {
     invalidate();
     const epoch = inputEpoch.current;
     let input: unknown;
     try { input = parseResearchSelection(kind, JSON.parse(sourceText) as unknown); }
     catch { setInputError('Enter valid, explicitly selected KB request JSON for the chosen source kind.'); return; }
-    if (linked && report) input = { ...(input as object), sessionId: report.run.sessionId, parentRunId: report.run.id };
+    if (report && (linked || !existing)) input = { ...(input as object), sessionId: report.run.sessionId, parentRunId: report.run.id };
     try {
       const value = await onPrepare(kind, input, existing && !linked ? report?.run.id : undefined);
       if (inputEpoch.current === epoch) { setSourceRequest(input); setPrepared(value); }
@@ -58,11 +87,14 @@ export function ResearchPanel({ report, busy, continuation, onInvalidate, onPrep
     </select></label>}
     <label className="field">Research source selection JSON<textarea className="runtime-selection" value={sourceText} disabled={busy} spellCheck={false}
       placeholder="Paste the explicit Harness or RAG Lab source selection request."
-      onChange={(event) => { setSourceText(event.target.value); invalidate(); }} /></label>
+      onChange={(event) => editSource(event.target.value)} /></label>
     <p className="muted">Keep the original selection for a saved Research run. Changed inputs require a new run. Finance Core stays on the fixed workflow.</p>
     {cannotContinue && <p className="alert">This Research checkpoint cannot continue. Review the saved outcome; no external call will be resent.</p>}
     {inputError && <p className="alert" role="alert">{inputError}</p>}
-    <div className="rag-actions"><button className="button" type="button" disabled={busy || cannotContinue || !sourceText.trim()} onClick={() => void prepare()}>
+    <MemoryPicker runId={recommendRunId} query={parsedInput ? ('goal' in parsedInput ? parsedInput.goal : parsedInput.query) : ''}
+      selected={selectedMemory} disabled={busy || !parsedInput} onChange={confirmMemory} />
+    {memoryChanged && <p className="notice">Memory selection changed. Prepare a linked Research run to preserve the original request and trajectory.</p>}
+    <div className="rag-actions"><button className="button" type="button" disabled={busy || cannotContinue || memoryChanged || !sourceText.trim()} onClick={() => void prepare()}>
       {existing ? 'Preview next Research stage' : 'Preview initial Research request'}</button>
       {existing && <button className="button" type="button" disabled={busy || !sourceText.trim()} onClick={() => void prepare(true)}>Preview linked Research run</button>}
     </div>

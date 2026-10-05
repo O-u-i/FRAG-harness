@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReviewRequest, RevisionRequest, RunReport } from '../../../shared/contracts/runtime';
 import { TaskChecklistEditor } from './TaskChecklistEditor';
+import { createMemoryCandidate } from '../../api/memoryClient';
 
 type Props = { report: RunReport; busy: boolean; onReview: (input: ReviewRequest) => void; onRevision: (input: RevisionRequest) => void };
 
@@ -8,10 +9,22 @@ export function RunReviewPanel({ report, busy, onReview, onRevision }: Props) {
   const [task, setTask] = useState(report.reviews[report.reviews.length - 1]?.checklist ?? report.selection.task);
   const [target, setTarget] = useState(report.revisions[report.revisions.length - 1]?.id ?? 'model');
   const [note, setNote] = useState('');
+  const [memoryBusy, setMemoryBusy] = useState(false);
+  const [memoryMessage, setMemoryMessage] = useState('');
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const candidate = async () => {
+    setMemoryBusy(true); setMemoryMessage('');
+    try {
+      const value = await createMemoryCandidate({ runId: report.run.id, revisionId: target === 'model' ? undefined : target, general: false });
+      if (alive.current) setMemoryMessage(`Candidate ${value.id} saved. Open Memory to edit, review and promote it.`);
+    } catch (caught) { if (alive.current) setMemoryMessage(caught instanceof Error ? caught.message : 'Memory candidate could not be saved.'); }
+    finally { if (alive.current) setMemoryBusy(false); }
+  };
   const blocked = task.checklist.some((item) => item.blocking && (item.status !== 'met' || !item.reviewed));
   return <section className="card"><div className="section-heading"><span className="eyebrow">Human decision</span><h2>Review this output</h2>
     <p>Record your assessment of factual support. A valid schema or citation identifier does not establish correctness.</p></div>
-    <label className="field">Review target<select value={target} disabled={busy} onChange={(event) => setTarget(event.target.value)}>
+    <label className="field">Review target<select value={target} disabled={busy || memoryBusy} onChange={(event) => setTarget(event.target.value)}>
       <option value="model">Model original</option>{report.revisions.map((item, index) => <option key={item.id} value={item.id}>Human revision {index + 1} · {item.reviewStatus}</option>)}
     </select></label>
     <TaskChecklistEditor task={task} reviewOnly disabled={busy} onChange={setTask} />
@@ -21,6 +34,10 @@ export function RunReviewPanel({ report, busy, onReview, onRevision }: Props) {
       className={`button ${decision === 'accepted' ? 'primary' : ''}`} disabled={busy || (decision === 'accepted' && (blocked || !report.modelOutput))}
       onClick={() => onReview({ target, decision, checklist: task, note })}>{decision === 'accepted' ? 'Accept reviewed output' : decision === 'rejected' ? 'Reject output' : 'Pause review'}</button>)}</div>
     {report.modelOutput && <RevisionEditor original={report.modelOutput} busy={busy} onSave={onRevision} />}
+    {report.modelOutput && <div className="runtime-revision"><p className="muted">Save the selected output as a source-scoped memory candidate. It will need separate editing, review and promotion.</p>
+      <button className="button" type="button" disabled={busy || memoryBusy} onClick={() => void candidate()}>Create memory candidate from selected output</button>
+      {memoryMessage && <p className="muted" role="status">{memoryMessage}</p>}
+    </div>}
   </section>;
 }
 

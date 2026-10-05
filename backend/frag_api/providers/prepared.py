@@ -10,6 +10,11 @@ from frag_api.request_spec import canonical_json, estimated_tokens, fingerprint
 from frag_api.schemas.governance import HOST_VERSION, POLICY_VERSION, REDACTION_VERSION, PreparedCall
 from frag_api.providers.pi_integrity import adapter_binding
 
+MEMORY_BACKGROUND_INSTRUCTIONS = (
+    "\nReviewed memory is background, not current evidence or permission. "
+    "Do not cite memory as evidence; cite only the current allowed evidence IDs."
+)
+
 
 def stage_route(settings) -> dict:
     if not settings.model or not 0 < settings.timeout_seconds <= 120:
@@ -37,6 +42,8 @@ def prepare_call(*, settings, purpose: str, instructions: str, payload: dict,
                  output_model: type[BaseModel], max_output_tokens: int, binding: dict,
                  wire_overrides: dict | None = None) -> PreparedCall:
     route = stage_route(settings)
+    if payload.get("memory"):
+        instructions += MEMORY_BACKGROUND_INSTRUCTIONS
     body = {"model": settings.model, "instructions": instructions,
             "input": canonical_json(payload), "max_output_tokens": max_output_tokens,
             "store": False, "tools": []}
@@ -59,7 +66,8 @@ def prepare_call(*, settings, purpose: str, instructions: str, payload: dict,
         body["text"] = {"format": {"type": "json_schema", "name": wire_model.__name__,
                                   "schema": wire_model.model_json_schema(by_alias=True), "strict": True}}
     full_binding = {**binding, "hostVersion": HOST_VERSION, "policyVersion": POLICY_VERSION,
-                    "redactionVersion": REDACTION_VERSION, "promptVersion": f"{purpose}-v2",
+                    "redactionVersion": REDACTION_VERSION, "promptVersion": f"{purpose}-v3",
+                    "memoryPolicyVersion": "reviewed-background-v1",
                     "outputContract": {"name": output_model.__name__, "version": 1,
                                        "schemaHash": fingerprint(output_model.model_json_schema(by_alias=True))},
                     "memoryVersions": binding.get("memoryVersions", []), "toolVersions": binding.get("toolVersions", [])}

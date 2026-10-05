@@ -1,6 +1,7 @@
 import type { RunReport } from '../../../shared/contracts/runtime';
 import { PreparedCallPreview } from '../../components/common/PreparedCallPreview';
 import { ResearchTrajectoryView } from './ResearchTrajectoryView';
+import { selectedMemorySchema } from '../../../shared/contracts/memory';
 
 type Answer = NonNullable<RunReport['modelOutput']>;
 export function RuntimeAnswer({ answer }: { answer: Answer }) {
@@ -14,6 +15,7 @@ export function RuntimeAnswer({ answer }: { answer: Answer }) {
 }
 
 export function RunReportView({ report }: { report: RunReport }) {
+  const memory = selectedMemorySchema.safeParse(report.selection.input.selectedMemory ?? []);
   return <>
     <section className="card">
       <div className="section-heading"><span className="eyebrow">Saved run / {report.run.kind}</span><h2>{report.selection.goal}</h2></div>
@@ -23,6 +25,10 @@ export function RunReportView({ report }: { report: RunReport }) {
       <div className="runtime-verdicts"><p>Structural validation <strong>{report.structuralValidation}</strong></p>
         <p>Human semantic review <strong>{report.semanticReview}</strong><small>{report.revisions.length ? 'Latest human revision' : 'Model original'}</small></p></div>
       {report.limitations.map((item, index) => <p className="notice" key={index}>{item}</p>)}
+      {memory.success && memory.data.length > 0 && <div className="runtime-revision"><strong>Confirmed background memory</strong>
+        <p className="muted">These versions are background, not current evidence or authority. Inspect each saved request for the exact text sent.</p>
+        <ul>{memory.data.map((item) => <li key={item.memoryId}><code>{item.memoryId}</code> · v{item.version}</li>)}</ul>
+      </div>}
     </section>
     <ResearchTrajectoryView report={report} />
     <section className="card"><div className="section-heading"><span className="eyebrow">Model original</span><h2>Original output</h2>

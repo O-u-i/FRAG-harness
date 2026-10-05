@@ -9,6 +9,8 @@ import { PreparedCallPreview } from '../../components/common/PreparedCallPreview
 import type { TaskContract } from '../../../shared/contracts/governance';
 import { emptyReviewTask, TaskChecklistEditor } from '../runtime/TaskChecklistEditor';
 import { SessionPicker } from '../runtime/SessionPicker';
+import type { MemorySelection } from '../../../shared/contracts/memory';
+import { MemoryPicker } from '../memory/MemoryPicker';
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : 'The request could not be completed.';
@@ -29,6 +31,8 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
   const [task, setTask] = useState<TaskContract>(emptyReviewTask);
   const [sessionId, setSessionId] = useState('');
   const [lineage, setLineage] = useState<{ runId: string; sessionId: string }>();
+  const [memoryRunId, setMemoryRunId] = useState<string>();
+  const [selectedMemory, setSelectedMemory] = useState<MemorySelection[]>([]);
   const [previewInput, setPreviewInput] = useState<HarnessRequest>();
   const [preview, setPreview] = useState<HarnessPreview>();
   const [contextRun, setContextRun] = useState<HarnessContextRun>();
@@ -59,13 +63,14 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
     return () => { active = false; };
   }, []);
 
-  const resetOutput = () => {
+  const resetOutput = (clearMemory = false) => {
+    if (clearMemory) { setSelectedMemory([]); setMemoryRunId(undefined); }
     requestVersion.current += 1;
     setPreview(undefined); setPreviewInput(undefined); setContextRun(undefined); setRun(undefined);
     setBusy('');
   };
   const selectPath = async (path: string) => {
-    resetOutput();
+    resetOutput(true);
     const version = requestVersion.current;
     setSelectedPath(path); setInspection(undefined); setSelectedLocators([]); setError('');
     if (!path) return;
@@ -75,7 +80,7 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
     finally { if (version === requestVersion.current) setBusy(''); }
   };
   const input: HarnessRequest = {
-    goal, task, sessionId: sessionId || lineage?.sessionId || undefined, parentRunId: lineage?.runId,
+    goal, task, selectedMemory, sessionId: sessionId || lineage?.sessionId || undefined, parentRunId: lineage?.runId,
     fileSelections: mode === 'local' && selectedPath && selectedLocators.length ? [{
       relativePath: selectedPath, locatorIds: selectedLocators,
       relevanceReason: 'Explicitly selected for this evidence review.',
@@ -89,6 +94,7 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
     setBusy('preview'); setError('');
     try { const value = await previewHarness(input); if (version === requestVersion.current) {
       setPreview(value); setPreviewInput(input);
+      setMemoryRunId(value.runId || undefined);
       if (value.runId && value.sessionId) setLineage({ runId: value.runId, sessionId: value.sessionId });
     } }
     catch (caught) { if (version === requestVersion.current) setError(message(caught)); }
@@ -123,8 +129,8 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
       <div className="section-heading"><span className="eyebrow">01 / Evidence</span><h2>Select local evidence</h2>
         <p>Files stay local until you review an exact outbound preview.</p></div>
       {pluginInstalled && <div className="source-switch" role="group" aria-label="Evidence source">
-        <button type="button" className={`button ${mode === 'local' ? 'primary' : ''}`} onClick={() => { setMode('local'); resetOutput(); }}>Local files</button>
-        <button type="button" className={`button ${mode === 'finance-core' ? 'primary' : ''}`} onClick={() => { setMode('finance-core'); resetOutput(); }}>Finance Core</button>
+        <button type="button" className={`button ${mode === 'local' ? 'primary' : ''}`} onClick={() => { setMode('local'); resetOutput(true); }}>Local files</button>
+        <button type="button" className={`button ${mode === 'finance-core' ? 'primary' : ''}`} onClick={() => { setMode('finance-core'); resetOutput(true); }}>Finance Core</button>
       </div>}
       {mode === 'local' ? <>
       <label className="field">Source file
@@ -139,7 +145,7 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
           <input type="checkbox" checked={selectedLocators.includes(locator.id)} disabled={!selectedLocators.includes(locator.id) && selectedLocators.length >= 20} onChange={(event) => {
             setSelectedLocators((current) => event.target.checked
               ? [...current, locator.id] : current.filter((id) => id !== locator.id));
-            resetOutput();
+            resetOutput(true);
           }} />
           <span><strong>{locator.label}</strong><small>{locator.excerpt}</small></span>
         </label>)}
@@ -147,26 +153,28 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
       </> : <>
         {pluginError && <p className="alert" role="alert">{pluginError}</p>}
         <label className="field">Workspace
-          <select value={workspaceId} onChange={(event) => { setWorkspaceId(event.target.value); setRecordIds([]); resetOutput(); }}>
+          <select value={workspaceId} onChange={(event) => { setWorkspaceId(event.target.value); setRecordIds([]); resetOutput(true); }}>
             <option value="">Choose a Workspace</option>
             {pluginScopes?.workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.label}</option>)}
           </select></label>
         {workspaceId && <fieldset className="locator-list"><legend>Choose up to 10 records</legend>
           {pluginScopes?.workspaces.find((item) => item.id === workspaceId)?.records.map((record) => <label key={record.id} className="locator-option">
             <input type="checkbox" checked={recordIds.includes(record.id)} disabled={!recordIds.includes(record.id) && recordIds.length >= 10}
-              onChange={(event) => { setRecordIds((current) => event.target.checked ? [...current, record.id] : current.filter((id) => id !== record.id)); resetOutput(); }} />
+              onChange={(event) => { setRecordIds((current) => event.target.checked ? [...current, record.id] : current.filter((id) => id !== record.id)); resetOutput(true); }} />
             <span><strong>{record.label}</strong><small>{record.id}</small></span>
           </label>)}
         </fieldset>}
       </>}
       <label className="field">Review goal
-        <textarea value={goal} maxLength={500} onChange={(event) => { setGoal(event.target.value); resetOutput(); }} />
+        <textarea value={goal} maxLength={500} onChange={(event) => { setGoal(event.target.value); resetOutput(true); }} />
       </label>
-      <TaskChecklistEditor task={task} disabled={!!busy} onChange={(value) => { setTask(value); resetOutput(); }} />
+      <TaskChecklistEditor task={task} disabled={!!busy} onChange={(value) => { setTask(value); resetOutput(true); }} />
       <SessionPicker value={sessionId || lineage?.sessionId || ''} disabled={!!busy} onChange={(value) => {
-        setSessionId(value); if (value !== lineage?.sessionId) setLineage(undefined); resetOutput();
+        setSessionId(value); if (value !== lineage?.sessionId) setLineage(undefined); resetOutput(true);
       }} />
       {lineage && <p className="muted">The next prepared input creates a linked run in this session. Earlier input and output remain in Runs.</p>}
+      <MemoryPicker runId={memoryRunId} query={goal} selected={selectedMemory} disabled={!!busy}
+        onChange={(items) => { setSelectedMemory(items); resetOutput(); }} />
       <button className="button primary" type="button" disabled={!(mode === 'local' ? selectedLocators.length : recordIds.length) || goal.trim().length < 3 || !!busy}
         onClick={() => void buildPreview()}>{busy === 'preview' ? 'Preparing…' : 'Preview exact context'}</button>
     </section>

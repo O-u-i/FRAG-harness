@@ -141,6 +141,8 @@ class HarnessService:
             **context_preview_fields(settings=self.settings, evidence=evidence, goal=request.goal, task=request.task,
                                      sources=tuple(bindings), selection_hash=fingerprint(request.model_dump(by_alias=True)),
                                      redaction_secrets=self.flow.runtime.redaction_secrets if self.flow.runtime else (),
+                                     selected_memory=request.selected_memory,
+                                     memory_service=self.flow.runtime.memory if self.flow.runtime else None,
                                      loop_definition=self.flow.loops.get("fixed").definition.model_dump(by_alias=True)),
             warnings=["Check every exact excerpt before approving the Context call.",
                       "Automatic redaction cannot identify every private value.",
@@ -150,7 +152,7 @@ class HarnessService:
 
     def run(self, request: HarnessRunRequest) -> HarnessContextRun:
         source_request = HarnessRequest(goal=request.goal, fileSelections=request.file_selections,
-                                        pluginSelection=request.plugin_selection, task=request.task,
+                                        pluginSelection=request.plugin_selection, task=request.task, selectedMemory=request.selected_memory,
                                         sessionId=request.session_id, parentRunId=request.parent_run_id)
         state = self.flow.loops.get("fixed").runner.run_context(source_request, request)
         return HarnessContextRun(

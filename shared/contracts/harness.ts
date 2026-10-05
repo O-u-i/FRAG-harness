@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { inferencePreviewSchema, ragContextCompressionSchema, ragEvidenceSchema, ragGroundedAnswerSchema } from './rag';
 import { stageConfigSchema, stageResultSchema, tokenBudgetSchema } from './modelStages';
 import { preparedCallSchema, sourceBindingSchema, taskContractSchema } from './governance';
+import { selectedMemorySchema } from './memory';
 
 export const harnessConfigSchema = z.object({
   context: stageConfigSchema, inference: stageConfigSchema,
@@ -15,6 +16,7 @@ export const harnessRequestSchema = z.object({
   pluginSelection: z.object({pluginId: z.literal('finance-core'), workspaceId: z.string().min(1).max(128),
     recordIds: z.array(z.string()).min(1).max(10)}).strict().nullable().optional(),
   task: taskContractSchema.optional(),
+  selectedMemory: selectedMemorySchema.optional(),
   sessionId: z.string().max(64).nullable().optional(), parentRunId: z.string().max(64).nullable().optional(),
 }).strict().refine((value) => Boolean(value.fileSelections.length) !== Boolean(value.pluginSelection), 'Select one evidence source.');
 export const harnessRunRequestSchema = harnessRequestSchema.extend({

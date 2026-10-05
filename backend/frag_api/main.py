@@ -28,6 +28,8 @@ from frag_api.routers.rag import router as rag_router
 from frag_api.routers.runtime import router as runtime_router
 from frag_api.routers.tools import router as tools_router
 from frag_api.routers.research import router as research_router
+from frag_api.routers.memory import router as memory_router
+from frag_api.services.memory_service import MemoryService
 from frag_api.services.kb_tools import KBTools
 from frag_api.services.research_flow import ResearchFlow
 from frag_api.cli_client import host_cli_binding
@@ -73,6 +75,7 @@ def create_app(
         with repository.owner_lease():
             app.state.runtime = RuntimeService(repository)
             app.state.runtime.secret_values = tuple(set(configured_secrets(app.state.harness_service.settings) + configured_secrets(app.state.rag_service.settings)))
+            app.state.runtime.memory = MemoryService(app.state.runtime)
             services = (("harness", app.state.harness_service), ("rag", app.state.rag_service))
             for kind, service in services:
                 service.approvals.clear()
@@ -94,7 +97,7 @@ def create_app(
                     service.flow.runtime = None
                 app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.6.0", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.7.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.plugin_root = Path(plugin_root)
     app.state.plugin_hidden = False
@@ -124,6 +127,7 @@ def create_app(
     app.include_router(runtime_router)
     app.include_router(tools_router)
     app.include_router(research_router)
+    app.include_router(memory_router)
     app.include_router(plugins_router)
     if plugin is not None:
         app.include_router(plugin.router)

@@ -11,6 +11,8 @@ import { PanelHeading } from '../common';
 import type { TaskContract } from '../../../shared/contracts/governance';
 import { emptyReviewTask, TaskChecklistEditor } from '../../features/runtime/TaskChecklistEditor';
 import { SessionPicker } from '../../features/runtime/SessionPicker';
+import type { MemorySelection } from '../../../shared/contracts/memory';
+import { MemoryPicker } from '../../features/memory/MemoryPicker';
 
 const dataset = { datasetId: 'synthetic-risk-review-v1' } as const;
 
@@ -29,6 +31,8 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
   const [task, setTask] = useState<TaskContract>(emptyReviewTask);
   const [sessionId, setSessionId] = useState('');
   const [lineage, setLineage] = useState<{ runId: string; sessionId: string }>();
+  const [memoryRunId, setMemoryRunId] = useState<string>();
+  const [selectedMemory, setSelectedMemory] = useState<MemorySelection[]>([]);
   const [previewInput, setPreviewInput] = useState<RagQueryRequest>();
   const [search, setSearch] = useState<RagSearchResponse>();
   const [preview, setPreview] = useState<RagPreview>();
@@ -49,17 +53,18 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
   }, []);
 
 
-  const resetQueryOutput = () => {
+  const resetQueryOutput = (clearMemory = false) => {
+    if (clearMemory) { setSelectedMemory([]); setMemoryRunId(undefined); }
     requestVersion.current += 1;
     setSearch(undefined); setPreview(undefined); setPreviewInput(undefined); setContextRun(undefined); setRun(undefined); setError('');
     setBusy('');
   };
-  const input = { ...dataset, query, topK, task, sessionId: sessionId || lineage?.sessionId || undefined, parentRunId: lineage?.runId };
+  const input = { ...dataset, query, topK, task, selectedMemory, sessionId: sessionId || lineage?.sessionId || undefined, parentRunId: lineage?.runId };
   const ready = status?.state === 'ready';
   const modelsReady = config?.context.ready && config.inference.ready;
 
   const rebuild = async () => {
-    setError(''); setEvaluation(undefined); resetQueryOutput(); setBusy('rebuild');
+    setError(''); setEvaluation(undefined); resetQueryOutput(true); setBusy('rebuild');
     try { setStatus(await rebuildRagIndex(dataset)); }
     catch (caught) { setError(safeMessage(caught)); }
     finally { setBusy(''); }
@@ -78,6 +83,7 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
     try {
       const value = await previewRag(input);
       if (version === requestVersion.current) { setPreview(value); setPreviewInput(input);
+      setMemoryRunId(value.runId || undefined);
       if (value.runId && value.sessionId) setLineage({ runId: value.runId, sessionId: value.sessionId });
       setSearch({
         datasetId: value.datasetId, query: value.query, topK: value.topK,
@@ -139,15 +145,17 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
 
     <section className="rag-query-card">
       <label>Evidence question<textarea value={query} maxLength={500} disabled={busy !== ''} onChange={(event) => {
-        setQuery(event.target.value); resetQueryOutput();
+        setQuery(event.target.value); resetQueryOutput(true);
       }} /></label>
       <label>Top K<select value={topK} disabled={busy !== ''} onChange={(event) => {
-        setTopK(Number(event.target.value)); resetQueryOutput();
+        setTopK(Number(event.target.value)); resetQueryOutput(true);
       }}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></label>
-      <TaskChecklistEditor task={task} disabled={busy !== ''} onChange={(value) => { setTask(value); resetQueryOutput(); }} />
+      <TaskChecklistEditor task={task} disabled={busy !== ''} onChange={(value) => { setTask(value); resetQueryOutput(true); }} />
       <SessionPicker value={sessionId || lineage?.sessionId || ''} disabled={busy !== ''} onChange={(value) => {
-        setSessionId(value); if (value !== lineage?.sessionId) setLineage(undefined); resetQueryOutput();
+        setSessionId(value); if (value !== lineage?.sessionId) setLineage(undefined); resetQueryOutput(true);
       }} />
+      <MemoryPicker runId={memoryRunId} query={query} selected={selectedMemory} disabled={!!busy}
+        onChange={(items) => { setSelectedMemory(items); resetQueryOutput(); }} />
       {lineage && <p className="muted">The next prepared input creates a linked run in this session. Earlier input and output remain in Runs.</p>}
       <div className="rag-actions">
         <button type="button" className="secondary-button" disabled={!ready || query.trim().length < 3 || busy !== ''} onClick={() => void retrieve()}>

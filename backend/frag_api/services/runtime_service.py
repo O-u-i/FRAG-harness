@@ -46,6 +46,7 @@ class RuntimeService:
         self.repository = repository
         self.repository.recover_dispatches(now())
         self.secret_values: tuple[str, ...] = ()
+        self.memory = None
         self._approval_secrets: OrderedDict[str, float] = OrderedDict()
         self._secret_lock = RLock()
         self._restore_completed()
@@ -195,7 +196,9 @@ class RuntimeService:
             call.status = "dispatching"
             report.consumed_tokens += reservation
             report.run.updated_at = now()
-        self.repository.update(run_id, change)
+        self.repository.update(run_id, change, guard=(
+            lambda db: self.memory.validate_bindings(prepared.request_binding(), db=db)
+        ) if self.memory else None)
 
     def returned(self, run_id, call_id, output, usage: ProviderUsage, *, native_replay=None):
         safe_output = durable_value(output, self.redaction_secrets)

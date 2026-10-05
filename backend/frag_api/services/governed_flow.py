@@ -192,6 +192,8 @@ class GovernedFlow:
     def _prepare_inference(self, state: FlowState) -> PreparedCall:
         instructions, payload = inference_input(state["compressed"], state["goal"])
         payload["task"] = state["preview"].task.model_dump(by_alias=True)
+        if memory := state["preview"].prepared_call.request_body_input().get("memory"):
+            payload["memory"] = memory
         return prepare_call(
             settings=self.settings.inference, purpose="inference", instructions=instructions,
             payload=redact_value(payload, self.runtime.redaction_secrets if self.runtime else configured_secrets(self.settings)), output_model=RagGroundedAnswer,

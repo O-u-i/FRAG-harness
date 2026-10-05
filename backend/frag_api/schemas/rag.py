@@ -6,6 +6,7 @@ from pydantic import Field
 
 from frag_api.schemas.common import ApiModel, ExplicitApproval, StageResult, TokenBudget
 from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
+from frag_api.schemas.memory import MemorySelection
 
 RagDatasetId = Literal["synthetic-risk-review-v1"]
 RagIndexState = Literal["not_built", "ready", "stale"]
@@ -21,6 +22,7 @@ class RagQueryRequest(RagDatasetRequest):
     query: str = Field(min_length=3, max_length=500)
     top_k: int = Field(default=3, alias="topK", ge=1, le=10)
     task: TaskContract = Field(default_factory=TaskContract)
+    selected_memory: list[MemorySelection] = Field(default_factory=list, alias="selectedMemory", max_length=3)
 
 
 class RagRunRequest(RagQueryRequest, ExplicitApproval):

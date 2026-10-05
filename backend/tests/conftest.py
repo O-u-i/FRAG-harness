@@ -1,5 +1,13 @@
 from collections.abc import Iterator
 from pathlib import Path
+import os
+
+# Apply before importing the application: tests must never load a local API key
+# or inherit production provider settings. Individual tests opt into mocks.
+os.environ["PYTHON_DOTENV_DISABLED"] = "1"
+for name in tuple(os.environ):
+    if name.startswith(("OPENAI_", "FINANCE_CORE_", "FRAG_CONTEXT_LLM_", "FRAG_INFERENCE_LLM_", "FRAG_RESEARCH_LLM_", "FRAG_LLM_", "FRAG_RUNTIME_")):
+        os.environ.pop(name)
 
 import pytest
 from fastapi.testclient import TestClient

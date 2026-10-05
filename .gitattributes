@@ -1,3 +1,7 @@
 # Preserve upstream whitespace in bundled font licenses.
 src/assets/fonts/OFL-Libre-Bodoni.txt -whitespace
 src/assets/fonts/OFL-Public-Sans.txt -whitespace
+
+# Preserve the byte-identical reviewed Pi modules and original legal documents.
+backend/pi-worker/vendor/pi-ai/** text eol=lf
+backend/pi-worker/licenses/** text eol=lf

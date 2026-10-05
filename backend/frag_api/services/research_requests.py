@@ -167,6 +167,8 @@ def prepare_request(service, report, fresh, tools, definition, stage):
         settings, model, limit = service.settings.inference, RagGroundedAnswer, 2000
         context_call = next(call for call in reversed(report.requests) if call.stage == "context" and call.structural_validation == "PASS")
         base["contextFingerprint"] = context_call.prepared_call.fingerprint
+    if memory := fresh.prepared_call.request_body_input().get("memory"):
+        payload["memory"] = memory
     wire = (prepare_native_wire(report, redact_value(payload, secrets), tools)
             if stage == "research" and getattr(settings, "adapter", None) == "pi" else None)
     return prepare_call(settings=settings, purpose=stage, instructions=instructions,

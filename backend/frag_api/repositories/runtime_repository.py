@@ -117,9 +117,11 @@ class RuntimeRepository:
         return [report for row in rows if (report := RunReport.model_validate_json(row[0])).run.status != "outcome_unknown"
                 and any(c.status == "completed" and c.structural_validation == "UNDETERMINED" for c in report.requests)]
 
-    def update(self, run_id: str, mutate: Callable[[RunReport], None]) -> RunReport:
+    def update(self, run_id: str, mutate: Callable[[RunReport], None], *, guard=None) -> RunReport:
         # The stage claim and append are one transaction, including across owner instances.
         with self.connection() as db:
+            if guard is not None:
+                guard(db)
             report = self._read(db, run_id)
             mutate(report)
             report.run.version += 1

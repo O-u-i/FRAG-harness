@@ -9,6 +9,7 @@ from frag_api.schemas.context_source import FileSourceSelection
 from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
 from frag_api.schemas.rag import InferencePreview, RagContextCompression, RagEvidence, RagGroundedAnswer
 from frag_api.schemas.runtime import RunLink
+from frag_api.schemas.memory import MemorySelection
 
 
 class PluginEvidenceSelection(ApiModel):
@@ -22,6 +23,7 @@ class HarnessRequest(RunLink):
     file_selections: list[FileSourceSelection] = Field(alias="fileSelections", default_factory=list, max_length=3)
     plugin_selection: PluginEvidenceSelection | None = Field(alias="pluginSelection", default=None)
     task: TaskContract = Field(default_factory=TaskContract)
+    selected_memory: list[MemorySelection] = Field(default_factory=list, alias="selectedMemory", max_length=3)
 
     @model_validator(mode="after")
     def exactly_one_source(self):

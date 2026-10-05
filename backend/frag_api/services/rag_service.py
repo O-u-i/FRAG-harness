@@ -201,6 +201,8 @@ class RagService:
             **context_preview_fields(settings=self.settings, evidence=evidence, goal=request.query, task=request.task,
                                      sources=sources, selection_hash=fingerprint(request.model_dump(by_alias=True)),
                                      redaction_secrets=self.flow.runtime.redaction_secrets if self.flow.runtime else (),
+                                     selected_memory=request.selected_memory,
+                                     memory_service=self.flow.runtime.memory if self.flow.runtime else None,
                                      loop_definition=self.flow.loops.get("fixed").definition.model_dump(by_alias=True)),
             warnings=warnings,
         )
