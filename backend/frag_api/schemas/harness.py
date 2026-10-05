@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from frag_api.schemas.common import ApiModel, ExplicitApproval, StageResult, TokenBudget
 from frag_api.schemas.context_source import FileSourceSelection
@@ -13,9 +13,26 @@ from frag_api.schemas.memory import MemorySelection
 
 
 class PluginEvidenceSelection(ApiModel):
-    plugin_id: Literal["finance-core"] = Field(alias="pluginId")
-    workspace_id: str = Field(alias="workspaceId", min_length=1, max_length=128)
+    model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
+    plugin_id: str = Field(alias="pluginId", pattern=r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$", max_length=63)
+    workspace_id: str | None = Field(default=None, alias="workspaceId", min_length=1, max_length=128)
+    scope_id: str | None = Field(default=None, alias="scopeId", min_length=1, max_length=500)
     record_ids: list[str] = Field(alias="recordIds", min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def selected_scope(self):
+        if bool(self.workspace_id) == bool(self.scope_id):
+            raise ValueError("Select exactly one scopeId or legacy Workspace.")
+        if self.workspace_id and self.plugin_id != "finance-core":
+            raise ValueError("Legacy Workspace selection is Finance Core only.")
+        if len(set(self.record_ids)) != len(self.record_ids) or any(not value or len(value) > 128 for value in self.record_ids):
+            raise ValueError("Record IDs must be distinct, nonempty and bounded.")
+        return self
+
+    @property
+    def scope(self) -> str:
+        return self.scope_id or self.workspace_id
+
 
 
 class HarnessRequest(RunLink):

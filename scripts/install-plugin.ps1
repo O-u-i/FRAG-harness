@@ -6,10 +6,12 @@ param(
     [Parameter(ParameterSetName='Disable', Mandatory=$true)][switch]$Disable,
     [Parameter(ParameterSetName='Enable', Mandatory=$true)][switch]$Enable,
     [Parameter(ParameterSetName='Uninstall', Mandatory=$true)][switch]$Uninstall,
+    [ValidatePattern('^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$')][ValidateLength(1,63)][string]$PluginId = 'finance-core',
     [string]$InstallRoot
 )
 
 $ErrorActionPreference = 'Stop'
+if ($PluginId -cnotmatch '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$') { throw 'Plugin ID must be a lowercase safe slug.' }
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $installBase = if ($InstallRoot) { [System.IO.Path]::GetFullPath($InstallRoot) } else { Join-Path $projectRoot '.local-plugins' }
 if ($installBase -ne $projectRoot -and -not $installBase.StartsWith($projectRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
@@ -27,45 +29,8 @@ function Assert-NoReparsePoint([string]$path) {
         $candidate = Split-Path -Path $candidate -Parent
     }
 }
-$pluginRoot = Join-Path $installBase 'finance-core'
-Assert-NoReparsePoint $pluginRoot
-$currentPath = Join-Path $pluginRoot 'current.json'
-
 if ($Uninstall) {
-    Assert-NoReparsePoint $currentPath
-    if (-not (Test-Path -LiteralPath $currentPath -PathType Leaf)) { throw 'Finance Core is not installed.' }
-    $current = Get-Content -LiteralPath $currentPath -Raw | ConvertFrom-Json
-    if ($current.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Installed plugin version is invalid.' }
-    $versionsRoot = Join-Path $pluginRoot 'versions'
-    Assert-NoReparsePoint $versionsRoot
-    $rootEntries = @(Get-ChildItem -LiteralPath $pluginRoot -Force)
-    if ($rootEntries.Count -ne 2 -or @($rootEntries | Where-Object { $_.Name -notin @('current.json', 'versions') }).Count -ne 0) {
-        throw 'Installed plugin root contains unexpected files.'
-    }
-    $expected = @('manifest.json', 'adapter.py', 'ui.js')
-    $versions = @(Get-ChildItem -LiteralPath $versionsRoot -Force)
-    if (@($versions | Where-Object { -not $_.PSIsContainer -or $_.Name -notmatch '^\d+\.\d+\.\d+$' -or ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) }).Count -ne 0 -or
-        $current.version -notin @($versions | ForEach-Object { $_.Name })) {
-        throw 'Installed plugin versions are invalid.'
-    }
-    foreach ($version in $versions) {
-        Assert-NoReparsePoint $version.FullName
-        $entries = @(Get-ChildItem -LiteralPath $version.FullName -Force)
-        if ($entries.Count -ne 3 -or @($entries | Where-Object { $_.Name -notin $expected -or $_.PSIsContainer -or ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) }).Count -ne 0) {
-            throw 'Installed plugin files do not match the expected archive.'
-        }
-    }
-    foreach ($version in $versions) {
-        foreach ($name in $expected) {
-            Remove-Item -LiteralPath (Join-Path $version.FullName $name)
-        }
-        Remove-Item -LiteralPath $version.FullName
-    }
-    Remove-Item -LiteralPath $currentPath
-    Remove-Item -LiteralPath $versionsRoot
-    Remove-Item -LiteralPath $pluginRoot
-    Write-Output 'Finance Core plugin uninstalled. Restart FRAG-harness.'
-    exit 0
+    throw "Manual removal required: disable $PluginId, stop FRAG, and manually remove its directory under the configured InstallRoot. No files were deleted."
 }
 
 function Get-Sha256([string]$path) {
@@ -76,8 +41,11 @@ function Get-Sha256([string]$path) {
 }
 
 if ($Disable -or $Enable) {
+    $pluginRoot = Join-Path $installBase $PluginId
+    Assert-NoReparsePoint $pluginRoot
+    $currentPath = Join-Path $pluginRoot 'current.json'
     Assert-NoReparsePoint $currentPath
-    if (-not (Test-Path -LiteralPath $currentPath -PathType Leaf)) { throw 'Finance Core is not installed.' }
+    if (-not (Test-Path -LiteralPath $currentPath -PathType Leaf)) { throw 'Plugin is not installed.' }
     $current = Get-Content -LiteralPath $currentPath -Raw | ConvertFrom-Json
     if ($current.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Installed plugin version is invalid.' }
     $current.enabled = [bool]$Enable
@@ -85,7 +53,7 @@ if ($Disable -or $Enable) {
     $current | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $pending -Encoding utf8
     Move-Item -LiteralPath $pending -Destination $currentPath -Force
     $action = if ($Enable) { 'enabled' } else { 'disabled' }
-    Write-Output "Finance Core plugin $action. Restart FRAG-harness."
+    Write-Output "Plugin $PluginId $action. Restart FRAG-harness."
     exit 0
 }
 
@@ -94,7 +62,7 @@ if ($PSCmdlet.ParameterSetName -eq 'Release') {
     if ($uri.Scheme -ne 'https' -or $uri.Host -notin @('github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com')) {
         throw 'ReleaseUrl must be an HTTPS GitHub release asset.'
     }
-    $downloadPath = Join-Path $projectRoot '.tmp\finance-core-download.zip'
+    $downloadPath = Join-Path $projectRoot '.tmp\plugin-download.zip'
     Assert-NoReparsePoint $downloadPath
     New-Item -ItemType Directory -Path (Split-Path $downloadPath) -Force | Out-Null
     Invoke-WebRequest -Uri $uri -OutFile $downloadPath -MaximumRedirection 5
@@ -111,7 +79,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
 try {
     $names = @($zip.Entries | ForEach-Object { $_.FullName })
-    if ($names.Count -ne 3 -or @($names | Where-Object { $_ -notin @('manifest.json', 'adapter.py', 'ui.js') }).Count -ne 0) {
+    if ($names.Count -ne 3 -or @($names | Select-Object -Unique).Count -ne 3 -or @($names | Where-Object { $_ -cnotin @('manifest.json', 'adapter.py', 'ui.js') }).Count -ne 0) {
         throw 'Archive must contain only manifest.json, adapter.py, and ui.js at its root.'
     }
     $limits = @{ 'manifest.json' = 64KB; 'adapter.py' = 2MB; 'ui.js' = 5MB }
@@ -121,16 +89,39 @@ try {
     $manifestEntry = $zip.GetEntry('manifest.json')
     $reader = [System.IO.StreamReader]::new($manifestEntry.Open())
     try { $manifest = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
-    if ($manifest.id -ne 'finance-core' -or $manifest.protocolVersion -ne 1 -or $manifest.minHostVersion -ne '1.0.0' -or
-        $manifest.fcApiVersion -ne '3.1.1' -or
-        $manifest.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Plugin manifest is incompatible with this FRAG host.' }
+    foreach ($field in @('id', 'protocolVersion', 'version', 'minHostVersion', 'files')) {
+        if ($field -cnotin @($manifest.PSObject.Properties.Name)) { throw 'Plugin manifest fields must match the contract.' }
+    }
+    if ($manifest.id -isnot [string] -or $manifest.id.Length -gt 63 -or $manifest.id -cnotmatch '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$' -or
+        $manifest.version -isnot [string] -or $manifest.version -notmatch '^\d+\.\d+\.\d+$' -or
+        ($manifest.protocolVersion -isnot [int] -and $manifest.protocolVersion -isnot [long])) { throw 'Plugin manifest is incompatible with this FRAG host.' }
+    if ($manifest.protocolVersion -eq 1) {
+        if ($manifest.id -ne 'finance-core' -or $manifest.minHostVersion -ne '1.0.0' -or $manifest.fcApiVersion -ne '3.1.1') {
+            throw 'Plugin manifest is incompatible with this FRAG host.'
+        }
+    } elseif ($manifest.protocolVersion -eq 2) {
+        $allowedFields = @('id', 'name', 'protocolVersion', 'version', 'minHostVersion', 'capabilities', 'files')
+        if ($manifest.id -eq 'finance-core') { $allowedFields += 'fcApiVersion' }
+        $manifestFields = @($manifest.PSObject.Properties.Name)
+        if ($manifestFields.Count -ne $allowedFields.Count -or @($manifestFields | Where-Object { $_ -cnotin $allowedFields }).Count -ne 0 -or
+            $manifest.minHostVersion -ne '1.8.0' -or $manifest.name -isnot [string] -or -not $manifest.name -or $manifest.name.Length -gt 100 -or
+            $manifest.capabilities -isnot [array] -or $manifest.capabilities.Count -ne 1 -or $manifest.capabilities[0] -cne 'evidence.read' -or
+            ($manifest.id -eq 'finance-core' -and $manifest.fcApiVersion -ne '3.1.1')) {
+            throw 'Plugin manifest is incompatible with this FRAG host.'
+        }
+    } else { throw 'Plugin protocol is unsupported.' }
+    if ($PSBoundParameters.ContainsKey('PluginId') -and $PluginId -cne $manifest.id) { throw 'Plugin ID does not match the pinned archive.' }
+    $PluginId = $manifest.id
+    $pluginRoot = Join-Path $installBase $PluginId
+    Assert-NoReparsePoint $pluginRoot
+    $currentPath = Join-Path $pluginRoot 'current.json'
     $fileNames = @($manifest.files.PSObject.Properties.Name)
-    if ($fileNames.Count -ne 2 -or @($fileNames | Where-Object { $_ -notin @('adapter.py', 'ui.js') }).Count -ne 0) {
+    if ($fileNames.Count -ne 2 -or @($fileNames | Where-Object { $_ -cnotin @('adapter.py', 'ui.js') }).Count -ne 0) {
         throw 'Manifest must hash exactly adapter.py and ui.js.'
     }
     foreach ($name in @('adapter.py', 'ui.js')) {
         $expected = $manifest.files.$name
-        if ($expected -notmatch '^[a-fA-F0-9]{64}$') { throw "Missing file hash for $name." }
+        if ($expected -isnot [string] -or $expected -notmatch '^[a-fA-F0-9]{64}$') { throw "Missing file hash for $name." }
         $stream = $zip.GetEntry($name).Open()
         try {
             $hasher = [System.Security.Cryptography.SHA256]::Create()
@@ -154,4 +145,4 @@ try {
 $pending = Join-Path $pluginRoot 'current.pending.json'
 @{ version = $manifest.version; enabled = $true } | ConvertTo-Json | Set-Content -LiteralPath $pending -Encoding utf8
 Move-Item -LiteralPath $pending -Destination $currentPath -Force
-Write-Output "Finance Core plugin v$($manifest.version) installed. Restart FRAG-harness."
+Write-Output "Plugin $PluginId v$($manifest.version) installed. Restart FRAG-harness."

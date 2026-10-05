@@ -13,8 +13,11 @@ export const fileSelectionSchema = z.object({
 }).strict();
 export const harnessRequestSchema = z.object({
   goal: z.string().min(3).max(500), fileSelections: z.array(fileSelectionSchema).max(3),
-  pluginSelection: z.object({pluginId: z.literal('finance-core'), workspaceId: z.string().min(1).max(128),
-    recordIds: z.array(z.string()).min(1).max(10)}).strict().nullable().optional(),
+  pluginSelection: z.object({pluginId: z.string().max(63).regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+    workspaceId: z.string().min(1).max(128).nullable().optional(), scopeId: z.string().min(1).max(500).nullable().optional(),
+    recordIds: z.array(z.string().min(1).max(128)).min(1).max(10).refine((ids) => new Set(ids).size === ids.length)}).strict()
+      .refine((value) => Boolean(value.scopeId) !== Boolean(value.workspaceId) && (!value.workspaceId || value.pluginId === 'finance-core'))
+      .nullable().optional(),
   task: taskContractSchema.optional(),
   selectedMemory: selectedMemorySchema.optional(),
   sessionId: z.string().max(64).nullable().optional(), parentRunId: z.string().max(64).nullable().optional(),

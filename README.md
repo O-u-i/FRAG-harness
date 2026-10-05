@@ -1,4 +1,4 @@
-# FRAG-harness v1.7.0
+# FRAG-harness v1.8.0
 
 The optional [Pi Responses adapter](docs/pi-adapter.md) uses a pinned, reviewed backend-only module selection. Enable it separately for Research, Context and Inference; every request retains exact preview and one-use approval. Synthetic live GPT acceptance remains a Phase 5 human gate.
 
@@ -22,11 +22,11 @@ Memory candidates come from a saved model output or human revision. Editing, rev
 
 ## Architecture review diagrams
 
-These six SVG exports describe the fixed Harness, RAG Lab, optional Research and reviewed-memory paths. Each Archify diagram has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration. Reviewed memory follows the same exact preview, version revalidation and one-use approval gates.
+These seven SVG exports describe the fixed Harness, RAG Lab, optional Research, reviewed-memory and plugin paths. Each Archify diagram has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration. Reviewed memory follows the same exact preview, version revalidation and one-use approval gates.
 
 ### Harness
 
-The Harness path assembles only explicitly selected local excerpts or optional, bounded Finance Core records. The host controls redaction, exact outbound previews, approvals, and validation around the two model APIs. [Explore the Harness data flow](docs/architecture/harness/dataflow.html).
+The Harness path assembles explicitly selected local excerpts or bounded plugin records. KB and Finance Core readers share the host's scope, redaction, exact preview, approval and validation gates around the two model APIs. [Explore the Harness data flow](docs/architecture/harness/dataflow.html).
 
 ![Harness data flow from selected evidence through the Context and Inference gates to human review](docs/architecture/harness/dataflow.svg)
 
@@ -99,45 +99,47 @@ npm run dev
 
 Open `http://localhost:5173`; the backend listens on `http://127.0.0.1:8787`. To configure either model, copy `backend/.env.example` to the Git ignored `backend/.env` and set provider, model, and backend-only credentials. `fake` is the default for both stages. Put supported `.md`, `.txt`, `.html`, `.pdf`, `.docx`, `.csv`, or `.xlsx` files under `local-sources/`; the folder is ignored except for instructions and placeholders. Files are never automatically indexed by the product.
 
-The RAG Lab source is `shared/demo/rag/synthetic-risk-review.md`. English words and Chinese bigrams are indexed as keyword terms; there is no embedding or vector retrieval. KB notes are not a product source.
+The RAG Lab source is `shared/demo/rag/synthetic-risk-review.md`. English words and Chinese bigrams are indexed as keyword terms; there is no embedding or vector retrieval. This bundled index contains no personal KB material. Other files require an explicitly configured source root and file/locator selection in Harness or the KB plugin.
 
 Local caches, browser review profiles, and disposable test evidence under `.tmp/` have different retention rules. See the [temporary workspace guide](docs/tmp-workspace.md) before moving or cleaning them.
 
-## Optional Finance Core plugin
+## Read-only plugins
 
-The core has no Finance Core routes or navigation while the plugin is absent or disabled. A trusted plugin archive contains exactly `manifest.json`, `adapter.py`, and `ui.js`. Its manifest declares `id: finance-core`, `protocolVersion: 1`, its semantic version, `minHostVersion: 1.0.0`, `fcApiVersion: 3.1.1`, and SHA-256 hashes for both code files. The installer checks the pinned archive hash, bounded entry sizes, file hashes, and compatibility before activation. Installed code executes in the local backend, so install only a trusted release. Finance Core distributes the optional archive separately; synthetic tests verify the host without FC credentials or a live Vault.
+The Plugins page accepts a trusted three-file ZIP and its published SHA-256, shows each package independently, and provides per-plugin Enable, Disable and removal instructions. Restart after installation or activation changes. A disabled, invalid or changed package exposes no reader, plugin routes or UI; other valid plugins remain usable. Plugin code executes in the backend, so only install a trusted artifact.
+
+Protocol 2 supplies the same selected-read interface for KB and Finance Core. The host validates the plugin, scope and exact record IDs, checks bounded results, and binds source revisions, non-sensitive source configuration and package hashes before each approved model stage. Protocol 1 Finance Core packages remain supported. [Plugin protocol and manual removal](docs/plugin-protocol.md) · [Explore the plugin workflow](docs/architecture/plugins/workflow.html) · [Editable source](docs/architecture/plugins/workflow.json).
+
+![Read-only plugin workflow from a pinned archive through scoped evidence and host validation to separately approved model stages](docs/architecture/plugins/workflow.svg)
+
+KB plugin v1.0.0 is built from original source in `plugins/kb/` and available as [a pinned local archive](docs/release/kb-frag-plugin-v1.0.0.zip). It reuses the existing snapshot parser. Select KB in Harness, choose a file and up to ten locators, then review Context and Inference separately. It defaults to `local-sources/`; an optional backend `FRAG_KB_SOURCE_ROOT` explicitly selects another root. Listing candidates does not index files or parse unselected documents. Plugin evidence uses the fixed workflow; Research keeps its existing selected-local-file path.
 
 ```powershell
-# Official pinned GitHub release asset
-powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-plugin.ps1 -ReleaseUrl '<github-release-asset-url>' -ExpectedSha256 '<64-character-sha256>'
-
-# Or a separately obtained local archive
-powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-plugin.ps1 -ArchivePath './finance-core-plugin.zip' -ExpectedSha256 '<64-character-sha256>'
-
-# Disable without removing installed files
-powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-plugin.ps1 -Disable
-
-# Re-enable an installed version
-powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-plugin.ps1 -Enable
+python scripts/build-kb-plugin.py
+powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-plugin.ps1 -ArchivePath './docs/release/kb-frag-plugin-v1.0.0.zip' -ExpectedSha256 '9c64d6a221c799b41e33906773c0174d688a629325d7096baeceaa72512e4b4f' -PluginId kb
+# Restart FRAG, then choose KB in Harness.
 ```
 
-Restart FRAG after install or disable. The plugin supplies a read-only dashboard and scoped Workspace record choices. Journal and all other mutations open Finance Core's own UI. A selected Workspace and at most ten record IDs enter the host preview through a read-only FC `/api/v3` adapter; the host never opens FC SQLite or indexes the whole finance database. The FC token stays backend-only. The adapter checks FC 3.1.1 health and version before bounded reads. Installing the archive does not configure FC or establish live integration; that requires a separately reviewed local FC setup.
+Finance Core remains optional and independently runnable. Its authoritative plugin source and release archive stay in FC. FC plugin v1.1.0 targets protocol 2 and FRAG >=1.8.0, while the original v1.0.0/protocol 1 archive remains compatible. Both use Released FC API 3.1.1; FC product 3.2.0 is independent from these versions. Obtain the separately verified archive and SHA-256 from FC, install it through Plugins, then configure its backend-only read token and explicit Workspace/record allowlist. [FC handoff and compatibility](docs/finance-core-plugin-handoff.md).
 
-The local Plugins page also accepts a trusted ZIP and its published SHA-256 for installation, and offers Enable, Disable, and Uninstall controls when a package is on disk. These controls run the same pinned PowerShell installer. Uninstall removes all locally installed Finance Core plugin versions and the activation pointer, after confirming every version contains only the three expected files. A successful management action hides plugin routes for the rest of that server session. Restart FRAG to load or unload the package. The private Sites design preview cannot perform these local operations.
+FC reads only configured, explicitly selected Workspace records through bounded HTTP GETs. FRAG never opens FC SQLite or calculates finance values. Journal and other mutations open FC's standalone UI. Synthetic contract and host integration tests verify the adapter; live FC and real financial data acceptance remain pending. Historical memories remain visible. Both plugin protocols bind current memory scope to source configuration; old unqualified memories require a new source-bound candidate and human review/promotion.
 
 ```mermaid
 flowchart LR
-    Installer[Pinned archive and SHA-256] --> Manifest[Versioned plugin manifest]
-    Manifest --> Loader[Restart and runtime loader]
-    Loader --> Dashboard[Read-only dashboard UI]
-    Loader --> Adapter[Backend-only FC adapter]
-    Adapter --> FC[Finance Core 3.1.1 read APIs]
+    Archive[Pinned KB or optional FC archive] --> Validate[Manifest hashes protocol and host checks]
+    Validate --> Load[Restart and load enabled packages]
+    Load --> Select[Select plugin scope and exact record IDs]
+    Select --> Reader[Shared read-only evidence contract]
+    Reader --> KB[KB selected file snapshot]
+    Reader --> FC[Released FC 3.1.1 HTTP reads]
+    KB --> Bind[Host validates scope revisions and configuration]
+    FC --> Bind
+    Bind --> Preview[FRAG exact outbound preview]
+    Preview --> Harness[Separate Context and Inference approvals]
+    Load --> Dashboard[Optional read-only plugin UI]
     Dashboard -->|Journal action| FCUI[Finance Core standalone UI]
-    Adapter -->|Selected Workspace and record IDs| Preview[FRAG exact preview]
-    Preview --> Harness[Separate approval for each model stage]
 ```
 
-Plugin adapter contract: `create_router()` returns only `GET` or `HEAD` routes under `/api/plugins/finance-core/`. It should expose `GET /api/plugins/finance-core/scopes` for Workspace and bounded record choices and `GET /api/plugins/finance-core/dashboard` for read-only display. `read_evidence(workspace_id, record_ids)` returns one item per selected ID with `recordId`, `label`, `text`, and `revision`. The host re-reads those records on Run and binds their revisions to approval. The UI bundle exports `mount(element, { apiBase })` and returns an optional cleanup function. The archive must not contain secrets.
+Disabling a package preserves its files and immediately hides its reader, routes and UI. Automatic batch uninstall is blocked. To remove files, disable the package, stop FRAG, inspect its exact directory under `.local-plugins/`, and delete that directory manually in File Explorer. No cleanup is required for this phase's ignored synthetic test artifacts.
 
 ## Checks and boundaries
 

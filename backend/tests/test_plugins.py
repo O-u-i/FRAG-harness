@@ -194,10 +194,9 @@ def test_powershell_installer_hash_activation_and_disable(tmp_path: Path):
     rejected_uninstall = subprocess.run(uninstall_command, cwd=repo, capture_output=True, text=True, check=False)
     assert rejected_uninstall.returncode != 0
     assert (install_root / "finance-core" / "current.json").exists()
-    unexpected.unlink()
-    uninstalled = subprocess.run(uninstall_command, cwd=repo, capture_output=True, text=True, check=False)
-    assert uninstalled.returncode == 0, uninstalled.stderr
-    assert not (install_root / "finance-core").exists()
+    assert "Manual removal required" in rejected_uninstall.stderr
+    assert unexpected.read_text(encoding="utf-8") == "synthetic"
+    assert (install_root / "finance-core" / "versions" / "1.0.0" / "adapter.py").exists()
 
 
 def test_browser_plugin_install_and_uninstall_are_pinned_and_restart_gated(tmp_path: Path):
@@ -227,7 +226,7 @@ def test_browser_plugin_install_and_uninstall_are_pinned_and_restart_gated(tmp_p
         assert not (root / "finance-core" / "current.json").exists()
         installed = client.post("/api/plugin-management/install", content=body, headers=headers)
         assert installed.status_code == 200, installed.text
-        assert installed.json() == {"status": "installed", "restartRequired": True}
+        assert installed.json() == {"status": "installed", "restartRequired": True, "pluginId": "finance-core"}
         assert client.get("/api/plugins").json()["plugins"][0]["packageVersion"] == "1.0.0"
         assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
     with TestClient(create_app(plugin_root=root, rag_index_path=tmp_path / "rag2.sqlite3")) as client:
@@ -253,12 +252,13 @@ def test_browser_plugin_install_and_uninstall_are_pinned_and_restart_gated(tmp_p
         assert client.post("/api/plugin-management/uninstall").status_code == 403
         removed = client.post("/api/plugin-management/uninstall",
                               headers={"X-FRAG-Plugin-Action": "uninstall"})
-        assert removed.status_code == 200, removed.text
-        assert removed.json() == {"status": "uninstalled", "restartRequired": True}
-        assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
-        assert client.get("/plugins/finance-core/ui.js").status_code == 404
-        assert client.get("/api/plugins").json()["plugins"][0]["packageVersion"] is None
-    assert not (root / "finance-core" / "current.json").exists()
-    assert not (root / "finance-core" / "versions" / "1.0.0" / "adapter.py").exists()
+        assert removed.status_code == 409, removed.text
+        assert removed.json()["error"]["code"] == "PLUGIN_MANUAL_REMOVAL_REQUIRED"
+        assert "No files were deleted" in removed.json()["error"]["message"]
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 200
+        assert client.get("/plugins/finance-core/ui.js").status_code == 200
+        assert client.get("/api/plugins").json()["plugins"][0]["packageVersion"] == "1.0.0"
+    assert (root / "finance-core" / "current.json").exists()
+    assert (root / "finance-core" / "versions" / "1.0.0" / "adapter.py").exists()
     with TestClient(create_app(plugin_root=root, rag_index_path=tmp_path / "rag5.sqlite3")) as client:
-        assert client.get("/api/plugins/finance-core/dashboard").status_code == 404
+        assert client.get("/api/plugins/finance-core/dashboard").status_code == 200

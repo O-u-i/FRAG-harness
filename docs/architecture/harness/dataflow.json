@@ -17,7 +17,7 @@
   "nodes": [
     { "id": "browser", "type": "frontend", "label": "Harness UI", "stage": 0, "row": 1 },
     { "id": "files", "type": "database", "label": "Local files", "stage": 1, "row": 0 },
-    { "id": "fc", "type": "external", "label": "Finance Core API", "stage": 1, "row": 2 },
+    { "id": "pluginReaders", "type": "external", "label": "KB / FC plugins", "stage": 1, "row": 2 },
     { "id": "contextGate", "type": "security", "label": "Context / memory gate", "width": 160, "stage": 2, "row": 1 },
     { "id": "contextModel", "type": "external", "label": "Context LLM", "stage": 2, "row": 0 },
     { "id": "inferenceGate", "type": "security", "label": "FRAG Inference gate", "stage": 3, "row": 1 },
@@ -27,7 +27,7 @@
   "flows": [
     { "id": "selection", "from": "browser", "to": "contextGate", "label": "goal + selected IDs", "classification": "browser request", "variant": "default" },
     { "id": "localEvidence", "from": "files", "to": "contextGate", "label": "selected excerpts + hashes", "classification": "local evidence", "variant": "security" },
-    { "id": "fcEvidence", "from": "fc", "to": "contextGate", "label": "Workspace-scoped records", "classification": "optional read-only", "variant": "security" },
+    { "id": "pluginEvidence", "from": "pluginReaders", "to": "contextGate", "label": "scoped records + revisions", "classification": "optional read-only", "variant": "security" },
     { "id": "contextOutbound", "from": "contextGate", "to": "contextModel", "label": "approved exact input", "classification": "model outbound", "variant": "security", "labelAt": [530, 360] },
     { "id": "compression", "from": "contextModel", "to": "inferenceGate", "label": "compressed evidence", "classification": "validated model output", "variant": "emphasis" },
     { "id": "inferenceOutbound", "from": "inferenceGate", "to": "inferenceModel", "label": "approved exact input", "classification": "model outbound", "variant": "security", "labelAt": [853, 314] },
@@ -35,11 +35,11 @@
   ],
   "cards": [
     { "dot": "rose", "title": "Host-owned boundaries", "items": [
-      "FRAG revalidates sources and confirmed memory versions before executing the frozen PreparedCall.",
+      "FRAG revalidates sources, packages, configuration and confirmed memory before executing the frozen PreparedCall.",
       "Provider and Finance Core credentials remain backend-only."
     ] },
     { "dot": "emerald", "title": "Scope", "items": [
-      "Finance Core is optional; its adapter reads selected Workspace records, at most ten.",
+      "Optional KB/FC plugins read at most ten selected records per scope; configuration namespaces isolate memory.",
       "Optional reviewed memory is background, not current evidence; citations remain restricted to selected evidence."
     ] }
   ]

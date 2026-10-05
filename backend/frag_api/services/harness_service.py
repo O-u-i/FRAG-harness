@@ -27,6 +27,7 @@ class HarnessService:
         context_provider: LlmProvider | None = None,
         inference_provider: LlmProvider | None = None,
         plugin: LoadedPlugin | None = None,
+        plugins: dict[str, LoadedPlugin] | None = None,
     ):
         self.source_service = source_service
         self.settings = settings or LlmSettings.from_environment()
@@ -35,6 +36,9 @@ class HarnessService:
         self.approvals = ApprovalRegistry()
         self.pending_inference = PendingInferenceRegistry()
         self.plugin = plugin
+        self.plugins = dict(plugins or {})
+        if plugin is not None:
+            self.plugins[plugin.id] = plugin
         self.cli_registry = CLIRegistry()
         self.tool_registry = ToolRegistry()
         self.flow = GovernedFlow(
@@ -65,37 +69,31 @@ class HarnessService:
         seen: set[tuple[str, str]] = set()
         try:
             if request.plugin_selection is not None:
-                if self.plugin is None:
-                    raise HarnessSourceError()
                 scope = request.plugin_selection
-                if len(set(scope.record_ids)) != len(scope.record_ids):
+                plugin = self.plugins.get(scope.plugin_id)
+                if plugin is None:
                     raise HarnessSourceError()
                 try:
-                    records = self.plugin.read_evidence(scope.workspace_id, scope.record_ids)
+                    records = plugin.read_selected(scope.scope, scope.record_ids)
                 except Exception as error:
                     raise HarnessSourceError() from error
-                if not isinstance(records, list) or len(records) != len(scope.record_ids):
-                    raise HarnessSourceError()
-                by_id = {item.get("recordId"): item for item in records if isinstance(item, dict)}
-                if set(by_id) != set(scope.record_ids):
-                    raise HarnessSourceError()
-                for record_id in scope.record_ids:
-                    item = by_id[record_id]
-                    if not all(isinstance(item.get(key), str) and item[key] for key in ("label", "text", "revision")):
-                        raise HarnessSourceError()
-                    evidence_id = hashlib.sha256(f"fc\0{scope.workspace_id}\0{record_id}".encode()).hexdigest()[:24]
-                    document_id = hashlib.sha256(scope.workspace_id.encode()).hexdigest()[:24]
+                for record_id, item in zip(scope.record_ids, records, strict=True):
+                    # Keep FC citation IDs stable; qualify memory scope by source configuration.
+                    seed = "fc" if plugin.id == "finance-core" else plugin.id
+                    evidence_id = hashlib.sha256(f"{seed}\0{scope.scope}\0{record_id}".encode()).hexdigest()[:24]
+                    document_id = hashlib.sha256(scope.scope.encode()).hexdigest()[:24]
                     locator_id = hashlib.sha256(record_id.encode()).hexdigest()[:24]
                     evidence.append(RagEvidence(
-                        evidenceId=evidence_id, documentId=document_id, sourceId="finance-core",
+                        evidenceId=evidence_id, documentId=document_id, sourceId=plugin.id,
                         locatorId=locator_id, locatorLabel=redact(item["label"]), text=redact(item["text"]),
                     ))
                     bindings.append(SourceBinding(
-                        identity=SourceIdentity(kind="fc_record", namespace="finance-core", resourceId=record_id,
-                                                workspaceId=scope.workspace_id), revision=item["revision"],
-                        parserVersion=f"released-http-v1/plugin-{self.plugin.version}",
+                        identity=SourceIdentity(kind="fc_record" if plugin.id == "finance-core" else "plugin_record",
+                                                namespace=f"{plugin.id}/{plugin.source_revision}",
+                                                resourceId=record_id, workspaceId=scope.scope),
+                        revision=item["revision"], parserVersion=f"plugin-{plugin.protocol_version}/{plugin.version}/{plugin.digest}/{plugin.source_revision}",
                         locatorIds=(locator_id,), evidenceIds=(evidence_id,),
-                        assessment=SourceAssessment(provenance=QualityFact(status="known", detail="Released read-only plugin record and revision.")),
+                        assessment=SourceAssessment(provenance=QualityFact(status="known", detail="Selected read-only plugin record; returned revision and package digest bound.")),
                     ))
             selected_files: set[str] = set()
             for selection in request.file_selections:

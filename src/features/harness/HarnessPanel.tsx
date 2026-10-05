@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HarnessConfig, HarnessContextRun, HarnessPreview, HarnessRequest, HarnessRun } from '../../../shared/contracts/harness';
-import type { PluginScopes } from '../../../shared/contracts/plugins';
+import type { PluginCatalog, PluginScopes } from '../../../shared/contracts/plugins';
 import type { LocalFileInspectResponse, LocalFileSource } from '../../../shared/contracts/contextSource';
 import { fetchLocalFileSources, inspectLocalFile } from '../../api/contextSourceClient';
 import { previewHarness, runHarness, runHarnessInference } from '../../api/harnessClient';
@@ -18,11 +18,12 @@ function message(error: unknown): string {
 
 export function HarnessPanel({ config }: { config?: HarnessConfig }) {
   const [sources, setSources] = useState<LocalFileSource[]>([]);
-  const [pluginInstalled, setPluginInstalled] = useState(false);
+  const [plugins, setPlugins] = useState<PluginCatalog['plugins']>([]);
   const [pluginScopes, setPluginScopes] = useState<PluginScopes>();
+  const [scopeRecords, setScopeRecords] = useState<{ id: string; label: string }[]>([]);
   const [pluginError, setPluginError] = useState('');
-  const [mode, setMode] = useState<'local' | 'finance-core'>('local');
-  const [workspaceId, setWorkspaceId] = useState('');
+  const [mode, setMode] = useState('local');
+  const [scopeId, setScopeId] = useState('');
   const [recordIds, setRecordIds] = useState<string[]>([]);
   const [selectedPath, setSelectedPath] = useState('');
   const [inspection, setInspection] = useState<LocalFileInspectResponse>();
@@ -50,18 +51,32 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
 
   useEffect(() => {
     let active = true;
-    fetchPlugins().then(async (catalog) => {
-      if (!catalog.plugins[0]?.installed) return;
-      if (active) setPluginInstalled(true);
-      try {
-        const scopes = await fetchPluginScopes();
-        if (active) setPluginScopes(scopes);
-      } catch {
-        if (active) setPluginError('Finance Core scopes are unavailable. Check the plugin and FC service.');
-      }
+    fetchPlugins().then((catalog) => {
+      if (active) setPlugins(catalog.plugins.filter((plugin) => plugin.installed && plugin.capabilities.includes('evidence.read')));
     }).catch(() => undefined);
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setPluginScopes(undefined); setPluginError('');
+    if (mode === 'local') return;
+    fetchPluginScopes(mode).then((value) => { if (active) setPluginScopes(value); })
+      .catch((caught) => { if (active) setPluginError(message(caught)); });
+    return () => { active = false; };
+  }, [mode]);
+
+  useEffect(() => {
+    let active = true;
+    setScopeRecords([]);
+    if (mode === 'local' || !scopeId) return;
+    setBusy('scopes'); setPluginError('');
+    fetchPluginScopes(mode, scopeId).then((value) => {
+      if (active) setScopeRecords(value.scopes.find((scope) => scope.id === scopeId)?.records ?? []);
+    }).catch((caught) => { if (active) setPluginError(message(caught)); })
+      .finally(() => { if (active) setBusy(''); });
+    return () => { active = false; };
+  }, [mode, scopeId]);
 
   const resetOutput = (clearMemory = false) => {
     if (clearMemory) { setSelectedMemory([]); setMemoryRunId(undefined); }
@@ -85,8 +100,8 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
       relativePath: selectedPath, locatorIds: selectedLocators,
       relevanceReason: 'Explicitly selected for this evidence review.',
     }] : [],
-    pluginSelection: mode === 'finance-core' && workspaceId && recordIds.length
-      ? { pluginId: 'finance-core', workspaceId, recordIds } : undefined,
+    pluginSelection: mode !== 'local' && scopeId && recordIds.length
+      ? { pluginId: mode, scopeId, recordIds } : undefined,
   };
   const buildPreview = async () => {
     resetOutput();
@@ -126,11 +141,13 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
 
   return <div className="work-grid">
     <section className="card source-card">
-      <div className="section-heading"><span className="eyebrow">01 / Evidence</span><h2>Select local evidence</h2>
+      <div className="section-heading"><span className="eyebrow">01 / Evidence</span><h2>Select evidence</h2>
         <p>Files stay local until you review an exact outbound preview.</p></div>
-      {pluginInstalled && <div className="source-switch" role="group" aria-label="Evidence source">
-        <button type="button" className={`button ${mode === 'local' ? 'primary' : ''}`} onClick={() => { setMode('local'); resetOutput(true); }}>Local files</button>
-        <button type="button" className={`button ${mode === 'finance-core' ? 'primary' : ''}`} onClick={() => { setMode('finance-core'); resetOutput(true); }}>Finance Core</button>
+      {plugins.length > 0 && <div className="source-switch" role="group" aria-label="Evidence source">
+        {[{ id: 'local', name: 'Local files' }, ...plugins].map((plugin) => <button key={plugin.id} type="button"
+          className={`button ${mode === plugin.id ? 'primary' : ''}`} onClick={() => {
+            setMode(plugin.id); setScopeId(''); setRecordIds([]); setScopeRecords([]); resetOutput(true);
+          }}>{plugin.name}</button>)}
       </div>}
       {mode === 'local' ? <>
       <label className="field">Source file
@@ -152,13 +169,13 @@ export function HarnessPanel({ config }: { config?: HarnessConfig }) {
       </fieldset>}
       </> : <>
         {pluginError && <p className="alert" role="alert">{pluginError}</p>}
-        <label className="field">Workspace
-          <select value={workspaceId} onChange={(event) => { setWorkspaceId(event.target.value); setRecordIds([]); resetOutput(true); }}>
-            <option value="">Choose a Workspace</option>
-            {pluginScopes?.workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.label}</option>)}
+        <label className="field">Evidence scope
+          <select value={scopeId} onChange={(event) => { setScopeId(event.target.value); setRecordIds([]); setScopeRecords([]); resetOutput(true); }}>
+            <option value="">Choose a scope</option>
+            {pluginScopes?.scopes.map((scope) => <option key={scope.id} value={scope.id}>{scope.label}</option>)}
           </select></label>
-        {workspaceId && <fieldset className="locator-list"><legend>Choose up to 10 records</legend>
-          {pluginScopes?.workspaces.find((item) => item.id === workspaceId)?.records.map((record) => <label key={record.id} className="locator-option">
+        {scopeId && <fieldset className="locator-list"><legend>Choose up to 10 records</legend>
+          {scopeRecords.map((record) => <label key={record.id} className="locator-option">
             <input type="checkbox" checked={recordIds.includes(record.id)} disabled={!recordIds.includes(record.id) && recordIds.length >= 10}
               onChange={(event) => { setRecordIds((current) => event.target.checked ? [...current, record.id] : current.filter((id) => id !== record.id)); resetOutput(true); }} />
             <span><strong>{record.label}</strong><small>{record.id}</small></span>

@@ -5174,7 +5174,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <!-- Flow paths -->
         <path data-edge-from="browser" data-edge-to="contextGate" data-edge-label="goal + selected IDs" data-edge-key="0" data-edge-id="selection" data-composition-points="156,271;450,271" d="M 156 271 L 450 271" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="files" data-edge-to="contextGate" data-edge-label="selected excerpts + hashes" data-edge-key="1" data-edge-id="localEvidence" data-composition-points="371,157;410.5,157;410.5,258;450,258" d="M 371 157 L 410.5 157 L 410.5 258 L 450 258" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="fc" data-edge-to="contextGate" data-edge-label="Workspace-scoped records" data-edge-key="2" data-edge-id="fcEvidence" data-composition-points="371,385;410.5,385;410.5,284;450,284" d="M 371 385 L 410.5 385 L 410.5 284 L 450 284" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="pluginReaders" data-edge-to="contextGate" data-edge-label="scoped records + revisions" data-edge-key="2" data-edge-id="pluginEvidence" data-composition-points="371,385;410.5,385;410.5,284;450,284" d="M 371 385 L 410.5 385 L 410.5 284 L 450 284" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="contextGate" data-edge-to="contextModel" data-edge-label="approved exact input" data-edge-key="3" data-edge-id="contextOutbound" data-composition-points="530,242;530,186" d="M 530 242 L 530 186" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="contextModel" data-edge-to="inferenceGate" data-edge-label="compressed evidence" data-edge-key="4" data-edge-id="compression" data-composition-points="586,157;637.5,157;637.5,271;689,271" d="M 586 157 L 637.5 157 L 637.5 271 L 689 271" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="inferenceGate" data-edge-to="inferenceModel" data-edge-label="approved exact input" data-edge-key="5" data-edge-id="inferenceOutbound" data-composition-points="801,271;852.5,271;852.5,157;904,157" d="M 801 271 L 852.5 271 L 852.5 157 L 904 157" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
@@ -5205,15 +5205,15 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <text data-node-label="" x="315" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Local files</text>
         </g>
 
-        <g id="node-fc" data-node-id="fc" data-node-label="Finance Core API" tabindex="0" role="button" aria-label="Focus Finance Core API, 02 / Evidence" aria-pressed="false" data-node-kind="external" data-node-context="02 / Evidence">
-          <title>Finance Core API · 02 / Evidence</title>
+        <g id="node-pluginReaders" data-node-id="pluginReaders" data-node-label="KB / FC plugins" tabindex="0" role="button" aria-label="Focus KB / FC plugins, 02 / Evidence" aria-pressed="false" data-node-kind="external" data-node-context="02 / Evidence">
+          <title>KB / FC plugins · 02 / Evidence</title>
           <rect x="259" y="356" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="259" y="356" width="112" height="58" rx="6" class="c-external" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(265 362) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
-          <text data-node-label="" x="315" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Finance Core API</text>
+          <text data-node-label="" x="315" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">KB / FC plugins</text>
         </g>
 
         <g id="node-contextGate" data-node-id="contextGate" data-node-label="Context / memory gate" tabindex="0" role="button" aria-label="Focus Context / memory gate, 03 / Context stage" aria-pressed="false" data-node-kind="security" data-node-context="03 / Context stage">
@@ -5284,9 +5284,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <text x="410.5" y="197.5" class="t-security" font-size="8" text-anchor="middle">selected excerpts + hashes</text>
         <text data-detail="fine" x="410.5" y="208.5" class="t-dim" font-size="7" text-anchor="middle">local evidence</text>
         </g>
-        <g data-detail="context" data-edge-from="fc" data-edge-to="contextGate" data-edge-label="Workspace-scoped records" data-edge-key="2" data-edge-id="fcEvidence">
-          <rect x="345.7" y="313.5" width="129.6" height="27" rx="4" class="c-mask"/>
-          <text x="410.5" y="324.5" class="t-security" font-size="8" text-anchor="middle">Workspace-scoped records</text>
+        <g data-detail="context" data-edge-from="pluginReaders" data-edge-to="contextGate" data-edge-label="scoped records + revisions" data-edge-key="2" data-edge-id="pluginEvidence">
+          <rect x="340.8" y="313.5" width="139.4" height="27" rx="4" class="c-mask"/>
+          <text x="410.5" y="324.5" class="t-security" font-size="8" text-anchor="middle">scoped records + revisions</text>
         <text data-detail="fine" x="410.5" y="335.5" class="t-dim" font-size="7" text-anchor="middle">optional read-only</text>
         </g>
         <g data-detail="context" data-edge-from="contextGate" data-edge-to="contextModel" data-edge-label="approved exact input" data-edge-key="3" data-edge-id="contextOutbound">
@@ -5522,7 +5522,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Host-owned boundaries</h3>
         </div>
         <ul>
-          <li>&bull; FRAG revalidates sources and confirmed memory versions before executing the frozen PreparedCall.</li>
+          <li>&bull; FRAG revalidates sources, packages, configuration and confirmed memory before executing the frozen PreparedCall.</li>
           <li>&bull; Provider and Finance Core credentials remain backend-only.</li>
         </ul>
       </div>
@@ -5533,7 +5533,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Scope</h3>
         </div>
         <ul>
-          <li>&bull; Finance Core is optional; its adapter reads selected Workspace records, at most ten.</li>
+          <li>&bull; Optional KB/FC plugins read at most ten selected records per scope; configuration namespaces isolate memory.</li>
           <li>&bull; Optional reviewed memory is background, not current evidence; citations remain restricted to selected evidence.</li>
         </ul>
       </div>

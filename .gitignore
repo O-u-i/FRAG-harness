@@ -116,6 +116,7 @@ APIKey*
 !docs/architecture/rag-lab/*.svg
 !docs/architecture/research/workflow.svg
 !docs/architecture/memory/workflow.svg
+!docs/architecture/plugins/workflow.svg
 *.zip
 *.7z
 *.rar
@@ -141,3 +142,6 @@ local-sources/**
 !backend/pi-worker/vendor/pi-ai/dist/**
 !backend/pi-worker/licenses/openai/
 !backend/pi-worker/licenses/openai/**
+
+# Original versioned KB plugin release artifact (three files, no private data).
+!docs/release/kb-frag-plugin-v1.0.0.zip

@@ -17,9 +17,9 @@ export const sourceAssessmentSchema = z.object({
   permission: z.literal('selected_read_only'),
 }).strict();
 export const sourceIdentitySchema = z.object({
-  kind: z.enum(['local_file', 'synthetic', 'fc_record']), namespace: z.string().min(1),
+  kind: z.enum(['local_file', 'synthetic', 'fc_record', 'plugin_record']), namespace: z.string().min(1),
   resourceId: z.string().min(1), workspaceId: z.string().nullable(),
-}).strict().refine((value) => (value.kind === 'fc_record') === Boolean(value.workspaceId), 'FC requires a Workspace.');
+}).strict().refine((value) => (['fc_record', 'plugin_record'].includes(value.kind)) === Boolean(value.workspaceId), 'Plugin records require a source scope.');
 const uniqueIds = z.array(z.string().min(1)).min(1).refine((values) => new Set(values).size === values.length);
 export const sourceBindingSchema = z.object({
   identity: sourceIdentitySchema, revision: z.string().min(1), parserVersion: z.string().min(1),

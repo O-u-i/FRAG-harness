@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHttpException
 
 from frag_api.errors import (
@@ -19,7 +19,7 @@ from frag_api.errors import (
     RuntimeConflictError, RuntimeNotFoundError,
 )
 from frag_api.http import BodyLimitMiddleware, error_response, issue_path
-from frag_api.plugin_host import DEFAULT_PLUGIN_ROOT, load_plugin
+from frag_api.plugin_host import DEFAULT_PLUGIN_ROOT, load_plugins
 from frag_api.routers.context_sources import router as sources_router
 from frag_api.routers.harness import router as harness_router
 from frag_api.routers.health import router as health_router
@@ -44,6 +44,13 @@ from frag_api.services.runtime_registry import CLIRegistry, ToolRegistry
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 
+def _plugin_ui(plugin):
+    def ui() -> Response:
+        plugin.ensure_current()
+        return Response(plugin.ui_content, media_type="text/javascript")
+    return ui
+
+
 def create_app(
     *,
     context_source_root: str | Path | None = None,
@@ -61,7 +68,7 @@ def create_app(
             context_source_root or Path(__file__).resolve().parents[2] / "local-sources"
         )
         app.state.context_source_service = source_service
-        app.state.harness_service = harness_service or HarnessService(source_service, plugin=plugin)
+        app.state.harness_service = harness_service or HarnessService(source_service, plugins=plugins)
         app.state.rag_service = rag_service or create_rag_service(
             **({"index_path": rag_index_path} if rag_index_path is not None else {}),
             source_root=rag_source_root,
@@ -97,29 +104,39 @@ def create_app(
                     service.flow.runtime = None
                 app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.7.0", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.8.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.plugin_root = Path(plugin_root)
-    app.state.plugin_hidden = False
+    app.state.plugin_hidden = set()
     app.state.plugin_management_lock = asyncio.Lock()
 
     @app.middleware("http")
     async def hide_deactivated_plugin(request: Request, call_next):
         path = request.url.path
-        if app.state.plugin_hidden and (
-            path.startswith("/api/plugins/finance-core/")
-            or path == "/plugins/finance-core/ui.js"
-        ):
-            return error_response(404, "NOT_FOUND", "Endpoint was not found.")
+        plugin_id = None
+        if path.startswith("/api/plugins/"):
+            plugin_id = path.split("/", 4)[3]
+        elif path.startswith("/plugins/"):
+            plugin_id = path.split("/", 3)[2]
+        if plugin_id is not None:
+            installed = app.state.plugins.get(plugin_id)
+            if installed is None or plugin_id in app.state.plugin_hidden:
+                return error_response(404, "NOT_FOUND", "Endpoint was not found.")
+            try:
+                installed.ensure_current()
+            except (PluginValidationError, OSError):
+                app.state.plugins.pop(plugin_id, None)
+                app.state.harness_service.plugins.pop(plugin_id, None)
+                if plugin_id == "finance-core":
+                    app.state.plugin = None
+                    app.state.harness_service.plugin = None
+                app.state.plugin_error = True
+                return error_response(404, "NOT_FOUND", "Endpoint was not found.")
         return await call_next(request)
-    plugin = None
-    plugin_error = False
-    try:
-        plugin = load_plugin(Path(plugin_root))
-    except PluginValidationError:
-        plugin_error = True
-    app.state.plugin = plugin
-    app.state.plugin_error = plugin_error
+    plugins, plugin_errors = load_plugins(Path(plugin_root))
+    app.state.plugins = plugins
+    app.state.plugin = plugins.get("finance-core")
+    app.state.plugin_error = bool(plugin_errors)
     app.include_router(health_router)
     app.include_router(sources_router)
     app.include_router(harness_router)
@@ -129,11 +146,9 @@ def create_app(
     app.include_router(research_router)
     app.include_router(memory_router)
     app.include_router(plugins_router)
-    if plugin is not None:
+    for plugin in plugins.values():
         app.include_router(plugin.router)
-        @app.get("/plugins/finance-core/ui.js", include_in_schema=False)
-        def plugin_ui() -> FileResponse:
-            return FileResponse(plugin.directory / "ui.js", media_type="text/javascript")
+        app.add_api_route(plugin.ui_url, _plugin_ui(plugin), methods=["GET"], include_in_schema=False)
 
     @app.exception_handler(RequestContractError)
     async def contract_error(_request: Request, error: RequestContractError) -> JSONResponse:

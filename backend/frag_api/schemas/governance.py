@@ -8,7 +8,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from frag_api.schemas.common import ApiModel, ProviderKind
 
-HOST_VERSION = "1.7.0"
+HOST_VERSION = "1.8.0"
 POLICY_VERSION = "selected-read-v1"
 REDACTION_VERSION = "outbound-v1"
 TASK_TEMPLATE_VERSION = "evidence-review-v1"
@@ -38,15 +38,15 @@ class SourceAssessment(FrozenModel):
 
 
 class SourceIdentity(FrozenModel):
-    kind: Literal["local_file", "synthetic", "fc_record"]
+    kind: Literal["local_file", "synthetic", "fc_record", "plugin_record"]
     namespace: str = Field(min_length=1)
     resource_id: str = Field(alias="resourceId", min_length=1)
     workspace_id: str | None = Field(default=None, alias="workspaceId")
 
     @model_validator(mode="after")
     def workspace_scope(self):
-        if (self.kind == "fc_record") != bool(self.workspace_id):
-            raise ValueError("Only an FC record has a required Workspace scope.")
+        if (self.kind in {"fc_record", "plugin_record"}) != bool(self.workspace_id):
+            raise ValueError("Plugin records require a source scope; other source kinds have none.")
         return self
 
 
