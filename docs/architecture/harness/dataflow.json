@@ -30,12 +30,12 @@
     { "id": "fcEvidence", "from": "fc", "to": "contextGate", "label": "Workspace-scoped records", "classification": "optional read-only", "variant": "security" },
     { "id": "contextOutbound", "from": "contextGate", "to": "contextModel", "label": "approved exact input", "classification": "model outbound", "variant": "security", "labelAt": [530, 360] },
     { "id": "compression", "from": "contextModel", "to": "inferenceGate", "label": "compressed evidence", "classification": "validated model output", "variant": "emphasis" },
-    { "id": "inferenceOutbound", "from": "inferenceGate", "to": "inferenceModel", "label": "approved exact input", "classification": "model outbound", "variant": "security" },
-    { "id": "answer", "from": "inferenceModel", "to": "review", "label": "answer + claim IDs", "classification": "validated result", "variant": "emphasis", "labelAt": [960, 200] }
+    { "id": "inferenceOutbound", "from": "inferenceGate", "to": "inferenceModel", "label": "approved exact input", "classification": "model outbound", "variant": "security", "labelAt": [853, 314] },
+    { "id": "answer", "from": "inferenceModel", "to": "review", "label": "answer + claim IDs", "classification": "schema and citation checks", "variant": "emphasis", "labelAt": [960, 200] }
   ],
   "cards": [
     { "dot": "rose", "title": "Host-owned boundaries", "items": [
-      "FRAG re-reads selected evidence before each model stage and binds approvals to fingerprints.",
+      "FRAG revalidates source revisions and executes the previewed, frozen PreparedCall.",
       "Provider and Finance Core credentials remain backend-only."
     ] },
     { "dot": "emerald", "title": "Scope", "items": [

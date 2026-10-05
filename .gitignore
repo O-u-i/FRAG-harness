@@ -114,6 +114,7 @@ APIKey*
 *.svg
 !docs/architecture/harness/*.svg
 !docs/architecture/rag-lab/*.svg
+!docs/architecture/research/workflow.svg
 *.zip
 *.7z
 *.rar

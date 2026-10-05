@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 640" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase"><style>
+<svg viewBox="0 0 1400 640" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase" style="" width="1400" height="640" xmlns="http://www.w3.org/2000/svg"><style>
 /*
 JetBrains Mono variable WOFF2 subsets from Google Fonts service revision v24.
 These fixed bytes are shared by the viewer and its SVG/raster exports.
@@ -421,16 +421,16 @@ rect.c-bg-rect { fill: var(--bg); }
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-default" />
+            <polygon points="0 0, 10 3.5, 0 7" class="m-default"/>
           </marker>
           <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis" />
+            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis"/>
           </marker>
           <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-security" />
+            <polygon points="0 0, 10 3.5, 0 7" class="m-security"/>
           </marker>
           <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed" />
+            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed"/>
           </marker>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
@@ -438,7 +438,7 @@ rect.c-bg-rect { fill: var(--bg); }
         </defs>
 
         <!-- Background Grid -->
-        <rect width="100%" height="100%" fill="url(#grid)" />
+        <rect width="100%" height="100%" fill="url(#grid)"/>
 
         <!-- Data Stages -->
         <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="0" x="16" y="46" width="168" height="520" rx="10" class="c-lane" stroke-width="1"/>
@@ -545,33 +545,33 @@ rect.c-bg-rect { fill: var(--bg); }
         </g>
 
         <!-- Flow labels -->
-        <g data-detail="context" data-edge-from="buildAction" data-edge-to="sectionChunking" data-edge-label="explicit rebuild" data-edge-key="0" data-edge-id="buildRequest">
+        <g data-edge-from="buildAction" data-edge-to="sectionChunking" data-edge-label="explicit rebuild" data-edge-key="0" data-edge-id="buildRequest">
           <rect x="162.3" y="189.5" width="90.4" height="16" rx="4" class="c-mask"/>
           <text x="207.5" y="200.5" class="t-backend" font-size="8" text-anchor="middle">explicit rebuild</text>
         </g>
-        <g data-detail="context" data-edge-from="syntheticFile" data-edge-to="sectionChunking" data-edge-label="headings + source hash" data-edge-key="1" data-edge-id="sourceSections">
+        <g data-edge-from="syntheticFile" data-edge-to="sectionChunking" data-edge-label="headings + source hash" data-edge-key="1" data-edge-id="sourceSections">
           <rect x="147.6" y="310.5" width="119.8" height="16" rx="4" class="c-mask"/>
           <text x="207.5" y="321.5" class="t-muted" font-size="8" text-anchor="middle">headings + source hash</text>
         </g>
-        <g data-detail="context" data-edge-from="sectionChunking" data-edge-to="ftsIndex" data-edge-label="child + parent IDs" data-edge-key="2" data-edge-id="indexedChunks">
+        <g data-edge-from="sectionChunking" data-edge-to="ftsIndex" data-edge-label="child + parent IDs" data-edge-key="2" data-edge-id="indexedChunks">
           <rect x="372.4" y="307" width="100.2" height="16" rx="4" class="c-mask"/>
           <text x="422.5" y="318" class="t-backend" font-size="8" text-anchor="middle">child + parent IDs</text>
         </g>
-        <g data-detail="context" data-edge-from="query" data-edge-to="search" data-edge-label="query + topK" data-edge-key="3" data-edge-id="queryTerms">
+        <g data-edge-from="query" data-edge-to="search" data-edge-label="query + topK" data-edge-key="3" data-edge-id="queryTerms">
           <rect x="602.1" y="189.5" width="70.8" height="16" rx="4" class="c-mask"/>
           <text x="637.5" y="200.5" class="t-muted" font-size="8" text-anchor="middle">query + topK</text>
         </g>
-        <g data-detail="context" data-edge-from="ftsIndex" data-edge-to="search" data-edge-label="ranked child + parent" data-edge-key="4" data-edge-id="rankedRows">
+        <g data-edge-from="ftsIndex" data-edge-to="search" data-edge-label="ranked child + parent" data-edge-key="4" data-edge-id="rankedRows">
           <rect x="580.05" y="310.5" width="114.9" height="16" rx="4" class="c-mask"/>
           <text x="637.5" y="321.5" class="t-backend" font-size="8" text-anchor="middle">ranked child + parent</text>
         </g>
-        <g data-detail="context" data-edge-from="search" data-edge-to="contextPreview" data-edge-label="bounded parent evidence" data-edge-key="5" data-edge-id="candidateEvidence">
+        <g data-edge-from="search" data-edge-to="contextPreview" data-edge-label="bounded parent evidence" data-edge-key="5" data-edge-id="candidateEvidence">
           <rect x="790.65" y="303" width="124.7" height="16" rx="4" class="c-mask"/>
           <text x="853" y="314" class="t-security" font-size="8" text-anchor="middle">bounded parent evidence</text>
         </g>
 
         <!-- Legend -->
-        <g data-legend="" data-legend-bridge="">
+        <g data-legend="">
           <text x="40" y="584" class="t-primary" font-size="12" font-weight="650">Legend</text>
           <g data-legend-semantic-kind="emphasis" data-legend-x="40" data-legend-baseline="604" data-legend-width="103">
             <path d="M 40 601 L 74 601" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
@@ -581,7 +581,7 @@ rect.c-bg-rect { fill: var(--bg); }
             <path d="M 165 601 L 199 601" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
             <text x="208" y="604" class="t-muted" font-size="10" font-weight="500">policy / PII</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="data store" data-legend-x="290" data-legend-baseline="604" data-legend-width="93">
+          <g data-legend-semantic-kind="database" data-legend-x="290" data-legend-baseline="604" data-legend-width="93">
             <rect x="290" y="596" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
             <text x="312" y="604" class="t-muted" font-size="10" font-weight="500">data store</text>
           </g>

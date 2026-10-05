@@ -13,19 +13,19 @@
   ],
   "states": [
     { "id": "selection", "type": "start", "label": "Selection", "sublabel": "goal and locators", "lane": "main", "col": 0, "step": "01" },
-    { "id": "contextPreview", "type": "waiting", "label": "Context preview", "sublabel": "exact input + token", "lane": "main", "col": 1, "step": "02" },
+    { "id": "contextPreview", "type": "waiting", "label": "Context preview", "sublabel": "frozen request + token", "lane": "main", "col": 1, "step": "02" },
     { "id": "contextCall", "type": "active", "label": "Context call", "sublabel": "compression checked", "lane": "main", "col": 2, "step": "03" },
-    { "id": "inferencePreview", "type": "waiting", "label": "Inference preview", "sublabel": "exact input + token", "lane": "main", "col": 3, "step": "04" },
+    { "id": "inferencePreview", "type": "waiting", "label": "Inference preview", "sublabel": "frozen request + token", "lane": "main", "col": 3, "step": "04" },
     { "id": "inferenceCall", "type": "active", "label": "Inference call", "sublabel": "citations checked", "lane": "main", "col": 4, "step": "05" },
     { "id": "contextExit", "type": "failure", "label": "No Context call", "sublabel": "approval invalid", "lane": "terminal", "col": 0, "yOffset": -80 },
     { "id": "inferenceExit", "type": "failure", "label": "No Inference call", "sublabel": "approval invalid", "lane": "terminal", "col": 1, "yOffset": -80 },
-    { "id": "review", "type": "success", "label": "Human review", "sublabel": "grounded answer", "lane": "terminal", "col": 2, "yOffset": -80 }
+    { "id": "review", "type": "waiting", "label": "Human review", "sublabel": "awaiting_review", "lane": "terminal", "col": 2, "yOffset": -80 }
   ],
   "transitions": [
     { "id": "prepareContext", "from": "selection", "to": "contextPreview", "label": "assemble + redact", "labelAt": [171, 202] },
-    { "id": "approveContext", "from": "contextPreview", "to": "contextCall", "label": "approve once; re-read", "variant": "security", "route": "straight", "labelAt": [325, 110] },
+    { "id": "approveContext", "from": "contextPreview", "to": "contextCall", "label": "approve; revalidate", "variant": "security", "route": "straight", "labelAt": [325, 110] },
     { "id": "prepareInference", "from": "contextCall", "to": "inferencePreview", "label": "validated compression", "labelAt": [479, 202] },
-    { "id": "approveInference", "from": "inferencePreview", "to": "inferenceCall", "label": "approve once; re-read", "variant": "security", "labelAt": [633, 202] },
+    { "id": "approveInference", "from": "inferencePreview", "to": "inferenceCall", "label": "approve; revalidate", "variant": "security", "labelAt": [633, 202] },
     { "id": "checkCitations", "from": "inferenceCall", "to": "review", "label": "claim IDs valid", "variant": "emphasis", "labelAt": [710, 260] },
     { "id": "rejectContext", "from": "contextPreview", "to": "contextExit", "label": "expired or changed", "variant": "security" },
     { "id": "rejectInference", "from": "inferencePreview", "to": "inferenceExit", "label": "expired or changed", "variant": "security", "labelAt": [556, 260] }
@@ -33,7 +33,7 @@
   "cards": [
     { "dot": "amber", "title": "Approval and validation", "items": [
       "Tokens expire after ten minutes and are consumed once; changed evidence requires a new preview.",
-      "FRAG checks compressed evidence IDs and answer citations before human review."
+      "FRAG checks schemas and citation IDs; factual support still requires human review."
     ] }
   ]
 }

@@ -1,6 +1,6 @@
 # Architecture diagrams
 
-The `harness/` and `rag-lab/` folders each contain two diagrams:
+The fixed `harness/` and `rag-lab/` paths each have data-flow and lifecycle diagrams:
 
 | Area | Data flow | Lifecycle |
 | --- | --- | --- |
@@ -14,3 +14,7 @@ The `harness/` and `rag-lab/` folders each contain two diagrams:
 | `dataflow.svg` and `lifecycle.svg` | Canonical, dual-theme exports embedded in the repository README. |
 
 The HTML and SVG files are review artifacts, not application runtime assets. Generate HTML with the project-local Archify skill and export SVG from the HTML viewer. Validate the JSON specifications with Archify showcase quality, then inspect the delivered HTML and exported SVG. Local browser screenshots and visual-check receipts are ignored by Git.
+
+Research has an additional [workflow viewer](research/workflow.html), [SVG](research/workflow.svg), and [editable source](research/workflow.json). The root README also includes a Mermaid recovery flow. These describe implemented host behavior at v1.6.0; live GPT and human semantic acceptance remain pending.
+
+The interactive viewers contain Archify 2.17 code. Distribute them with [ARCHIFY-LICENSE.txt](ARCHIFY-LICENSE.txt), including when sharing a viewer outside this repository. No additional visible UI attribution or FRAG source disclosure is required by that MIT license.

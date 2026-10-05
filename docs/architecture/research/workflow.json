@@ -1,0 +1,181 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "FRAG Research Evidence Loop",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "animation": "none"
+  },
+  "lanes": [
+    {
+      "id": "turn",
+      "label": "Approved model stages"
+    },
+    {
+      "id": "read",
+      "label": "Host-owned evidence tools"
+    },
+    {
+      "id": "answer",
+      "label": "Awaiting human review"
+    }
+  ],
+  "mainPath": [
+    "selection",
+    "preview",
+    "approval",
+    "model",
+    "decision",
+    "formal",
+    "review"
+  ],
+  "nodes": [
+    {
+      "id": "selection",
+      "lane": "turn",
+      "col": 0,
+      "type": "frontend",
+      "label": "Select KB evidence",
+      "sublabel": "files + locators",
+      "width": 160
+    },
+    {
+      "id": "preview",
+      "lane": "turn",
+      "col": 1,
+      "type": "security",
+      "label": "Exact preview",
+      "sublabel": "frozen PreparedCall",
+      "width": 160
+    },
+    {
+      "id": "approval",
+      "lane": "turn",
+      "col": 2,
+      "type": "security",
+      "label": "Approve once",
+      "sublabel": "revalidate bindings",
+      "width": 160
+    },
+    {
+      "id": "model",
+      "lane": "turn",
+      "col": 3,
+      "type": "external",
+      "label": "Research model",
+      "sublabel": "proposes calls or finish",
+      "width": 160
+    },
+    {
+      "id": "decision",
+      "lane": "turn",
+      "col": 4,
+      "type": "security",
+      "label": "Validate decision",
+      "sublabel": "schema + scope + budget",
+      "width": 160
+    },
+    {
+      "id": "tools",
+      "lane": "read",
+      "col": 4,
+      "type": "backend",
+      "label": "Execute read tools",
+      "sublabel": "kb.search / kb.read CLI",
+      "width": 160
+    },
+    {
+      "id": "observations",
+      "lane": "read",
+      "col": 1,
+      "type": "database",
+      "label": "Save observations",
+      "sublabel": "call IDs + evidence",
+      "width": 160
+    },
+    {
+      "id": "review",
+      "lane": "answer",
+      "col": 5,
+      "type": "frontend",
+      "label": "Human review",
+      "sublabel": "awaiting_review",
+      "width": 160
+    },
+    {
+      "id": "formal",
+      "lane": "turn",
+      "col": 5,
+      "type": "security",
+      "label": "Context + Inference",
+      "sublabel": "two separate approvals",
+      "width": 160
+    }
+  ],
+  "edges": [
+    {
+      "from": "selection",
+      "to": "preview"
+    },
+    {
+      "from": "preview",
+      "to": "approval",
+      "variant": "security"
+    },
+    {
+      "from": "approval",
+      "to": "model",
+      "variant": "security"
+    },
+    {
+      "from": "model",
+      "to": "decision"
+    },
+    {
+      "from": "decision",
+      "to": "tools",
+      "label": "continue",
+      "role": "branch"
+    },
+    {
+      "from": "tools",
+      "to": "observations",
+      "role": "return"
+    },
+    {
+      "from": "observations",
+      "to": "preview",
+      "label": "next turn",
+      "role": "return"
+    },
+    {
+      "from": "decision",
+      "to": "formal",
+      "label": "finish",
+      "role": "branch"
+    },
+    {
+      "to": "review",
+      "from": "formal"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Selected scope only",
+      "items": [
+        "Tools cannot expand files, locators or revisions; Finance Core stays on the fixed path.",
+        "Invalid decisions, failed calls and exhausted budgets stop progression; no automatic model retry."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Bounded execution",
+      "items": [
+        "At most 3 model turns and 6 serial tool calls; each tool has 10 seconds and 16 KiB.",
+        "Research output is capped at 800 tokens. Every model request needs fresh approval; citations still need human semantic review."
+      ]
+    }
+  ]
+}

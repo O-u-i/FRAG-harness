@@ -15,17 +15,17 @@
     { "id": "readyQuery", "type": "start", "label": "Ready-index query", "sublabel": "query + topK", "lane": "main", "col": 0, "step": "01" },
     { "id": "ragPreview", "type": "waiting", "label": "Context preview", "sublabel": "parent evidence + token", "lane": "main", "col": 1, "step": "02" },
     { "id": "ragContext", "type": "active", "label": "Context model call", "sublabel": "approved evidence", "lane": "main", "col": 2, "step": "03" },
-    { "id": "ragInferencePreview", "type": "waiting", "label": "Inference preview", "sublabel": "exact input + token", "lane": "main", "col": 3, "step": "04" },
+    { "id": "ragInferencePreview", "type": "waiting", "label": "Inference preview", "sublabel": "frozen request + token", "lane": "main", "col": 3, "step": "04" },
     { "id": "ragInference", "type": "active", "label": "Inference model call", "sublabel": "approved context", "lane": "main", "col": 4, "step": "05" },
     { "id": "noContext", "type": "failure", "label": "No Context call", "sublabel": "invalid approval", "lane": "terminal", "col": 0, "yOffset": -80 },
     { "id": "noInference", "type": "failure", "label": "No Inference call", "sublabel": "invalid or stale", "lane": "terminal", "col": 1, "yOffset": -80 },
-    { "id": "ragReview", "type": "success", "label": "Human review", "sublabel": "grounded answer", "lane": "terminal", "col": 2, "yOffset": -80 }
+    { "id": "ragReview", "type": "waiting", "label": "Human review", "sublabel": "awaiting_review", "lane": "terminal", "col": 2, "yOffset": -80 }
   ],
   "transitions": [
     { "id": "retrieveAndPreview", "from": "readyQuery", "to": "ragPreview", "label": "FTS5 search + preview", "labelAt": [171, 202] },
-    { "id": "approveRagContext", "from": "ragPreview", "to": "ragContext", "label": "approve once; re-search", "variant": "security", "route": "straight", "labelAt": [325, 110] },
+    { "id": "approveRagContext", "from": "ragPreview", "to": "ragContext", "label": "approve; revalidate", "variant": "security", "route": "straight", "labelAt": [325, 110] },
     { "id": "prepareRagInference", "from": "ragContext", "to": "ragInferencePreview", "label": "validated compression", "labelAt": [479, 202] },
-    { "id": "approveRagInference", "from": "ragInferencePreview", "to": "ragInference", "label": "approve once; re-check", "variant": "security", "labelAt": [633, 202] },
+    { "id": "approveRagInference", "from": "ragInferencePreview", "to": "ragInference", "label": "approve; revalidate", "variant": "security", "labelAt": [633, 202] },
     { "id": "validateRagCitations", "from": "ragInference", "to": "ragReview", "label": "cited evidence IDs valid", "variant": "emphasis", "labelAt": [710, 260] },
     { "id": "rejectRagContext", "from": "ragPreview", "to": "noContext", "label": "expired or changed", "variant": "security" },
     { "id": "rejectRagInference", "from": "ragInferencePreview", "to": "noInference", "label": "expired or changed", "variant": "security", "labelAt": [556, 260] }
@@ -37,7 +37,7 @@
     ] },
     { "dot": "emerald", "title": "Output checks", "items": [
       "After Context, output must retain exactly the previewed Context evidenceId values within budget.",
-      "After Inference, claims must cite those values as evidenceIds before human review."
+      "After Inference, evidenceIds must be allowed; human review still checks factual support."
     ] }
   ]
 }

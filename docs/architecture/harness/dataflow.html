@@ -5300,14 +5300,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="fine" x="637.5" y="215" class="t-dim" font-size="7" text-anchor="middle">validated model output</text>
         </g>
         <g data-detail="context" data-edge-from="inferenceGate" data-edge-to="inferenceModel" data-edge-label="approved exact input" data-edge-key="5" data-edge-id="inferenceOutbound">
-          <rect x="797.5" y="193" width="110" height="27" rx="4" class="c-mask"/>
-          <text x="852.5" y="204" class="t-security" font-size="8" text-anchor="middle">approved exact input</text>
-        <text data-detail="fine" x="852.5" y="215" class="t-dim" font-size="7" text-anchor="middle">model outbound</text>
+          <rect x="798" y="303" width="110" height="27" rx="4" class="c-mask"/>
+          <text x="853" y="314" class="t-security" font-size="8" text-anchor="middle">approved exact input</text>
+        <text data-detail="fine" x="853" y="325" class="t-dim" font-size="7" text-anchor="middle">model outbound</text>
         </g>
         <g data-detail="context" data-edge-from="inferenceModel" data-edge-to="review" data-edge-label="answer + claim IDs" data-edge-key="6" data-edge-id="answer">
-          <rect x="909.9" y="189" width="100.2" height="27" rx="4" class="c-mask"/>
+          <rect x="890.3" y="189" width="139.4" height="27" rx="4" class="c-mask"/>
           <text x="960" y="200" class="t-backend" font-size="8" text-anchor="middle">answer + claim IDs</text>
-        <text data-detail="fine" x="960" y="211" class="t-dim" font-size="7" text-anchor="middle">validated result</text>
+        <text data-detail="fine" x="960" y="211" class="t-dim" font-size="7" text-anchor="middle">schema and citation checks</text>
         </g>
 
         <!-- Legend -->
@@ -5522,7 +5522,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Host-owned boundaries</h3>
         </div>
         <ul>
-          <li>&bull; FRAG re-reads selected evidence before each model stage and binds approvals to fingerprints.</li>
+          <li>&bull; FRAG revalidates source revisions and executes the previewed, frozen PreparedCall.</li>
           <li>&bull; Provider and Finance Core credentials remain backend-only.</li>
         </ul>
       </div>

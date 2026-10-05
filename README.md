@@ -20,7 +20,7 @@ Offline evaluation uses versioned synthetic Gold and the production retrieval, m
 
 ## Architecture review diagrams
 
-These static SVG exports describe the fixed Harness and RAG Lab paths. Optional Research precedes their formal model stages; its bounded lifecycle is documented in [Research loop](docs/research-loop.md). Each fixed-flow diagram has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration.
+These SVG exports describe the fixed Harness, RAG Lab and optional Research paths. Each Archify diagram has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration.
 
 ### Harness
 
@@ -43,6 +43,28 @@ After retrieval, the optional answer path needs a ready index and retrieved evid
 ![RAG Lab lifecycle from a ready-index query through two approvals and citation checks to human review](docs/architecture/rag-lab/lifecycle.svg)
 
 Preview never calls a model. The first Run executes only the Context stage and returns validated compression plus the exact Inference instructions and input JSON for a second approval. Inference Run executes the second stage after approval. Tokens expire after ten minutes, are consumed once, and bind the displayed input to its source or index revision. Changed inputs and reused tokens are rejected. Provider credentials stay in the backend.
+
+### Research and recovery
+
+Research gathers evidence before Context and Inference. A model proposes complete calls; the host validates scope and budgets, runs the registered read tools, and persists their observations. Continuing requires a new exact preview and approval. Finishing selects observed evidence for the two separately approved answer stages. [Explore the Research workflow](docs/architecture/research/workflow.html) · [Editable source](docs/architecture/research/workflow.json).
+
+![Research workflow with approved model turns, bounded read tools and separate answer stages](docs/architecture/research/workflow.svg)
+
+The following recovery flow summarizes the reliable-checkpoint path. Source or configuration changes reject continuation. Unknown dispatch outcomes cannot be resent in the same run. A saved response may complete deterministic validation after restart; validation is not human acceptance.
+
+```mermaid
+flowchart TD
+    Restart[Restart and inspect durable run] --> Outcome{Reliable checkpoint or saved response?}
+    Outcome -->|No committed response after dispatch| Unknown[outcome_unknown - no automatic resend]
+    Outcome -->|Reliable| Select[Explicitly reselect saved sources]
+    Select --> Check{Scope revisions and configuration match?}
+    Check -->|No| Reject[Reject continuation]
+    Check -->|Yes| Restore[Restore reliable stage and validate saved response]
+    Restore -->|Already complete| Review[Awaiting human review]
+    Restore -->|Model stage remains| Preview[Fresh exact preview for next model call]
+    Preview --> Approval[Fresh one-use approval]
+    Approval --> Execute[Execute frozen PreparedCall]
+```
 
 ## Start locally
 
@@ -109,6 +131,6 @@ npm run test:python
 
 Tests use synthetic sources and temporary indexes. Backend-only keys and optional FC tokens must never enter browser assets, prompts, logs, tracked files, or error responses. Model answers require human review. FRAG does not connect to trading, banking, payment, or live-market APIs. The [plugin handoff](docs/finance-core-plugin-handoff.md) defines the optional FC integration boundary.
 
-LangGraph runs embedded in FastAPI for Preview, Research turn/tool routing, Context Run, and Inference Run orchestration. Host code still owns evidence selection, budgets, approval tokens, provider calls, validation and durable checkpoints. The graphs have no LangGraph checkpointer, external Agent Server, or LangSmith tracing. Research supports complete typed model proposals and optional native Pi tool-call transport; synthetic live GPT and human semantic acceptance remain Phase 5 gates. [Future Agent Server assessment](docs/horizon/horizon-1.md). Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
+LangGraph runs embedded in FastAPI for Research turn/tool routing, Context Run, and Inference Run orchestration. Preview is an ordinary host function and makes no model call. Host code still owns evidence selection, budgets, approval tokens, provider calls, validation and durable checkpoints. The graphs have no LangGraph checkpointer, external Agent Server, or LangSmith tracing. Research supports complete typed model proposals and optional native Pi tool-call transport; synthetic live GPT and human semantic acceptance remain Phase 5 gates. [Future Agent Server assessment](docs/horizon/horizon-1.md). Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
 
-Thanks to [Archify](https://github.com/tt-a1i/archify) for the diagram tooling.
+Thanks to [Archify](https://github.com/tt-a1i/archify) for the diagram tooling. The Archify 2.17 viewers are distributed with their [MIT copyright and permission notice](docs/architecture/ARCHIFY-LICENSE.txt); retain this notice when sharing the viewers separately.
