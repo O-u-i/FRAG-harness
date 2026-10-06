@@ -1,4 +1,4 @@
-# Offline synthetic evaluation
+# Offline evaluation
 
 The unified runner reads one explicitly supplied, versioned synthetic Gold file and reports separately on retrieval, evidence assembly, scripted model artifacts, Research trajectories and deterministic host enforcement. It uses the production FTS5 index, hierarchical evidence assembly, fixed Context/Inference runner, durable Research runner, exact prepared requests, one-use approvals, output limits, citation membership and selected-source policy. It cannot select a network provider and does not load environment configuration or credentials.
 
@@ -31,3 +31,31 @@ Statuses are `PASS`, `FAIL`, `ERROR`, `NOT_RUN` and `UNDETERMINED`. Overall stat
 Fact checks normalize case, Unicode compatibility characters and whitespace, then match bounded literal alternatives and forbidden phrases. They detect declared fixture regressions such as dropped negations, reversed constraints, wrong dates and units. They do not recognize arbitrary paraphrases, determine truth, resolve contradictions generally or establish whether a legal citation supports a claim. Human semantic review is always `UNDETERMINED` here. Synthetic approval and review fixtures do not count as real GPT or selected-KB acceptance.
 
 The existing RAG Lab evaluation endpoint remains compatible and retains its three-case demo metrics. The unified offline runner removes that fixed case-count assumption and adds stage observations and explicit limits. It complements production stage and carrier tests; it does not replace them or qualify a model for production.
+
+## Explicit captured Run evaluation
+
+For a saved Run, export its JSON report from Runs and author a separate captured Gold file from reviewed source evidence. This mode scores the original saved Context and model answer, retaining human revisions separately. It never regenerates a Fake answer, invokes a provider, restores a Run, executes tools or rereads the source. Supply both files explicitly; `--work-dir` is unavailable in capture mode.
+
+```powershell
+# From backend; both inputs are private, Git-ignored acceptance artifacts.
+.\.venv\Scripts\python.exe -m frag_api.evaluation --gold ../.local-plan-b/phase-8/manual/captured-gold.json --capture ../.local-plan-b/phase-8/manual/run-report.json
+.\.venv\Scripts\python.exe -m frag_api.evaluation --gold ../.local-plan-b/phase-8/manual/captured-gold.json --capture ../.local-plan-b/phase-8/manual/run-report.json --format markdown
+```
+
+Captured Gold has `schemaVersion: 1`, `suiteId`, a semantic `suiteVersion`, optional `runId`, the exact `goal`, complete `sourceBindings`, distinct `expectedEvidenceIds`, `facts` and optional `requiredMissingInformation`. Copy each complete source binding from the report's selection, including identity, revision, parser version, locators, evidence IDs and assessment. Write the expected facts from the source independently of the answer. The goal and source bindings must match the supplied report exactly; a mismatch blocks model scoring and records a failure.
+
+For example, a reviewed synthetic condition could produce the following `facts` value:
+
+```json
+[
+  {"id":"no-write","kind":"negation","alternatives":["Writes are not allowed"],"forbidden":["Writes are allowed"]},
+  {"id":"review-date","kind":"date","alternatives":["2026-10-05"],"forbidden":["2026-10-06"]},
+  {"id":"capacity","kind":"unit","alternatives":["10 MiB"],"forbidden":["10 GiB"]}
+]
+```
+
+The captured runner reports `runnerVersion: "1.2.0"` and `provider: "captured-artifacts"`. It checks internally consistent snapshot/request/output hashes, recorded stage links, original evidence and citation membership, bounded Context/Inference artifacts, declared literal facts and missing information. A recorded Research trajectory is validated against its saved tool definitions, selected observations and call IDs. Hash consistency does not authenticate a supplied report or establish that a human granted approval.
+
+Current-source revalidation, legitimate approval and the original complete retrieval ranking remain `NOT_RUN`; this evaluator has neither live source access nor approval tokens. Human semantic review remains `UNDETERMINED`, including when a capture contains an accepted review record. An incomplete Run produces `NOT_RUN` model quality; an unknown external outcome remains `UNDETERMINED` and is never resent. Malformed inputs or inconsistent captured links produce `ERROR`. Exit code 3 identifies `NOT_RUN` or `UNDETERMINED`; codes 0, 2 and 1 retain their existing meanings.
+
+JSON and Markdown preserve the same canonical report, including private captured evidence. Save outputs only to ignored local storage. This mode provides deterministic observations for the [manual acceptance workflow](manual-acceptance.md); real GPT, KB support, live FC and human semantic acceptance still require their own evidence.

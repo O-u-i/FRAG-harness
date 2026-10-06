@@ -33,6 +33,11 @@ def status(request: Request) -> RagIndexStatus:
     return service(request).status()
 
 
+@router.post("/status", response_model=RagIndexStatus, dependencies=[Depends(reject_query)])
+def selected_status(request: Request, input_data: Annotated[RagDatasetRequest, Body()]) -> RagIndexStatus:
+    return service(request).status(input_data)
+
+
 @router.post(
     "/index/rebuild",
     response_model=RagIndexStatus,

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { PreparedCallPreview } from '../common/PreparedCallPreview';
 import type {
-  RagContextRun, RagEvaluationReport, RagIndexStatus, RagPreview, RagRun, RagSearchResponse, RagQueryRequest,
+  RagContextRun, RagDatasetRequest, RagEvaluationReport, RagIndexStatus, RagPreview, RagRun, RagSearchResponse, RagQueryRequest,
 } from '../../../shared/contracts/rag';
 import type { HarnessConfig } from '../../../shared/contracts/harness';
+import type { LocalFileInspectResponse, LocalFileSource } from '../../../shared/contracts/contextSource';
+import { fetchLocalFileSources, inspectLocalFile } from '../../api/contextSourceClient';
 import {
   evaluateRag, fetchRagStatus, previewRag, rebuildRagIndex, runRag, runRagInference, searchRag,
 } from '../../api/ragClient';
@@ -14,8 +16,6 @@ import { SessionPicker } from '../../features/runtime/SessionPicker';
 import type { MemorySelection } from '../../../shared/contracts/memory';
 import { MemoryPicker } from '../../features/memory/MemoryPicker';
 
-const dataset = { datasetId: 'synthetic-risk-review-v1' } as const;
-
 function safeMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'RAG operation failed.';
 }
@@ -25,6 +25,11 @@ function Metric({ label, value }: { label: string; value: number }) {
 }
 
 export function RagLab({ config }: { config?: HarnessConfig } = {}) {
+  const [datasetId, setDatasetId] = useState<RagDatasetRequest['datasetId']>('synthetic-risk-review-v1');
+  const [sources, setSources] = useState<LocalFileSource[]>([]);
+  const [selectedPath, setSelectedPath] = useState('');
+  const [inspection, setInspection] = useState<LocalFileInspectResponse>();
+  const [selectedLocators, setSelectedLocators] = useState<string[]>([]);
   const [status, setStatus] = useState<RagIndexStatus>();
   const [query, setQuery] = useState('What regulatory risks are mentioned in the source?');
   const [topK, setTopK] = useState(3);
@@ -42,16 +47,33 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
   const [evaluation, setEvaluation] = useState<RagEvaluationReport>();
   const [busy, setBusy] = useState('status');
   const [error, setError] = useState('');
+  const selectedLocal = datasetId === 'selected-local-v1';
+  const selectionReady = !selectedLocal || Boolean(selectedPath && selectedLocators.length);
+  const dataset: RagDatasetRequest = { datasetId, ...(selectedLocal && selectionReady ? { sourceSelection: {
+    relativePath: selectedPath, locatorIds: selectedLocators,
+    relevanceReason: 'Explicitly selected locators for this retrieval review.',
+  } } : {}) };
+  const datasetKey = JSON.stringify(dataset);
 
   useEffect(() => {
     let active = true;
-    fetchRagStatus()
+    setStatus(undefined);
+    if (!selectionReady) return () => { active = false; };
+    setBusy('status');
+    fetchRagStatus(selectedLocal ? dataset : undefined)
       .then((nextStatus) => { if (active) setStatus(nextStatus); })
       .catch((caught) => { if (active) setError(safeMessage(caught)); })
       .finally(() => { if (active) setBusy(''); });
     return () => { active = false; };
-  }, []);
+  }, [datasetKey]);
 
+  useEffect(() => {
+    let active = true;
+    if (!selectedLocal) return () => { active = false; };
+    fetchLocalFileSources().then((items) => { if (active) setSources(items.filter((item) => item.status === 'ready')); })
+      .catch((caught) => { if (active) setError(safeMessage(caught)); });
+    return () => { active = false; };
+  }, [selectedLocal]);
 
   const resetQueryOutput = (clearMemory = false) => {
     if (clearMemory) { setSelectedMemory([]); setMemoryRunId(undefined); }
@@ -59,15 +81,26 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
     setSearch(undefined); setPreview(undefined); setPreviewInput(undefined); setContextRun(undefined); setRun(undefined); setError('');
     setBusy('');
   };
+  const selectPath = async (path: string) => {
+    resetQueryOutput(true); setEvaluation(undefined);
+    const version = requestVersion.current;
+    setSelectedPath(path); setInspection(undefined); setSelectedLocators([]);
+    if (!path) return;
+    setBusy('inspect');
+    try { const value = await inspectLocalFile(path); if (version === requestVersion.current) setInspection(value); }
+    catch (caught) { if (version === requestVersion.current) setError(safeMessage(caught)); }
+    finally { if (version === requestVersion.current) setBusy(''); }
+  };
   const input = { ...dataset, query, topK, task, selectedMemory, sessionId: sessionId || lineage?.sessionId || undefined, parentRunId: lineage?.runId };
-  const ready = status?.state === 'ready';
+  const ready = selectionReady && status?.datasetId === datasetId && status.state === 'ready';
   const modelsReady = config?.context.ready && config.inference.ready;
 
   const rebuild = async () => {
     setError(''); setEvaluation(undefined); resetQueryOutput(true); setBusy('rebuild');
-    try { setStatus(await rebuildRagIndex(dataset)); }
-    catch (caught) { setError(safeMessage(caught)); }
-    finally { setBusy(''); }
+    const version = requestVersion.current;
+    try { const value = await rebuildRagIndex(dataset); if (version === requestVersion.current) setStatus(value); }
+    catch (caught) { if (version === requestVersion.current) setError(safeMessage(caught)); }
+    finally { if (version === requestVersion.current) setBusy(''); }
   };
   const retrieve = async () => {
     resetQueryOutput(); setBusy('search');
@@ -126,17 +159,39 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
   return <div className="rag-lab">
     <PanelHeading
       title="RAG Lab · FTS Baseline"
-      subtitle="Synthetic Markdown → title-aware child chunks → section context → governed Context → grounded answer."
+      subtitle="Explicit index build → selected evidence → exact request preview → separately approved Context and Inference."
     />
+
+    <section className="rag-query-card">
+      <label>RAG source<select aria-label="RAG source" value={datasetId} disabled={!!busy} onChange={(event) => {
+        setDatasetId(event.target.value as RagDatasetRequest['datasetId']); setSelectedPath(''); setInspection(undefined); setSelectedLocators([]);
+        setEvaluation(undefined); resetQueryOutput(true);
+      }}><option value="synthetic-risk-review-v1">Bundled synthetic dataset</option><option value="selected-local-v1">Selected local file</option></select></label>
+      {selectedLocal && <>
+        <p className="muted">Select one file and up to 20 locators. Only those locators enter this local index after you choose Build Selected Index.</p>
+        <label>RAG source file<select aria-label="RAG source file" value={selectedPath} disabled={!!busy} onChange={(event) => void selectPath(event.target.value)}>
+          <option value="">Choose a file</option>{sources.map((item) => <option key={item.relativePath} value={item.relativePath}>{item.relativePath}</option>)}
+        </select></label>
+        {sources.length === 0 && <p className="muted">Add a supported file under <code>local-sources/</code> to begin.</p>}
+        {inspection && <fieldset className="locator-list"><legend>Choose index locators</legend>
+          {inspection.locators.map((locator) => <label key={locator.id} className="locator-option">
+            <input type="checkbox" checked={selectedLocators.includes(locator.id)} disabled={!!busy || (!selectedLocators.includes(locator.id) && selectedLocators.length >= 20)}
+              onChange={(event) => { setSelectedLocators((items) => event.target.checked ? [...items, locator.id] : items.filter((id) => id !== locator.id)); resetQueryOutput(true); }} />
+            <span><strong>{locator.label}</strong><small>{locator.excerpt}</small></span>
+          </label>)}
+        </fieldset>}
+        {inspection?.warnings.map((warning) => <p className="notice" key={warning}>{warning}</p>)}
+      </>}
+    </section>
 
     <section className="rag-status-card">
       <div>
         <span className={`rag-state ${status?.state ?? 'loading'}`}>{status?.state ?? 'loading'}</span>
-        <strong>{status ? `${status.documentCount} document · ${status.chunkCount} chunks` : 'Reading index status…'}</strong>
-        <small>markdown-hierarchy-v2 · explicit rebuild · no Finance Core data</small>
+        <strong>{status ? `${status.documentCount} document · ${status.chunkCount} chunks` : selectionReady ? 'Reading index status…' : 'Choose a file and locators before building'}</strong>
+        <small>Local retrieval cache · explicit rebuild · no Finance Core data</small>
       </div>
-      <button type="button" className="secondary-button" disabled={busy !== ''} onClick={() => void rebuild()}>
-        {busy === 'rebuild' ? 'Rebuilding…' : ready ? 'Rebuild Demo Index' : 'Build Demo Index'}
+      <button type="button" className="secondary-button" disabled={!selectionReady || busy !== ''} onClick={() => void rebuild()}>
+        {busy === 'rebuild' ? 'Rebuilding…' : selectedLocal ? ready ? 'Rebuild Selected Index' : 'Build Selected Index' : ready ? 'Rebuild Demo Index' : 'Build Demo Index'}
       </button>
     </section>
 
@@ -209,7 +264,7 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
       <p className="sandbox-disclaimer">{run.result.disclaimer}</p>
     </section>}
 
-    <section className="rag-section">
+    {!selectedLocal && <section className="rag-section">
       <div className="rag-section-heading"><div><h3>Deterministic Evaluation</h3><small>3 canonical cases · release gate</small></div>
         <button type="button" className="secondary-button" disabled={!ready || busy !== ''} onClick={() => void evaluate()}>{busy === 'eval' ? 'Evaluating…' : 'Run Evaluation'}</button>
       </div>
@@ -231,6 +286,7 @@ export function RagLab({ config }: { config?: HarnessConfig } = {}) {
           <span>Rank: {item.expectedRank ?? 'not retrieved'} · Actual: {item.actualChunkIds.join(', ') || 'none'}</span>
         </article>)}</div>
       </>}
-    </section>
+    </section>}
+    {selectedLocal && <p className="muted">The bundled Gold cases evaluate the synthetic dataset. Review selected-source claims, constraints, negation and citation support separately.</p>}
   </div>;
 }

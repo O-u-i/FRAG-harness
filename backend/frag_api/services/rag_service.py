@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 from frag_api.errors import (
+    HarnessSourceError,
     RagIndexNotReadyError,
     RagIndexStaleError,
     RagOutputError,
@@ -47,6 +48,7 @@ from frag_api.services.approval import ApprovalRegistry, PendingInferenceRegistr
 from frag_api.services.governed_flow import GovernedFlow
 from frag_api.services.model_preview import context_preview_fields
 from frag_api.services.runtime_policy import configured_secrets, redact
+from frag_api.services.selected_rag_index import SelectedRagIndex
 from frag_api.services.governed_context import (
     CONTEXT_OUTPUT_LIMIT,
     INFERENCE_OUTPUT_LIMIT,
@@ -100,9 +102,12 @@ class RagService:
         context_provider: LlmProvider | None = None,
         inference_provider: LlmProvider | None = None,
         eval_path: str | Path | None = None,
+        selected_source_service: ContextSourceService | None = None,
     ):
         self.source_service = source_service
         self.repository = repository
+        self.selected_source_service = selected_source_service
+        self.selected_cache_root = repository.path.parent / "selected"
         self.settings = settings
         self.context_provider = context_provider or provider_for(settings.context)
         self.inference_provider = inference_provider or provider_for(settings.inference)
@@ -116,7 +121,22 @@ class RagService:
             pending_inference=self.pending_inference,
         )
 
-    def status(self) -> RagIndexStatus:
+    def _selected(self, request):
+        if request and request.dataset_id == "selected-local-v1":
+            if self.selected_source_service is None:
+                raise HarnessSourceError()
+            selected = SelectedRagIndex(self.selected_source_service, self.selected_cache_root, request.source_selection)
+            protected = [self.repository.path]
+            if self.flow.runtime:
+                protected.append(self.flow.runtime.repository.path)
+            if selected.repository.path.exists() and any(path.exists() and selected.repository.path.samefile(path) for path in protected):
+                raise HarnessSourceError()
+            return selected
+        return None
+
+    def status(self, request: RagDatasetRequest | None = None) -> RagIndexStatus:
+        if selected := self._selected(request):
+            return selected.status()
         source_hash = self._source_hash()
         snapshot = self.repository.snapshot()
         if snapshot.index_revision is None:
@@ -135,6 +155,8 @@ class RagService:
         )
 
     def rebuild(self, request: RagDatasetRequest) -> RagIndexStatus:
+        if selected := self._selected(request):
+            return selected.rebuild(_search_text)
         source_text, source_hash = self._parse_source()
         parents, chunks = self._chunks_for(source_text)
         if not chunks:
@@ -159,9 +181,11 @@ class RagService:
         return self.status()
 
     def search(self, request: RagQueryRequest) -> RagSearchResponse:
-        status = self._require_ready()
-        snapshot, rows, _parents = self.repository.search_snapshot(_match_expression(request.query), request.top_k)
-        if snapshot.index_revision != status.index_revision or snapshot.source_hash != self._source_hash():
+        selected = self._selected(request)
+        status = selected.require_ready() if selected else self._require_ready()
+        repository = selected.repository if selected else self.repository
+        snapshot, rows, _parents = repository.search_snapshot(_match_expression(request.query), request.top_k)
+        if snapshot.index_revision != status.index_revision or snapshot.source_hash != (selected.current_hash() if selected else self._source_hash()):
             raise RagIndexStaleError()
         return self._search_response(request, status.index_revision or "", rows)
 
@@ -169,23 +193,31 @@ class RagService:
         return self.flow.loops.get("fixed").runner.preview(request, issue_approval=issue_approval)
 
     def _prepare_preview(self, request: RagQueryRequest) -> RagPreview:
-        status = self._require_ready()
-        snapshot, rows, parents = self.repository.search_snapshot(_match_expression(request.query), request.top_k)
-        if snapshot.index_revision != status.index_revision or snapshot.source_hash != self._source_hash():
+        selected = self._selected(request)
+        status = selected.require_ready() if selected else self._require_ready()
+        repository = selected.repository if selected else self.repository
+        snapshot, rows, parents = repository.search_snapshot(_match_expression(request.query), request.top_k)
+        if snapshot.index_revision != status.index_revision or snapshot.source_hash != (selected.current_hash() if selected else self._source_hash()):
             raise RagIndexStaleError()
         search = self._search_response(request, snapshot.index_revision or "", rows)
         evidence, matched_ids = self._expanded_evidence(rows, parents)
         for result in search.results:
             result.evidence_id = matched_ids.get(result.chunk_id)
         sources = (SourceBinding(
-            identity=SourceIdentity(kind="synthetic", namespace=fingerprint(str(self.source_service.root)), resourceId=DOCUMENT_ID),
-            revision=search.index_revision, parserVersion=CHUNK_STRATEGY_VERSION,
+            identity=SourceIdentity(kind="local_file" if selected else "synthetic",
+                namespace=selected.namespace if selected else fingerprint(str(self.source_service.root)),
+                resourceId=selected.document_id if selected else DOCUMENT_ID),
+            revision=search.index_revision, parserVersion=selected.parser_version if selected else CHUNK_STRATEGY_VERSION,
             locatorIds=tuple(dict.fromkeys(item.locator_id for item in evidence)),
             evidenceIds=tuple(item.evidence_id for item in evidence),
-            assessment=SourceAssessment(provenance=QualityFact(status="known", detail="Bundled synthetic dataset and selected index revision.")),
+            assessment=SourceAssessment(provenance=QualityFact(status="known", detail=(
+                f"Selected file SHA-256: {selected.source_hash}; scoped index revision: {search.index_revision}."
+                if selected else "Bundled synthetic dataset and selected index revision.")),
+                relevance=QualityFact(status="known", detail="User selection reason: " + redact(request.source_selection.relevance_reason))
+                if selected else QualityFact()),
         ),) if evidence else ()
         warnings = [
-            "This index contains only the bundled synthetic Markdown dataset.",
+            "This index contains only the explicitly selected file locators." if selected else "This index contains only the bundled synthetic Markdown dataset.",
             "Search and Preview make no model call. Run requires one-time approval.",
             "FTS ranking is a keyword baseline, not proof of authority or factual correctness.",
             "Input tokens estimate the complete request, including instructions and output schema.",
@@ -226,6 +258,8 @@ class RagService:
         )
 
     def evaluate(self, request: RagDatasetRequest) -> RagEvaluationReport:
+        if request.source_selection is not None:
+            raise RequestContractError([{"path": "body.datasetId", "message": "Bundled Gold evaluates only the synthetic dataset; selected files require human acceptance."}])
         self._require_ready()
         try:
             suite = json.loads(self.eval_path.read_text(encoding="utf-8"))
@@ -362,13 +396,13 @@ class RagService:
                 return evidence, {row.chunk_id: parent_evidence[row.parent_id] for row in rows}
             limit = int(limit * 0.75)
 
-    @staticmethod
     def _search_response(
-        request: RagQueryRequest, revision: str, rows: list[SearchRow]
+        self, request: RagQueryRequest, revision: str, rows: list[SearchRow]
     ) -> RagSearchResponse:
+        secrets = configured_secrets(self.settings) + (self.flow.runtime.redaction_secrets if self.flow.runtime else ())
         return RagSearchResponse(
             datasetId=request.dataset_id,
-            query=redact(request.query),
+            query=redact(request.query, secrets),
             topK=request.top_k,
             indexRevision=revision,
             results=[
@@ -380,8 +414,8 @@ class RagService:
                     documentId=row.document_id,
                     sourceId=row.source_id,
                     locatorId=row.locator_id,
-                    locatorLabel=row.locator_label,
-                    excerpt=_excerpt(row.text),
+                    locatorLabel=redact(row.locator_label, secrets),
+                    excerpt=_excerpt(redact(row.text, secrets)),
                 )
                 for index, row in enumerate(rows, start=1)
             ],

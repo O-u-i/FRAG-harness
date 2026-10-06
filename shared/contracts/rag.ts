@@ -3,16 +3,24 @@ import { stageResultSchema, tokenBudgetSchema } from './modelStages';
 import { preparedCallSchema, sourceBindingSchema, taskContractSchema } from './governance';
 import { selectedMemorySchema } from './memory';
 
-export const ragDatasetIdSchema = z.literal('synthetic-risk-review-v1');
-export const ragDatasetRequestSchema = z.object({ datasetId: ragDatasetIdSchema }).strict();
-export const ragQueryRequestSchema = ragDatasetRequestSchema.extend({
+export const ragDatasetIdSchema = z.enum(['synthetic-risk-review-v1', 'selected-local-v1']);
+export const ragDatasetRequestSchema = z.object({
+  datasetId: ragDatasetIdSchema,
+  sourceSelection: z.object({
+    relativePath: z.string().min(1).max(500),
+    locatorIds: z.array(z.string().min(1)).min(1).max(20).refine((ids) => new Set(ids).size === ids.length),
+    relevanceReason: z.string().min(3).max(500),
+  }).strict().nullable().optional(),
+}).strict().refine((value) => (value.datasetId === 'selected-local-v1') === Boolean(value.sourceSelection),
+  'Only the selected local dataset requires an explicit source selection.');
+export const ragQueryRequestSchema = ragDatasetRequestSchema.safeExtend({
   query: z.string().min(3).max(500),
   topK: z.number().int().min(1).max(10).default(3),
   task: taskContractSchema.optional(),
   selectedMemory: selectedMemorySchema.optional(),
   sessionId: z.string().max(64).nullable().optional(), parentRunId: z.string().max(64).nullable().optional(),
 }).strict();
-export const ragRunRequestSchema = ragQueryRequestSchema.extend({
+export const ragRunRequestSchema = ragQueryRequestSchema.safeExtend({
   contextFingerprint: z.string().length(64),
   approvalToken: z.string().min(32),
   approved: z.literal(true),

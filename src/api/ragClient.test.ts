@@ -68,6 +68,43 @@ describe('RAG client', () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual(dataset);
   });
 
+  it('sends the explicit selected scope for status, rebuild, search and preview', async () => {
+    const selected = { datasetId: 'selected-local-v1', sourceSelection: {
+      relativePath: 'synthetic.md', locatorIds: ['section-1'], relevanceReason: 'Explicit synthetic locator scope.',
+    } } as const;
+    const selectedInput = { ...selected, sourceSelection: { ...selected.sourceSelection, locatorIds: [...selected.sourceSelection.locatorIds] }, query: request.query, topK: 3 };
+    const selectedDataset = { datasetId: selectedInput.datasetId, sourceSelection: selectedInput.sourceSelection };
+    const selectedStatus = { ...status, datasetId: selected.datasetId };
+    const selectedSearch = { ...request, datasetId: selected.datasetId, indexRevision: revision, results: [chunk] };
+    const selectedPreview = { ...preview, datasetId: selected.datasetId };
+    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(selectedStatus)).mockResolvedValueOnce(Response.json(selectedStatus))
+      .mockResolvedValueOnce(Response.json(selectedSearch)).mockResolvedValueOnce(Response.json(selectedPreview));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchRagStatus(selectedDataset)).resolves.toEqual(selectedStatus);
+    await expect(rebuildRagIndex(selectedDataset)).resolves.toEqual(selectedStatus);
+    await expect(searchRag(selectedInput)).resolves.toEqual(selectedSearch);
+    await expect(previewRag(selectedInput)).resolves.toEqual(selectedPreview);
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/rag/status');
+    expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(call[1].body as string))).toEqual([
+      selectedDataset, selectedDataset, selectedInput, selectedInput,
+    ]);
+  });
+
+  it('rejects missing, duplicate or misplaced selected scope before any HTTP request', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const sourceSelection = { relativePath: 'synthetic.md', locatorIds: ['section-1'], relevanceReason: 'Explicit synthetic scope.' };
+    await expect(fetchRagStatus({ datasetId: 'selected-local-v1' })).rejects.toThrow();
+    await expect(rebuildRagIndex({ ...dataset, sourceSelection })).rejects.toThrow();
+    await expect(searchRag({ ...request, datasetId: 'selected-local-v1', sourceSelection: {
+      ...sourceSelection, locatorIds: ['section-1', 'section-1'],
+    } })).rejects.toThrow();
+    await expect(runRag({ ...request, datasetId: 'selected-local-v1', contextFingerprint: fingerprint,
+      approvalToken: preview.approvalToken, approved: true })).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('validates search, preview, and approved run', async () => {
     const search = { ...request, indexRevision: revision, results: [chunk] };
     const fetchMock = vi.fn()

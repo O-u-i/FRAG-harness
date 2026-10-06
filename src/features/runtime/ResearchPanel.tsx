@@ -25,7 +25,9 @@ function sourceKey(input: ReturnType<typeof memoryInput>) {
     fileSelections: input.fileSelections.map(({ relativePath, locatorIds }) => ({ relativePath, locatorIds })),
     pluginSelection: input.pluginSelection ?? null,
   }
-    : { datasetId: input.datasetId, query: input.query, topK: input.topK }) : undefined;
+    : { datasetId: input.datasetId, query: input.query, topK: input.topK,
+      sourceSelection: input.sourceSelection ? { relativePath: input.sourceSelection.relativePath, locatorIds: input.sourceSelection.locatorIds } : null,
+    }) : undefined;
 }
 
 export function ResearchPanel({ report, busy, continuation, onInvalidate, onPrepare, onDispatch }: Props) {
@@ -83,7 +85,7 @@ export function ResearchPanel({ report, busy, continuation, onInvalidate, onPrep
     <p className="muted">At most 3 model turns and 6 serial tools. The first request contains a source manifest; tools read only your selected scope.</p>
     {!existing && <label className="field">Research source kind<select value={kind} disabled={busy}
       onChange={(event) => { setKind(event.target.value as ResearchKind); setSourceText(''); invalidate(); }}>
-      <option value="harness">Selected local files</option><option value="rag">Selected synthetic RAG query</option>
+      <option value="harness">Selected local files</option><option value="rag">Selected RAG query</option>
     </select></label>}
     <label className="field">Research source selection JSON<textarea className="runtime-selection" value={sourceText} disabled={busy} spellCheck={false}
       placeholder="Paste the explicit Harness or RAG Lab source selection request."

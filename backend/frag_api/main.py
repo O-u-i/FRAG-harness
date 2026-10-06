@@ -74,10 +74,13 @@ def create_app(
             source_root=rag_source_root,
             eval_path=rag_eval_path,
         )
+        app.state.rag_service.selected_source_service = source_service
         path = Path(runtime_path or os.environ.get("FRAG_RUNTIME_PATH") or Path(__file__).resolve().parents[2] / ".local-runtime/runtime.sqlite3")
         index_path = app.state.rag_service.repository.path
         if path.resolve() == index_path.resolve() or (path.exists() and index_path.exists() and path.samefile(index_path)):
             raise ValueError("Runtime storage must be separate from the RAG index.")
+        if path.resolve().is_relative_to(app.state.rag_service.selected_cache_root.resolve()):
+            raise ValueError("Runtime storage must be separate from selected RAG caches.")
         repository = RuntimeRepository(path)
         with repository.owner_lease():
             app.state.runtime = RuntimeService(repository)
@@ -104,7 +107,7 @@ def create_app(
                     service.flow.runtime = None
                 app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.8.0", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.9.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.plugin_root = Path(plugin_root)
     app.state.plugin_hidden = set()

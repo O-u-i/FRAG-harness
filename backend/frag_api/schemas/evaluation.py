@@ -6,6 +6,7 @@ from typing import Any, Literal
 from pydantic import Field, model_validator
 
 from frag_api.schemas.common import ApiModel
+from frag_api.schemas.governance import SourceBinding
 from frag_api.schemas.rag import RagContextCompression, RagGroundedAnswer
 
 EvalStatus = Literal["PASS", "FAIL", "ERROR", "NOT_RUN", "UNDETERMINED"]
@@ -98,6 +99,31 @@ class GoldSuite(ApiModel):
         return self
 
 
+class CapturedGold(ApiModel):
+    """Human-written expectations bound to one explicit selected-source capture."""
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    suite_id: str = Field(alias="suiteId", min_length=1, max_length=100)
+    suite_version: str = Field(alias="suiteVersion", pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
+    run_id: str | None = Field(default=None, alias="runId", min_length=1, max_length=64)
+    goal: str = Field(min_length=3, max_length=500)
+    source_bindings: tuple[SourceBinding, ...] = Field(alias="sourceBindings", min_length=1, max_length=10)
+    expected_evidence_ids: list[str] = Field(alias="expectedEvidenceIds", min_length=1, max_length=1000)
+    facts: list[GoldFact] = Field(min_length=1, max_length=20)
+    required_missing_information: list[str] = Field(default_factory=list, alias="requiredMissingInformation", max_length=20)
+
+    @model_validator(mode="after")
+    def unique_bound_expectations(self):
+        for values in (self.expected_evidence_ids, [fact.id for fact in self.facts]):
+            if len(set(values)) != len(values) or any(not item for item in values):
+                raise ValueError("Captured Gold identifiers must be nonempty and unique.")
+        allowed = {key for binding in self.source_bindings for key in binding.evidence_ids}
+        if not set(self.expected_evidence_ids).issubset(allowed):
+            raise ValueError("Captured Gold evidence must belong to its explicit source bindings.")
+        if any(not item.strip() or len(item) > 500 for item in self.required_missing_information):
+            raise ValueError("Missing-information expectations must contain bounded literal text.")
+        return self
+
+
 class EvalCheck(ApiModel):
     id: str
     stage: str
@@ -124,14 +150,14 @@ class EvalCaseReport(ApiModel):
 
 class EvalReport(ApiModel):
     schema_version: Literal[1] = Field(default=1, alias="schemaVersion")
-    runner_version: Literal["1.1.0"] = Field(default="1.1.0", alias="runnerVersion")
+    runner_version: Literal["1.1.0", "1.2.0"] = Field(default="1.1.0", alias="runnerVersion")
     scorer_version: Literal["literal-facts-v1"] = Field(default="literal-facts-v1", alias="scorerVersion")
     host_version: str = Field(alias="hostVersion")
     suite_id: str | None = Field(default=None, alias="suiteId")
     suite_version: str | None = Field(default=None, alias="suiteVersion")
     source_revision: str | None = Field(default=None, alias="sourceRevision")
     source_hash: str | None = Field(default=None, alias="sourceHash")
-    provider: Literal["offline-scripted-fake"] = "offline-scripted-fake"
+    provider: Literal["offline-scripted-fake", "captured-artifacts"] = "offline-scripted-fake"
     status: EvalStatus
     semantic_review_status: Literal["UNDETERMINED"] = Field(default="UNDETERMINED", alias="semanticReviewStatus")
     trajectory_status: EvalStatus = Field(default="NOT_RUN", alias="trajectoryStatus")

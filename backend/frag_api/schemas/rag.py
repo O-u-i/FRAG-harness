@@ -2,18 +2,28 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from frag_api.schemas.common import ApiModel, ExplicitApproval, StageResult, TokenBudget
 from frag_api.schemas.governance import PreparedCall, SourceBinding, TaskContract
 from frag_api.schemas.memory import MemorySelection
+from frag_api.schemas.context_source import FileSourceSelection
 
-RagDatasetId = Literal["synthetic-risk-review-v1"]
+RagDatasetId = Literal["synthetic-risk-review-v1", "selected-local-v1"]
 RagIndexState = Literal["not_built", "ready", "stale"]
 
 
 class RagDatasetRequest(ApiModel):
     dataset_id: RagDatasetId = Field(alias="datasetId")
+    source_selection: FileSourceSelection | None = Field(default=None, alias="sourceSelection")
+
+    @model_validator(mode="after")
+    def explicit_dataset_source(self):
+        if (self.dataset_id == "selected-local-v1") != (self.source_selection is not None):
+            raise ValueError("Selected-local requires one explicit file selection; the synthetic dataset has none.")
+        if self.source_selection and len(set(self.source_selection.locator_ids)) != len(self.source_selection.locator_ids):
+            raise ValueError("Selected locators must be distinct.")
+        return self
 
 
 class RagQueryRequest(RagDatasetRequest):

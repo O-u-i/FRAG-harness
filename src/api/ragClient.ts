@@ -53,10 +53,11 @@ function parse<T>(schema: z.ZodType<T>, payload: unknown, label: string): T {
   return parsed.data;
 }
 
-export async function fetchRagStatus(): Promise<RagIndexStatus> {
-  return parse(ragIndexStatusSchema, await request('/api/rag/status', {
+export async function fetchRagStatus(input?: RagDatasetRequest): Promise<RagIndexStatus> {
+  const init = input ? json(ragDatasetRequestSchema.parse(input)) : {
     method: 'GET', headers: { Accept: 'application/json' },
-  }), 'status');
+  };
+  return parse(ragIndexStatusSchema, await request('/api/rag/status', init), 'status');
 }
 
 export async function rebuildRagIndex(input: RagDatasetRequest): Promise<RagIndexStatus> {

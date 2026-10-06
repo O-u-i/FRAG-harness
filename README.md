@@ -1,4 +1,4 @@
-# FRAG-harness v1.8.0
+# FRAG-harness v1.9.0
 
 The optional [Pi Responses adapter](docs/pi-adapter.md) uses a pinned, reviewed backend-only module selection. Enable it separately for Research, Context and Inference; every request retains exact preview and one-use approval. Synthetic live GPT acceptance remains a Phase 5 human gate.
 
@@ -6,7 +6,7 @@ FRAG-harness is a local application for governed evidence retrieval, an optional
 
 ## What runs in the core
 
-The React interface offers Harness, RAG Lab, Runs, Memory, and Plugins. The FastAPI backend owns local source parsing, exact outbound previews, single-use approval tokens for each model stage, the two model routes, citation validation, durable run history and human review, and a rebuildable SQLite FTS5 index for a bundled synthetic RAG dataset. Fake model providers work offline. Real model API credentials live only in `backend/.env`.
+The React interface offers Harness, RAG Lab, Runs, Memory, and Plugins. The FastAPI backend owns local source parsing, exact outbound previews, single-use approval tokens for each model stage, the two model routes, citation validation, durable run history and human review, and rebuildable SQLite FTS5 indexes. RAG Lab can use the bundled synthetic dataset or one explicitly selected local file and its selected locators. Fake model providers work offline. Real model API credentials live only in `backend/.env`.
 
 Both stages execute the server-owned `PreparedCall` that was previewed. It binds the complete request JSON, destination, transport, model, output schema, timeout, source revisions, selected locators, checklist and host policy versions. Revalidation rejects changed bindings; execution does not rebuild a request from evidence. Source hashing and parsing use one byte snapshot, and RAG hits, parent text and index revision share a database read snapshot. Input estimates include instructions and schemas; each stage and the cumulative run have budget checks.
 
@@ -16,13 +16,13 @@ Runs stores explicitly selected, redacted snapshots and request specifications i
 
 Recovery requires explicit reselection matching the saved sources, scope, revisions and request configuration, then a fresh preview and approval. A validated Context checkpoint resumes at Inference. A durably saved response can finish deterministic validation after restart. An interrupted dispatch without a committed response becomes `outcome_unknown` and cannot resume in the same run. It is never resent automatically. See [sessions and recovery](docs/runtime-sessions.md) for state, privacy and endpoint details.
 
-Offline evaluation uses versioned synthetic Gold and the production retrieval, model-stage validators, selected-read policy and tool carriers. Research cases record actual approved turns, serial tool execution, result feedback and finish decisions. Evaluation separates host enforcement, scripted model artifacts, trajectory checks, missing checks and scorer failures. Literal fact and trajectory checks do not establish semantic support; human review remains undetermined. See [offline evaluation](docs/offline-evaluation.md).
+Offline evaluation uses versioned synthetic Gold and the production retrieval, model-stage validators, selected-read policy and tool carriers. Research cases record actual approved turns, serial tool execution, result feedback and finish decisions. A separate capture mode scores an explicitly exported Run report against source-bound, human-written Gold without regenerating model outputs or rereading sources. Evaluation separates host enforcement, scripted or captured model artifacts, trajectory checks, missing checks and scorer failures. Literal fact and trajectory checks do not establish semantic support; human review remains undetermined. See [offline evaluation](docs/offline-evaluation.md).
 
 Memory candidates come from a saved model output or human revision. Editing, reviewing and promoting are human operations; FTS5 recommends at most three records after scope, status and conflict filtering. The next request binds their exact versions as background, while citations remain restricted to current evidence. Changing memory invalidates old previews. See [runtime memory](docs/runtime-memory.md).
 
 ## Architecture review diagrams
 
-These seven SVG exports describe the fixed Harness, RAG Lab, optional Research, reviewed-memory and plugin paths. Each Archify diagram has a linked interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration. Reviewed memory follows the same exact preview, version revalidation and one-use approval gates.
+These seven light-only SVG exports describe the fixed Harness, RAG Lab, optional Research, reviewed-memory and plugin paths. Each Archify diagram has a linked light-only interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration. Reviewed memory follows the same exact preview, version revalidation and one-use approval gates.
 
 ### Harness
 
@@ -36,9 +36,9 @@ Each stage requires a separate exact-input preview and a single-use approval. Th
 
 ### RAG Lab
 
-RAG Lab has a Build path and a query path. Explicit Build parses headings and title paths from the bundled synthetic Markdown file, recursively splits each section into overlapping small chunks, and stores child-to-parent relationships in a separate SQLite FTS5 index. Source or index-strategy changes require an explicit rebuild. A query ranks small chunks by retrieval `chunkId`; Preview deduplicates their parent sections and shows bounded parent context with a marked hit window and a distinct Context `evidenceId`. Search and Preview make no model call. [Explore the RAG index and retrieval flow](docs/architecture/rag-lab/dataflow.html).
+RAG Lab has a Build path and a query path. Choose the bundled synthetic Markdown dataset or explicitly select one local file and up to twenty locators, then click Build. The host recursively splits the selected sections into overlapping small chunks and stores child-to-parent relationships in an isolated SQLite FTS5 cache. Unselected sections cannot enter expanded parent context. Local caches are separated by source root, file and locator scope. A source change makes the cache stale; explicitly rebuild caches after parser or index-strategy upgrades. A query ranks small chunks by retrieval `chunkId`; Preview deduplicates their parent sections and shows bounded parent context with a marked hit window and a distinct Context `evidenceId`. Search and Preview make no model call. [Explore the RAG index and retrieval flow](docs/architecture/rag-lab/dataflow.html).
 
-![RAG Lab flow from explicit synthetic indexing through FTS5 retrieval to an exact Context preview](docs/architecture/rag-lab/dataflow.svg)
+![RAG Lab flow from explicit scoped indexing through FTS5 retrieval to an exact Context preview](docs/architecture/rag-lab/dataflow.svg)
 
 After retrieval, the optional answer path needs a ready index and retrieved evidence before Context Run. Context and Inference each require an exact input preview and independent one-time approval. The host checks compressed Context `evidenceId` values after the Context call and answer `evidenceIds` citations after the Inference call, before human review. [Explore the RAG query and approval lifecycle](docs/architecture/rag-lab/lifecycle.html).
 
@@ -99,7 +99,7 @@ npm run dev
 
 Open `http://localhost:5173`; the backend listens on `http://127.0.0.1:8787`. To configure either model, copy `backend/.env.example` to the Git ignored `backend/.env` and set provider, model, and backend-only credentials. `fake` is the default for both stages. Put supported `.md`, `.txt`, `.html`, `.pdf`, `.docx`, `.csv`, or `.xlsx` files under `local-sources/`; the folder is ignored except for instructions and placeholders. Files are never automatically indexed by the product.
 
-The RAG Lab source is `shared/demo/rag/synthetic-risk-review.md`. English words and Chinese bigrams are indexed as keyword terms; there is no embedding or vector retrieval. This bundled index contains no personal KB material. Other files require an explicitly configured source root and file/locator selection in Harness or the KB plugin.
+The bundled RAG Lab source is `shared/demo/rag/synthetic-risk-review.md`. Selected-local mode uses the configured local source root and explicit file/locator selection. Its caches live under `.local-index/selected/`, separately from the synthetic index and durable Run/memory database. English words and Chinese bigrams are indexed as keyword terms; there is no embedding or vector retrieval. No personal KB material is bundled or automatically indexed. The synthetic Gold button evaluates the bundled dataset; actual exported Run artifacts use the offline capture runner.
 
 Local caches, browser review profiles, and disposable test evidence under `.tmp/` have different retention rules. See the [temporary workspace guide](docs/tmp-workspace.md) before moving or cleaning them.
 
@@ -142,6 +142,23 @@ flowchart LR
 Disabling a package preserves its files and immediately hides its reader, routes and UI. Automatic batch uninstall is blocked. To remove files, disable the package, stop FRAG, inspect its exact directory under `.local-plugins/`, and delete that directory manually in File Explorer. No cleanup is required for this phase's ignored synthetic test artifacts.
 
 ## Checks and boundaries
+
+Phase 8 uses v1.9.0 for engineering delivery. Real GPT, selected KB, live FC and human semantic acceptance are separate manual gates; v2.0.0 remains pending those receipts and final versioned regression checks. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend iteration preparation](docs/frontend-iteration.md) records the existing page responsibilities and behaviors a later visual redesign must preserve.
+
+```mermaid
+flowchart TD
+    Select[Explicitly select one file and locators] --> Build[Build an isolated source index]
+    Build --> Retrieve[Retrieve scoped evidence]
+    Retrieve --> Research[Optional bounded Research with fresh approval per turn]
+    Research --> Context[Exact preview and separate Context approval]
+    Context --> Inference[Exact preview and separate Inference approval]
+    Inference --> Report[Save original output and structured Run report]
+    Report --> Gold[Offline captured-artifact checks]
+    Report --> Human[Human fact constraint and citation review]
+    Gold --> Gates[Collect real GPT KB and live FC acceptance receipts]
+    Human --> Gates
+    Gates --> Final[Pending v2.0.0 versioned regression]
+```
 
 ```powershell
 npm test

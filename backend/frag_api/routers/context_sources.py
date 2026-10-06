@@ -1,4 +1,5 @@
 from typing import Annotated
+import re
 
 from fastapi import APIRouter, Body, Depends, Request
 
@@ -10,6 +11,7 @@ from frag_api.schemas.context_source import (
     LocalFileSource,
 )
 from frag_api.services.context_source_service import ContextSourceError
+from frag_api.services.runtime_policy import redact
 
 router = APIRouter()
 
@@ -38,7 +40,16 @@ def inspect_file(
     request: Request, input_data: Annotated[LocalFileInspectRequest, Body()]
 ) -> LocalFileInspectResponse:
     try:
-        return service(request).inspect(input_data.relative_path)
+        parsed = service(request).parse(input_data.relative_path)
+        secrets = request.app.state.runtime.redaction_secrets
+        return LocalFileInspectResponse(
+            source=parsed.source,
+            locators=[section.locator.model_copy(update={
+                "label": redact(section.locator.label, secrets),
+                "excerpt": re.sub(r"\s+", " ", redact(section.text, secrets)).strip()[:240],
+            }) for section in parsed.sections],
+            warnings=[redact(warning, secrets) for warning in parsed.warnings],
+        )
     except (ContextSourceError, OSError, ValueError) as error:
         raise RequestContractError([
             {"path": "body.relativePath", "message": str(error)}

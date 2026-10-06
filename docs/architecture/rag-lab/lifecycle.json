@@ -12,7 +12,7 @@
     { "id": "terminal", "label": "Exit or review" }
   ],
   "states": [
-    { "id": "readyQuery", "type": "start", "label": "Ready-index query", "sublabel": "query + topK", "lane": "main", "col": 0, "step": "01" },
+    { "id": "readyQuery", "type": "start", "label": "Scoped index query", "sublabel": "source scope + topK", "lane": "main", "col": 0, "step": "01" },
     { "id": "ragPreview", "type": "waiting", "label": "Context preview", "sublabel": "parent evidence + token", "lane": "main", "col": 1, "step": "02" },
     { "id": "ragContext", "type": "active", "label": "Context model call", "sublabel": "approved evidence", "lane": "main", "col": 2, "step": "03" },
     { "id": "ragInferencePreview", "type": "waiting", "label": "Inference preview", "sublabel": "frozen request + token", "lane": "main", "col": 3, "step": "04" },
@@ -32,8 +32,8 @@
   ],
   "cards": [
     { "dot": "amber", "title": "Entry and approval gates", "items": [
-      "A ready index permits search; zero hits block Context Run.",
-      "Each stage needs its own exact preview and approval; changed source or memory versions reject old requests."
+      "An explicitly built synthetic or selected-local index permits search; zero hits block Context Run.",
+      "Each stage needs its own exact preview and approval; changed source scope, bytes or memory versions reject old requests."
     ] },
     { "dot": "emerald", "title": "Output checks", "items": [
       "After Context, output must retain exactly the previewed Context evidenceId values within budget.",

@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+from frag_api.captured_evaluation import score_capture
 from frag_api.errors import PolicyRejectedError, RagOutputError
 from frag_api.evaluation_scoring import aggregate, contains_literal, coverage, score_facts
 from frag_api.providers.llm import FakeLlmProvider, LlmCallResult, LlmSettings, LlmStageSettings
@@ -287,14 +288,17 @@ def render_markdown(report: EvalReport) -> str:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Evaluate explicit versioned synthetic Gold without network model calls.")
+    parser = argparse.ArgumentParser(description="Evaluate explicit versioned synthetic Gold or captured artifacts without network model calls.")
     parser.add_argument("--gold", required=True)
+    parser.add_argument("--capture", help="Explicit RunReport JSON; score saved original artifacts without executing a workflow.")
     parser.add_argument("--format", choices=("json", "markdown"), default="json")
     parser.add_argument("--work-dir", help="Local scratch parent; never cleaned automatically.")
     args = parser.parse_args(argv)
-    report = run_gold(args.gold, work_dir=args.work_dir)
+    if args.capture and args.work_dir:
+        parser.error("--work-dir applies only to synthetic workflow execution.")
+    report = score_capture(args.gold, args.capture) if args.capture else run_gold(args.gold, work_dir=args.work_dir)
     print(report.model_dump_json(by_alias=True, indent=2) if args.format == "json" else render_markdown(report))
-    return 0 if report.status == "PASS" else 2 if report.status == "FAIL" else 1
+    return 0 if report.status == "PASS" else 2 if report.status == "FAIL" else 3 if report.status in ("NOT_RUN", "UNDETERMINED") else 1
 
 
 if __name__ == "__main__":

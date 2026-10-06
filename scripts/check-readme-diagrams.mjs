@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 const markdown = readFileSync('README.md', 'utf8');
 const diagrams = [...markdown.matchAll(/```mermaid\s*\n([\s\S]*?)\n```/g)].map((match) => match[1]);
-if (diagrams.length !== 3) throw new Error(`Expected plugin, recovery and memory Mermaid flowcharts; found ${diagrams.length}.`);
+if (diagrams.length !== 4) throw new Error(`Expected plugin, recovery, memory and integrated acceptance Mermaid flowcharts; found ${diagrams.length}.`);
 for (const [index, diagram] of diagrams.entries()) {
   const lines = diagram.trim().split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (!/^flowchart (LR|RL|TD|TB|BT)$/.test(lines.shift())) throw new Error(`Diagram ${index + 1}: invalid flowchart header.`);
@@ -39,5 +39,14 @@ for (const svgPath of expectedSvg) {
       /<script\b|javascript:/i.test(svg)) {
     throw new Error(`Invalid or unsafe Archify SVG: ${svgPath}.`);
   }
+  if (!svg.includes('data-frag-archify-light="true"') || /prefers-color-scheme|\[data-theme="dark"\]/.test(svg)) {
+    throw new Error(`Architecture SVG must remain light-only: ${svgPath}.`);
+  }
+  const htmlPath = svgPath.replace(/\.svg$/, '.html');
+  const html = readFileSync(htmlPath, 'utf8');
+  if (!/<html\b[^>]*data-theme="light"[^>]*data-frag-archify-light="true"/.test(html) ||
+      !html.includes('btn.disabled = true;') || !html.includes('btn.hidden = true;')) {
+    throw new Error(`Architecture viewer must remain light-only: ${htmlPath}.`);
+  }
 }
-console.log('README diagram check passed: three Mermaid flowcharts and seven Archify SVG images.');
+console.log('README diagram check passed: four Mermaid flowcharts and seven Archify SVG images.');

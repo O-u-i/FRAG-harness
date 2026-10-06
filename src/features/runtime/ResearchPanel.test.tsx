@@ -59,6 +59,38 @@ describe('Research UI selection and checkpoint boundaries', () => {
     expect(markup).toContain('Finance Core stays on the fixed workflow');
     expect(markup).toContain('disabled="">Preview initial Research request'); expect(prepare).not.toHaveBeenCalled();
   });
+  it('compares selected RAG file and locators before offering saved-scope memories', () => {
+    const selected = { datasetId: 'selected-local-v1', query: 'Review uncertainty', topK: 3,
+      sourceSelection: { relativePath: 'a.md', locatorIds: ['section-1'], relevanceReason: 'Human selected this source.' } };
+    const current = report('A'); current.run.kind = 'rag'; current.selection.input = selected;
+    for (const sourceSelection of [
+      { ...selected.sourceSelection, relativePath: 'b.md' },
+      { ...selected.sourceSelection, locatorIds: ['section-2'] },
+    ]) {
+      const markup = renderToStaticMarkup(<ResearchPanel report={current} busy={false}
+        continuation={{ ...continuation, kind: 'rag', sourceRequest: { ...selected, sourceSelection } }}
+        onInvalidate={vi.fn()} onPrepare={vi.fn()} onDispatch={vi.fn()} />);
+      expect(markup).toContain('disabled="">Recommend reviewed memories');
+    }
+    const markup = renderToStaticMarkup(<ResearchPanel report={current} busy={false}
+      continuation={{ ...continuation, kind: 'rag', sourceRequest: { ...selected, sourceSelection: {
+        ...selected.sourceSelection, relevanceReason: 'A more detailed reason for the same source.',
+      } } }} onInvalidate={vi.fn()} onPrepare={vi.fn()} onDispatch={vi.fn()} />);
+    expect(markup).toContain('Recommend reviewed memories');
+    expect(markup).not.toContain('disabled="">Recommend reviewed memories');
+  });
+  it('keeps the server-serialized synthetic RAG selection usable after restoring history', () => {
+    const current = report('A'); current.run.kind = 'rag';
+    current.selection.input = { datasetId: 'synthetic-risk-review-v1', sourceSelection: null,
+      query: 'Review synthetic uncertainty', topK: 3, selectedMemory: [], task: reviewTask,
+      sessionId: null, parentRunId: null };
+    const markup = renderToStaticMarkup(<ResearchPanel report={current} busy={false}
+      onInvalidate={vi.fn()} onPrepare={vi.fn()} onDispatch={vi.fn()} />);
+    expect(markup).toContain('Recommend reviewed memories');
+    expect(markup).not.toContain('disabled="">Recommend reviewed memories');
+    expect(markup).toContain('Preview next Research stage');
+    expect(markup).not.toContain('disabled="">Preview next Research stage');
+  });
   it('renders persisted decisions, selected evidence and unknown gaps separately from final answers', () => {
     const current = report('A'); current.research = { ...current.research!, status: 'awaiting_context', selectedEvidenceIds: ['evidence-1'],
       missingInformation: ['Duration remains unknown.'], turns: [{ number: 1, attemptId: 'attempt-1', status: 'completed', errorCode: null,
