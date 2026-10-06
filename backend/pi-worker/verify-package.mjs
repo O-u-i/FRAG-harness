@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const expectedManifestSha256 = "378bb2d79b440bbba3a77c9c24de0a4de4335419bbce9f4edd68ca4e348c88dd";
+const expectedManifestSha256 = "3dbc875688d9ca92d31bb0979b82e9f16aaf7a2a6af472dcc03eb733223d9a25";
 const expectedPiCommit = "a13d35a742c6ef8462812a28fbe1d8c8b7431c32";
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 

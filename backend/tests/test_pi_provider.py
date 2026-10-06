@@ -24,6 +24,25 @@ def context_call(settings=SETTINGS):
         payload={'evidence': []}, output_model=RagContextCompression, max_output_tokens=1500, binding={})
 
 
+@pytest.mark.parametrize('change', ['lf', 'crlf', 'tampered'])
+def test_pi_manifest_accepts_lf_checkout_and_rejects_changed_bytes(monkeypatch, change):
+    from frag_api.providers import pi_integrity
+    from frag_api.providers.pi_process import WORKER_ROOT
+    manifest = WORKER_ROOT / 'vendor/pi-ai/selection-manifest.json'
+    read_bytes = Path.read_bytes
+    content = manifest.read_bytes().replace(b'\r\n', b'\n')
+    if change == 'crlf':
+        content = content.replace(b'\n', b'\r\n')
+    elif change == 'tampered':
+        content += b' '
+    monkeypatch.setattr(Path, 'read_bytes', lambda path: content if path == manifest else read_bytes(path))
+    if change == 'lf':
+        assert pi_integrity.adapter_binding()['selectionManifestHash'] == pi_integrity.MANIFEST_HASH
+    else:
+        with pytest.raises(RagNotReadyError):
+            pi_integrity.adapter_binding()
+
+
 def test_pi_freezes_wire_and_credentials_are_backend_only(monkeypatch):
     call = context_call()
     captured = []

@@ -2,13 +2,21 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { adapterIntegrity, execute } from '../worker.mjs';
+import { verifyPackage } from '../verify-package.mjs';
 import { createGuardedFetch } from '../wire.mjs';
 
 const KEY = 'sk-synthetic-worker-key';
 const FP = 'a'.repeat(64);
 const ADAPTER = { ...await adapterIntegrity(), hostAdapterHash: 'b'.repeat(64) };
+test('reviewed manifest uses LF checkout bytes and passes package verification', async () => {
+  const manifest = await readFile(new URL('../vendor/pi-ai/selection-manifest.json', import.meta.url));
+  assert.equal(manifest.includes(Buffer.from('\r\n')), false);
+  assert.equal((await verifyPackage({ installed: false })).status, 'PASS');
+});
+
 function prepared({ purpose = 'context', endpoint = 'https://api.openai.com/v1/responses', model = 'gpt-4.1-mini', ...changes } = {}) {
   const body = { model, instructions: 'Synthetic evidence only.', input: '{}',
     stream: true, store: false, max_output_tokens: purpose === 'research' ? 800 : 1500,
