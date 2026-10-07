@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "FRAG / VS Code migration boundary",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 620]
+  },
+  "components": [
+    { "id": "frag-ui", "type": "frontend", "label": "FRAG workspace", "sublabel": "Existing standalone GUI", "pos": [80, 95], "size": [210, 88] },
+    { "id": "frag-host", "type": "backend", "label": "Governed host", "sublabel": "Preview / approve / review", "pos": [435, 95], "size": [210, 88] },
+    { "id": "model-api", "type": "external", "label": "Model API", "sublabel": "Approved requests only", "pos": [790, 95], "size": [210, 88] },
+    { "id": "extension", "type": "frontend", "label": "Offline extension", "sublabel": "FRAG registration probe", "pos": [80, 290], "size": [210, 88] },
+    { "id": "proposed-api", "type": "backend", "label": "Proposed Chat API", "sublabel": "Registration accepted", "pos": [435, 290], "size": [210, 88] },
+    { "id": "shared-service", "type": "backend", "label": "Chat session service", "sublabel": "Handler never invoked", "pos": [790, 290], "size": [210, 88] },
+    { "id": "agents-shell", "type": "frontend", "label": "Native Agents window", "sublabel": "VS Code 1.140.0", "pos": [80, 485], "size": [210, 88] },
+    { "id": "native-registry", "type": "backend", "label": "Native provider registry", "sublabel": "FRAG absent from picker", "pos": [435, 485], "size": [210, 88] }
+  ],
+  "connections": [
+    { "id": "existing-http", "from": "frag-ui", "to": "frag-host", "label": "HTTP", "variant": "emphasis" },
+    { "id": "approved-request", "from": "frag-host", "to": "model-api", "label": "approval", "variant": "security" },
+    { "id": "probe-registration", "from": "extension", "to": "proposed-api", "label": "register" },
+    { "id": "shared-registration", "from": "proposed-api", "to": "shared-service", "label": "accepted" },
+    { "id": "native-picker", "from": "agents-shell", "to": "native-registry", "label": "enumerate" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Existing FRAG", "items": ["Standalone GUI retained", "Model and human checks reported complete by maintainer"] },
+    { "dot": "amber", "title": "Migration gate failed", "items": ["Native session: loadSession called on null", "No bridge established to the native registry", "Right review page awaits a carrier decision"] }
+  ]
+}

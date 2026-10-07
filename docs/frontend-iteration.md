@@ -1,6 +1,8 @@
 # Frontend iteration without changing governed behavior
 
-This document prepares a later visual iteration of Harness, RAG Lab, Runs, Memory and Plugins in a light, clear professional style. An introductory landing page is outside this scope. Navigation, typography, exact colors, component references and assets remain design decisions under discussion; implementation of the visual redesign awaits a confirmed brief. Phase 8 keeps the existing React/Vite application and backend contracts while adding explicitly selected local-source retrieval to RAG Lab.
+Plan D concerns migration into the VS Code Agents window. The existing Harness, RAG Lab, Runs, Memory and Plugins GUI is retained; the maintainer reports its functional checks complete. Supplied component references apply only to a prospective right-hand review surface. The [native carrier probe](../integrations/vscode/README.md) failed on the tested VS Code build, so review-surface implementation awaits the carrier decision.
+
+The constraints below remain a reference for preserving governed behavior. Their optional redesign sequence does not authorize changes to the standalone GUI in Plan D. Phase 8's existing React/Vite application and backend contracts remain the functional baseline.
 
 ## Existing ownership
 

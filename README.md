@@ -1,8 +1,16 @@
 # FRAG-harness v1.9.0
 
-The optional [Pi Responses adapter](docs/pi-adapter.md) uses a pinned, reviewed backend-only module selection. Enable it separately for Research, Context and Inference; every request retains exact preview and one-use approval. Synthetic live GPT acceptance remains a Phase 5 human gate.
+The optional [Pi Responses adapter](docs/pi-adapter.md) uses a pinned, reviewed backend-only module selection. Enable it separately for Research, Context and Inference; every request retains exact preview and one-use approval. The maintainer reports real-model and manual integration verification complete for the existing FRAG functionality; those results are separate from the VS Code carrier check below.
 
 FRAG-harness is a local application for governed evidence retrieval, an optional bounded Research loop and two formal model stages. It starts with no Finance Core installation, account, token, or database. Research collects selected evidence through real read tools; the Context LLM compresses approved evidence and the Inference LLM produces a cited answer. Selection, redaction, token budgeting, approval, output validation, and citation checks are deterministic host code.
+
+## VS Code migration: Plan D
+
+Plan D targets a FRAG session in the VS Code Agents window and a FRAG-designed right-hand review page. The existing standalone GUI is retained. The offline [VS Code compatibility probe](integrations/vscode/README.md) registered successfully on VS Code 1.140.0, but FRAG did not appear in the native session picker and the session-opening command failed with a renderer `loadSession` error. The FRAG content provider and handler were never invoked. Native migration and the right-hand review page remain unimplemented pending a carrier decision.
+
+[Explore the migration boundary](docs/architecture/vscode-migration/architecture.html) · [Editable source](docs/architecture/vscode-migration/architecture.json).
+
+![FRAG standalone workflow and the unbridged VS Code Agents session boundary](docs/architecture/vscode-migration/architecture.svg)
 
 ## What runs in the core
 
@@ -22,7 +30,7 @@ Memory candidates come from a saved model output or human revision. Editing, rev
 
 ## Architecture review diagrams
 
-These seven light-only SVG exports describe the fixed Harness, RAG Lab, optional Research, reviewed-memory and plugin paths. Each Archify diagram has a linked light-only interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration. Reviewed memory follows the same exact preview, version revalidation and one-use approval gates.
+The seven core light-only SVG exports below describe the fixed Harness, RAG Lab, optional Research, reviewed-memory and plugin paths; the migration section adds a separate compatibility diagram. Each Archify diagram has a linked light-only interactive HTML view and an editable Archify JSON specification under `docs/architecture/`. They are review documentation, not runtime telemetry or orchestration. Reviewed memory follows the same exact preview, version revalidation and one-use approval gates.
 
 ### Harness
 
@@ -143,7 +151,7 @@ Disabling a package preserves its files and immediately hides its reader, routes
 
 ## Checks and boundaries
 
-Phase 8 uses v1.9.0 for engineering delivery. Real GPT, selected KB, live FC and human semantic acceptance are separate manual gates; v2.0.0 remains pending those receipts and final versioned regression checks. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend iteration preparation](docs/frontend-iteration.md) records the existing page responsibilities and behaviors a later visual redesign must preserve.
+The engineering version remains v1.9.0. The maintainer reports real-model and manual integration verification complete for existing FRAG functionality. This migration task did not repeat those checks or assess live FC. Private acceptance receipts, explicit phase acceptance and final versioned regression remain separate from a version change; this task does not close Phase 8 or release v2.0.0. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend constraints](docs/frontend-iteration.md) record the behavior retained by the standalone GUI and a future review surface.
 
 ```mermaid
 flowchart TD
@@ -171,6 +179,6 @@ npm run test:python
 
 Tests use synthetic sources and temporary indexes. Backend-only keys and optional FC tokens must never enter browser assets, prompts, logs, tracked files, or error responses. Model answers require human review. FRAG does not connect to trading, banking, payment, or live-market APIs. The [plugin handoff](docs/finance-core-plugin-handoff.md) defines the optional FC integration boundary.
 
-LangGraph runs embedded in FastAPI for Research turn/tool routing, Context Run, and Inference Run orchestration. Preview is an ordinary host function and makes no model call. Host code still owns evidence selection, budgets, approval tokens, provider calls, validation and durable checkpoints. The graphs have no LangGraph checkpointer, external Agent Server, or LangSmith tracing. Research supports complete typed model proposals and optional native Pi tool-call transport; synthetic live GPT and human semantic acceptance remain Phase 5 gates. [Future Agent Server assessment](docs/horizon/horizon-1.md). Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
+LangGraph runs embedded in FastAPI for Research turn/tool routing, Context Run, and Inference Run orchestration. Preview is an ordinary host function and makes no model call. Host code still owns evidence selection, budgets, approval tokens, provider calls, validation and durable checkpoints. The graphs have no LangGraph checkpointer, external Agent Server, or LangSmith tracing. Research supports complete typed model proposals and optional native Pi tool-call transport. [Future Agent Server assessment](docs/horizon/horizon-1.md). Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
 
 Thanks to [Archify](https://github.com/tt-a1i/archify) for the diagram tooling. The Archify 2.17 viewers are distributed with their [MIT copyright and permission notice](docs/architecture/ARCHIFY-LICENSE.txt); retain this notice when sharing the viewers separately.

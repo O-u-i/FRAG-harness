@@ -87,12 +87,18 @@ function checkSvg(text) {
   assert(!/<script\b|javascript:/i.test(text), 'SVG includes executable content.');
 }
 
-const checkOnly = process.argv.slice(2).includes('--check');
-assert(process.argv.slice(2).every((argument) => argument === '--check'), 'Only --check is supported.');
-const receiptPath = '.local-plan-b/phase-8/diagrams/light-output-transform.json';
+const args = process.argv.slice(2);
+const checkOnly = args.includes('--check');
+const selection = args.filter((argument) => argument !== '--check');
+assert(selection.length === 0 || (selection.length === 2 && selection[0] === '--diagram' &&
+  selection[1] === 'vscode-migration/architecture'), 'Use --check and optionally --diagram vscode-migration/architecture.');
+const migrationOnly = selection.length > 0;
+const selectedDiagrams = migrationOnly ? ['vscode-migration/architecture'] : diagrams;
+const receiptPath = migrationOnly ? '.tmp/vscode-migration/light-output-transform.json'
+  : '.local-plan-b/phase-8/diagrams/light-output-transform.json';
 let priorReceipt = null;
 try { priorReceipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch {}
-const artifacts = diagrams.flatMap((diagram) => ['html', 'svg'].map((extension) => {
+const artifacts = selectedDiagrams.flatMap((diagram) => ['html', 'svg'].map((extension) => {
   const path = `docs/architecture/${diagram}.${extension}`;
   const original = readFileSync(path, 'utf8');
   const output = checkOnly ? original : extension === 'html' ? lightHtml(original) : lightSvg(original);
@@ -117,4 +123,4 @@ if (!checkOnly) {
     }),
   }, null, 2) + '\n');
 }
-console.log(`Architecture light-only ${checkOnly ? 'check' : 'transformation'} passed: seven HTML viewers and seven SVGs.`);
+console.log(`Architecture light-only ${checkOnly ? 'check' : 'transformation'} passed: ${selectedDiagrams.length} HTML viewers and ${selectedDiagrams.length} SVGs.`);

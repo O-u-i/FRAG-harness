@@ -117,6 +117,7 @@ APIKey*
 !docs/architecture/research/workflow.svg
 !docs/architecture/memory/workflow.svg
 !docs/architecture/plugins/workflow.svg
+!docs/architecture/vscode-migration/architecture.svg
 *.zip
 *.7z
 *.rar

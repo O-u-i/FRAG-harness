@@ -1,0 +1,47 @@
+{
+  "name": "frag-agents-probe",
+  "displayName": "FRAG Agents Compatibility Probe",
+  "description": "Offline verification of FRAG session registration in the VS Code Agents window.",
+  "version": "0.0.1",
+  "publisher": "frag-local",
+  "private": true,
+  "engines": { "vscode": "1.140.0" },
+  "main": "./extension.cjs",
+  "activationEvents": ["onStartupFinished"],
+  "enabledApiProposals": ["chatSessionsProvider"],
+  "contributes": {
+    "commands": [
+      { "command": "frag.probe.inspect", "title": "FRAG: Inspect Offline Compatibility" },
+      { "command": "frag.probe.newSession", "title": "FRAG: Try Native Session Registration" }
+    ],
+    "chatParticipants": [
+      { "id": "frag-local.offline", "name": "fragoffline", "fullName": "FRAG Offline Probe", "description": "Local echo only; no model, source, or backend access." }
+    ],
+    "chatSessions": [
+      {
+        "type": "frag-offline",
+        "name": "fragoffline",
+        "displayName": "FRAG Offline Probe",
+        "description": "Verify dedicated FRAG session handling without a model.",
+        "icon": "$(beaker)",
+        "requiresCopilotSignIn": false,
+        "requiresCustomModels": false,
+        "supportsAutoModel": false,
+        "autoAttachReferences": false,
+        "capabilities": {
+          "supportsFileAttachments": false,
+          "supportsToolAttachments": false,
+          "supportsMCPAttachments": false,
+          "supportsImageAttachments": false,
+          "supportsInstructionAttachments": false,
+          "supportsSourceControlAttachments": false,
+          "supportsProblemAttachments": false,
+          "supportsSymbolAttachments": false,
+          "supportsSearchResultAttachments": false,
+          "supportsPromptAttachments": false,
+          "supportsHandOffs": false
+        }
+      }
+    ]
+  }
+}

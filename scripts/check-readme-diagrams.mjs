@@ -25,11 +25,12 @@ const expectedSvg = [
   'docs/architecture/research/workflow.svg',
   'docs/architecture/memory/workflow.svg',
   'docs/architecture/plugins/workflow.svg',
+  'docs/architecture/vscode-migration/architecture.svg',
 ];
-const embeddedSvg = [...markdown.matchAll(/!\[[^\]]+\]\((docs\/architecture\/(?:harness|rag-lab|research|memory|plugins)\/(?:dataflow|lifecycle|workflow)\.svg)\)/g)]
+const embeddedSvg = [...markdown.matchAll(/!\[[^\]]+\]\((docs\/architecture\/(?:harness|rag-lab|research|memory|plugins|vscode-migration)\/(?:dataflow|lifecycle|workflow|architecture)\.svg)\)/g)]
   .map((match) => match[1]);
 if (embeddedSvg.length !== expectedSvg.length || new Set(embeddedSvg).size !== expectedSvg.length) {
-  throw new Error(`Expected seven distinct Archify SVG images in README; found ${embeddedSvg.length}.`);
+  throw new Error(`Expected eight distinct Archify SVG images in README; found ${embeddedSvg.length}.`);
 }
 for (const svgPath of expectedSvg) {
   if (!embeddedSvg.includes(svgPath)) throw new Error(`README does not embed ${svgPath}.`);
@@ -49,4 +50,4 @@ for (const svgPath of expectedSvg) {
     throw new Error(`Architecture viewer must remain light-only: ${htmlPath}.`);
   }
 }
-console.log('README diagram check passed: four Mermaid flowcharts and seven Archify SVG images.');
+console.log('README diagram check passed: four Mermaid flowcharts and eight Archify SVG images.');
