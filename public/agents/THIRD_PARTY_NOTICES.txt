@@ -1,0 +1,19 @@
+FRAG Review - third-party assets
+
+@fontsource-variable/archivo 5.3.0; normal style, weights 100-900.
+License: OFL-1.1; complete notice: fonts/ARCHIVO-OFL.txt.
+Files are unchanged copies of the installed font package explicitly selected by the user.
+Authoritative font source: https://github.com/Omnibus-Type/Archivo
+SHA-256:
+archivo-latin-wght-normal.woff2 8f704806dbedeaaeca334b11ec348bc3ac3a439d6431544b3afb54f534ee4967
+archivo-latin-ext-wght-normal.woff2 ff4f17d21930e36d6d93baba663e624cb767afc3feebf7adaebd82242638de05
+archivo-vietnamese-wght-normal.woff2 5a621c5598a31392555104ccdc41a46c3104f1cc22666024a8afb881ca9adaab
+
+React Bits LineSidebar and GlassIcons: adapted user-supplied reference code.
+License snapshot: 63a008de65732d73010bd219d25d15c47739bb31.
+Source: https://github.com/DavidHDev/react-bits
+License: MIT + Commons Clause; complete notice: REACT-BITS-LICENSE.md.
+Integrated application use only; not a standalone component offering.
+
+Stepper, branched navigation, selection styling and SVG navigation symbols are original FRAG code.
+No motion or Hugeicons package is added. Existing React dependency notices remain applicable.

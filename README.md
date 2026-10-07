@@ -6,11 +6,15 @@ FRAG-harness is a local application for governed evidence retrieval, an optional
 
 ## VS Code migration: Plan D
 
-Plan D targets a FRAG session in the VS Code Agents window and a FRAG-designed right-hand review page. The existing standalone GUI is retained. The offline [VS Code compatibility probe](integrations/vscode/README.md) registered successfully on VS Code 1.140.0, but FRAG did not appear in the native session picker and the session-opening command failed with a renderer `loadSession` error. The FRAG content provider and handler were never invoked. Native migration and the right-hand review page remain unimplemented pending a carrier decision.
+Plan D connects FRAG to the native Agents window through a local **AHP 0.9.0** host under **Remote**. A new FRAG-designed page opens in the right-hand **Browser** tab; the standalone GUI keeps its existing layout. The review page merges Harness/RAG evidence and Context controls, shares reports and human review, and uses **Archivo Variable 5.3.0** with the supplied component references.
+
+Start with `npm run agents`, merge the generated ignored connection settings into Agents, select **Remote → FRAG → Folders → frag-workspace**, then open the review URL from the native reply in **Sessions: Browser**. Native Send saves a task; every model request still needs its exact preview and separate approval. [Startup](integrations/vscode/README.md) · [Review UI and component structure](src/agents/README.md) · [Backend adapter](backend/frag_api/services/AGENT-HOST.md).
+
+The actual native flow was verified on VS Code **1.140.0** with synthetic evidence and two Fake calls: native task, Browser approvals, saved run and native result. This migration check made no paid provider, real KB or live FC call. Native tools/skills/MCP are not imported, terminals are unsupported, and Browser opening is manual. The earlier proposed Chat extension remains a [failed historical probe](integrations/vscode/CHAT-PROBE.md). [Native evidence](integrations/vscode/NATIVE-AGENTS.md).
 
 [Explore the migration boundary](docs/architecture/vscode-migration/architecture.html) · [Editable source](docs/architecture/vscode-migration/architecture.json).
 
-![FRAG standalone workflow and the unbridged VS Code Agents session boundary](docs/architecture/vscode-migration/architecture.svg)
+![Native AHP conversation and new Browser review sharing the governed FRAG host](docs/architecture/vscode-migration/architecture.svg)
 
 ## What runs in the core
 
@@ -151,7 +155,7 @@ Disabling a package preserves its files and immediately hides its reader, routes
 
 ## Checks and boundaries
 
-The engineering version remains v1.9.0. The maintainer reports real-model and manual integration verification complete for existing FRAG functionality. This migration task did not repeat those checks or assess live FC. Private acceptance receipts, explicit phase acceptance and final versioned regression remain separate from a version change; this task does not close Phase 8 or release v2.0.0. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend constraints](docs/frontend-iteration.md) record the behavior retained by the standalone GUI and a future review surface.
+The engineering version remains v1.9.0. The maintainer reports real-model and manual integration verification complete for existing FRAG functionality. This migration task did not repeat those checks or assess live FC. Private acceptance receipts, explicit phase acceptance and final versioned regression remain separate from a version change; this task does not close Phase 8 or release v2.0.0. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend constraints](docs/frontend-iteration.md) record the behavior retained by the standalone GUI and the new Browser review surface.
 
 ```mermaid
 flowchart TD

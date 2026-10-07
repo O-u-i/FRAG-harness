@@ -9,6 +9,7 @@ from typing import Callable
 
 from frag_api.errors import RuntimeNotFoundError
 from frag_api.schemas.runtime import RunRecord, RunReport, SessionRecord
+from frag_api.schemas.agents import AgentSession
 
 
 class RuntimeRepository:
@@ -22,6 +23,7 @@ class RuntimeRepository:
             db.execute("CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, record TEXT NOT NULL)")
             db.execute("CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), record TEXT NOT NULL)")
             db.execute("CREATE INDEX IF NOT EXISTS runs_session ON runs(session_id)")
+            db.execute("CREATE TABLE IF NOT EXISTS agent_sessions (session_id TEXT PRIMARY KEY REFERENCES sessions(id), record TEXT NOT NULL)")
             db.execute("PRAGMA user_version=1")
 
     @contextmanager
@@ -84,6 +86,39 @@ class RuntimeRepository:
         with self.connection() as db:
             rows = db.execute("SELECT record FROM sessions ORDER BY rowid DESC LIMIT 200").fetchall()
         return [SessionRecord.model_validate_json(row[0]) for row in rows]
+
+    def agent_session(self, session_id: str) -> AgentSession:
+        with self.connection() as db:
+            row = db.execute("SELECT record FROM agent_sessions WHERE session_id=?", (session_id,)).fetchone()
+        if row is None:
+            raise RuntimeNotFoundError()
+        return AgentSession.model_validate_json(row[0])
+
+    def agent_sessions(self) -> list[AgentSession]:
+        with self.connection() as db:
+            rows = db.execute("SELECT record FROM agent_sessions ORDER BY rowid DESC LIMIT 200").fetchall()
+        return [AgentSession.model_validate_json(row[0]) for row in rows]
+
+    def create_agent_session(self, session: SessionRecord, carrier: AgentSession) -> AgentSession:
+        with self.connection() as db:
+            existing = db.execute("SELECT record FROM agent_sessions WHERE session_id=?", (session.id,)).fetchone()
+            if existing:
+                return AgentSession.model_validate_json(existing[0])
+            db.execute("INSERT INTO sessions VALUES (?,?)", (session.id, session.model_dump_json(by_alias=True)))
+            db.execute("INSERT INTO agent_sessions VALUES (?,?)", (session.id, carrier.model_dump_json(by_alias=True)))
+        return carrier
+
+    def update_agent_session(self, session_id: str, mutate) -> AgentSession:
+        with self.connection() as db:
+            row = db.execute("SELECT record FROM agent_sessions WHERE session_id=?", (session_id,)).fetchone()
+            if row is None:
+                raise RuntimeNotFoundError()
+            value = AgentSession.model_validate_json(row[0])
+            mutate(value)
+            value.version += 1
+            value = AgentSession.model_validate(value.model_dump(by_alias=True))
+            db.execute("UPDATE agent_sessions SET record=? WHERE session_id=?", (value.model_dump_json(by_alias=True), session_id))
+        return value
 
     def create(self, report: RunReport) -> RunReport:
         with self.connection() as db:

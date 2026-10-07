@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from fastapi.responses import JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHttpException
 
 from frag_api.errors import (
@@ -29,6 +30,8 @@ from frag_api.routers.runtime import router as runtime_router
 from frag_api.routers.tools import router as tools_router
 from frag_api.routers.research import router as research_router
 from frag_api.routers.memory import router as memory_router
+from frag_api.routers.agents import router as agents_router
+from frag_api.services.agent_host import AgentHost
 from frag_api.services.memory_service import MemoryService
 from frag_api.services.kb_tools import KBTools
 from frag_api.services.research_flow import ResearchFlow
@@ -61,6 +64,8 @@ def create_app(
     rag_eval_path: str | Path | None = None,
     plugin_root: str | Path = DEFAULT_PLUGIN_ROOT,
     runtime_path: str | Path | None = None,
+    agent_host_enabled: bool | None = None,
+    review_origin: str = "http://127.0.0.1:8787",
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -97,10 +102,12 @@ def create_app(
             definition, execute = host_cli_binding()
             app.state.harness_service.cli_registry.register(definition, execute)
             app.state.research = ResearchFlow(app.state.runtime, app.state.harness_service, app.state.rag_service, app.state.kb_tools)
+            app.state.agent_host = AgentHost(app, review_origin)
             try:
                 yield
             finally:
                 app.state.research.close()
+                app.state.agent_host.pending.clear()
                 for _, service in services:
                     service.approvals.clear()
                     service.pending_inference.clear()
@@ -109,6 +116,7 @@ def create_app(
 
     app = FastAPI(title="FRAG-harness API", version="1.9.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
+    app.state.agent_host_enabled = agent_host_enabled if agent_host_enabled is not None else os.environ.get("FRAG_AGENT_HOST_ENABLED") == "1"
     app.state.plugin_root = Path(plugin_root)
     app.state.plugin_hidden = set()
     app.state.plugin_management_lock = asyncio.Lock()
@@ -149,6 +157,12 @@ def create_app(
     app.include_router(research_router)
     app.include_router(memory_router)
     app.include_router(plugins_router)
+    app.include_router(agents_router)
+    assets = Path(__file__).resolve().parents[2] / "dist/assets"
+    if app.state.agent_host_enabled and assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets), name="review-assets")
+        if (assets.parent / "agents").is_dir():
+            app.mount("/agents", StaticFiles(directory=assets.parent / "agents"), name="review-fonts-notices")
     for plugin in plugins.values():
         app.include_router(plugin.router)
         app.add_api_route(plugin.ui_url, _plugin_ui(plugin), methods=["GET"], include_in_schema=False)

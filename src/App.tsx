@@ -1,3 +1,4 @@
+import './styles.css';
 import { useEffect, useState } from 'react';
 import { fetchHarnessConfig } from './api/harnessClient';
 import { checkBackendHealth } from './api/healthClient';

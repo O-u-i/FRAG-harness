@@ -1,10 +1,12 @@
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App';
-import './styles.css';
+const App = lazy(() => import('./App'));
+const AgentReviewApp = lazy(() => import('./agents/AgentReviewApp'));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Suspense fallback={<p>Loading FRAG…</p>}>
+      {window.location.pathname === '/review' ? <AgentReviewApp /> : <App />}
+    </Suspense>
   </StrictMode>,
 );

@@ -1,6 +1,8 @@
 # Frontend iteration without changing governed behavior
 
-Plan D concerns migration into the VS Code Agents window. The existing Harness, RAG Lab, Runs, Memory and Plugins GUI is retained; the maintainer reports its functional checks complete. Supplied component references apply only to a prospective right-hand review surface. The [native carrier probe](../integrations/vscode/README.md) failed on the tested VS Code build, so review-surface implementation awaits the carrier decision.
+Plan D implements the new **FRAG Review** page in the native VS Code right-hand Browser, retaining the standalone Harness, RAG Lab, Runs, Memory and Plugins GUI. The maintainer chose Remote access to a local FRAG AHP host. Supplied components guide the Line Sidebar, Glass Icons, Stepper and branched Customizations layout; Archivo Variable 5.3.0 replaces the old typography in this entry only.
+
+Workspace merges file/retrieval/plugin evidence and Context preparation, then shows separate Inference approval and one shared report. Long feature explanations live in the [review README](../src/agents/README.md). Exact requests, bindings, approval facts and separate validation/human-review outcomes remain visible to support decisions. See [implemented native integration](../integrations/vscode/README.md).
 
 The constraints below remain a reference for preserving governed behavior. Their optional redesign sequence does not authorize changes to the standalone GUI in Plan D. Phase 8's existing React/Vite application and backend contracts remain the functional baseline.
 

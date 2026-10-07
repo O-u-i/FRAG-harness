@@ -7,6 +7,7 @@
     "dev": "concurrently --kill-others --names client,backend \"npm:dev:client\" \"npm:dev:server\"",
     "dev:client": "vite",
     "dev:server": "node scripts/start-frag-backend.mjs",
+    "agents": "npm run build && node scripts/start-frag-agents.mjs",
     "check:size": "node scripts/check-source-size.mjs",
     "check:boundaries": "node scripts/check-module-boundaries.mjs",
     "check:version": "node scripts/check-version-sync.mjs",
