@@ -23,13 +23,22 @@ function hostEnvironment(installation, key, source = process.env) {
   return { ...env, PYTHONPATH: join(installation, 'backend'), PYTHONUTF8: '1',
     PYTHONDONTWRITEBYTECODE: '1', FRAG_HOST_INSTALLED: '1', FRAG_BRIDGE_KEY: key };
 }
-function stopChild(child) {
+async function stopChild(child) {
   if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
   // Windows venv launchers can own a second Python process. Stop this owned tree only.
   if (process.platform === 'win32') {
-    spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
-      .on('error', () => child.kill());
+    await new Promise((resolve, reject) => {
+      const killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+      killer.once('error', reject);
+      killer.once('exit', code => code === 0 || child.exitCode !== null || child.signalCode !== null
+        ? resolve() : reject(new Error('Owned Host termination failed')));
+    });
   } else child.kill();
+  if (child.exitCode === null && child.signalCode === null) await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { child.removeListener('exit', done); reject(new Error('Owned Host termination timed out')); }, 5000);
+    function done() { clearTimeout(timer); resolve(); }
+    child.once('exit', done);
+  });
 }
 async function launchHost(installation, folder, storage, bridge) {
   const project = realpathSync(folder), id = projectIdentity(project);
@@ -48,6 +57,8 @@ async function launchHost(installation, folder, storage, bridge) {
   child.on('error', () => { failed = true; });
   child.on('exit', () => { failed = true; });
   const origin = `http://127.0.0.1:${port}`;
+  const owned = { child, bridge, project, id, origin, address: `ws://127.0.0.1:${port}/api/agents/ahp`,
+    name: `FRAG · ${id.slice(0, 8)}`, async stop() { try { await stopChild(child); } finally { await bridge.close(); } } };
   try {
     for (let attempt = 0; attempt < 200; attempt++) {
       if (failed) throw new Error('Host startup failed. Check the installed bundle and directory separation.');
@@ -55,13 +66,15 @@ async function launchHost(installation, folder, storage, bridge) {
         const response = await fetch(origin + '/api/health', { signal: AbortSignal.timeout(400), redirect: 'error' });
         const value = await response.json();
         if (response.ok && value.service === 'frag-harness' && value.serviceVersion === '1.10.0') {
-          return { child, bridge, project, id, origin, address: `ws://127.0.0.1:${port}/api/agents/ahp`,
-            name: `FRAG · ${id.slice(0, 8)}`, stop() { stopChild(child); bridge.close(); } };
+          return owned;
         }
       } catch { /* A bound process may still be starting. Poll health only; never poll a model call. */ }
       await new Promise(resolve => setTimeout(resolve, 150));
     }
     throw new Error('Host did not become ready.');
-  } catch (error) { stopChild(child); bridge.close(); throw error; }
+  } catch (error) {
+    try { await owned.stop(); } catch { error.ownedHost = owned; }
+    throw error;
+  }
 }
 module.exports = { launchHost, hostEnvironment, projectIdentity };

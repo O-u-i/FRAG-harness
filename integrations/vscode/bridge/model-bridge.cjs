@@ -27,7 +27,16 @@ async function startBridge(vscode, configFile) {
     const raw = readFileSync(configFile);
     const config = JSON.parse(raw.toString('utf8'));
     if (!Array.isArray(config)) throw new Error('Invalid model configuration.');
-    const models = await vscode.lm.selectChatModels();
+    // Empty configuration is an explicit model-free installation check. Do not
+    // activate providers or wait for signed-out provider discovery in this mode.
+    if (config.length === 0) return new Map();
+    let timer;
+    let models;
+    try {
+      models = await Promise.race([vscode.lm.selectChatModels(), new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Model discovery timed out')), 10000);
+      })]);
+    } finally { clearTimeout(timer); }
     const result = new Map();
     for (const model of models) {
       if (!model.id || model.id === 'auto' || !model.vendor || !Number.isInteger(model.maxInputTokens) || model.maxInputTokens <= 0) continue;
@@ -37,6 +46,7 @@ async function startBridge(vscode, configFile) {
         && Array.isArray(group.models) && group.models.some(row => row.id === model.id));
       // Stable API does not expose a group identifier. Multiple identical registrations are unsafe.
       if (groups.length > 1) throw new Error('Ambiguous model configuration.');
+      if (groups.length === 0) continue; // Never expose models from an unbound provider/profile.
       const effort = groups[0]?.settings?.[model.id]?.reasoningEffort;
       const info = { id, name: model.name, vendor: model.vendor,
         revision: hash(Buffer.concat([raw, Buffer.from(JSON.stringify([model.id, model.name, model.vendor, model.version, model.maxInputTokens]))])),
@@ -104,8 +114,13 @@ async function startBridge(vscode, configFile) {
   server.requestTimeout = 125000;
   server.headersTimeout = 10000;
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+  let closing;
   return { key, address: `http://127.0.0.1:${server.address().port}`, close: () => {
-    closed = true; for (const cancel of active) cancel.cancel(); server.closeAllConnections(); server.close();
+    if (closing) return closing;
+    closed = true; for (const cancel of active) cancel.cancel();
+    server.closeAllConnections();
+    closing = new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    return closing;
   } };
 }
 module.exports = { startBridge, validateRequest };

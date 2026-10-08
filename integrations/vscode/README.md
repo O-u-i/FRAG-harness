@@ -20,22 +20,50 @@ pwsh -File ./bundle/install-host.ps1 -InstallPath "$env:LOCALAPPDATA/FRAG/host/1
 
 The installer rejects unknown arguments and uses dependency copy mode across drives. If initialization fails, retain the directory for inspection and choose another new target; no recursive cleanup is performed.
 
-In VS Code, run **Extensions: Install from VSIX**, selecting `.tmp/packages/frag-bridge-1.10.0.vsix`. No Marketplace publication or VS Code source modification is required. Run **FRAG: Enable in Agents Window** in regular VS Code; it sets the existing `extensions.supportAgentsWindow` opt-in for `frag-local.frag-bridge`. Reload the Agents window. If installed elsewhere, set the application setting `frag.hostInstallation` to the initialized Host directory.
+### Dedicated VS Code instance (Windows / 1.140.0)
+
+A named editor Profile alone does **not** isolate Agents in VS Code 1.140.0, commit `07f806f999227108933c2e30515b26eecc1fda74`. The internal **Agents** profile shares the same instance's Default settings, extensions and `chatLanguageModels.json`. `--agents --profile FRAG` still opens that internal profile. Installing the VSIX only into a named profile does not install it for Agents. A visible setting in another window does not prove the executing extension host registers it.
+
+Use new, dedicated user-data and extension directories. This creates FRAG-owned resources without changing your normal instance or copying its models, secrets or extensions:
+
+```powershell
+$fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG/vscode-v110'
+code --user-data-dir "$fragInstance/user-data" --extensions-dir "$fragInstance/extensions" --new-window
+code --user-data-dir "$fragInstance/user-data" --extensions-dir "$fragInstance/extensions" --install-extension ./frag-bridge-1.10.0.vsix
+```
+
+Run installation from the directory containing the rebuilt VSIX. Do not add `--profile`: the isolated instance's initially empty Default resources are intentionally dedicated to FRAG. Alternatively, use **Extensions: Install from VSIX** in its ordinary editor window. Keep those same directory arguments on every subsequent launch. No Marketplace publication, configuration schema injection or VS Code installation edits are required.
+
+In that ordinary isolated window, reload after installation and run **FRAG: Enable in Agents Window**. It preserves other `extensions.supportAgentsWindow` entries and opts in `frag-local.frag-bridge`. Select **Open Agents** to use VS Code's native same-instance window command. Alternatively:
+
+```powershell
+code --user-data-dir "$fragInstance/user-data" --extensions-dir "$fragInstance/extensions" --agents
+```
+
+Reload an already open Agents window with **Developer: Reload Window**. Its `Ctrl+Shift+P` palette must list all four FRAG commands. **Extensions: Show Installed Extensions** is unavailable in this Agents window; install/list extensions using the isolated ordinary window or the CLI with the same directory arguments. Do not diagnose it using a different ordinary Profile. If commands are absent, check installation in the isolated Default extension list, the opt-in, workspace trust and reload before proceeding.
+
+For the zero-model installation check, choose **Continue Without Signing In** if the fresh Agents onboarding dialog offers it. Signing in or configuring a provider is separate from installation acceptance.
+
+Set `frag.hostInstallation` in this isolated instance if the Host was installed at a nonstandard path. Set `frag.modelConfigFile` explicitly as described below. Application settings belong to the isolated instance, rather than a named editor Profile.
 
 ## Start in a separate test project
 
-1. Create a new folder containing only intended synthetic evidence, such as a Markdown note. Open VS Code there, then the **Agents window** (`code --agents`).
-2. In Agents, run **FRAG: Start Project Host**. Explicitly select that evidence folder. The extension starts its own loopback Host on an unused port and adds only its named Remote entry, preserving other registrations. It does not stop unrelated Hosts.
-3. Click **New / Ctrl+N**. Click the **current folder-name capsule above the composer**. There is no fixed menu named Workspace. Select **Remote → FRAG · project ID → Folders → your folder**. The normal local-folder `Ctrl+O` action does not select a Remote FRAG provider.
+1. Create a new folder containing only intended synthetic evidence, such as `sample.txt`. Open **Agents in the dedicated instance** using the steps above. Configure its own model file, or explicitly save `[]` for a zero-model installation check. Trust the local workspace.
+2. In Agents, run **FRAG: Start Project Host**. Explicitly select that evidence folder. The extension checks registered settings, the local trusted execution environment and the explicit model-file binding before opening a bridge or child process. It starts its own loopback Host on an unused port and adds only its new Remote entry. A matching stale entry is preserved and requires manual inspection before restart. Starting from the ordinary editor fails with a clear message before any process is launched.
+3. Click **New / Ctrl+N**. Click the **current folder-name capsule above the composer**. There is no fixed menu named Workspace. Under **Remote**, choose **FRAG · project ID → Folders**. Accept the advertised root with **OK**, retaining its native URI-style path (for example `/S:/.../project/` on this Windows build). Do not replace it with a backslash path. The Host supplies virtual ancestry containing only that selected path so the native picker can validate parents; it never enumerates actual parent directories, siblings or project files. Confirm trust only for your intended synthetic folder. The normal local-folder `Ctrl+O` action does not select a Remote FRAG provider.
 4. Select an available model and send a 3–500 character task. Native Send saves a task, with zero model calls or automatic indexing.
 5. Run **FRAG: Open Review**. The URL is copied; paste it into the right-hand Browser address bar. Choose the matching FRAG session, select files/locators or retrieval scope, and preview Context.
 6. Review exact API arguments and bindings, check consent, and approve Context. Explicitly prepare and separately approve Inference. Each optional Research turn also needs fresh approval. Review the cited result and record human acceptance separately.
+
+For installation acceptance with `[]`, stop after connection/folder selection and run **FRAG: Stop Project Host**. The FRAG composer has no configured model, so do not send a task. The native window can display sign-in notices or a terminal-unavailable error after folder trust: FRAG deliberately rejects native terminal/coding requests. These notices do not authorize those capabilities or certify provider readiness.
 
 The native conversation receives the same saved run's answer/status. Right-hand navigation provides Workspace, Runs and Memory with gray transparent icons and Archivo. Models/Plugins management is not duplicated there. Native Customizations remains available; it does not imply FRAG imported its MCP, Skills, Hooks or coding tools. FRAG selected-evidence plugins remain backend features.
 
 ## Model configuration
 
-Use **Chat: Manage Language Models**. The default Windows profile still stores providers in `%APPDATA%\Code\User\chatLanguageModels.json`; another profile needs its actual path in `frag.modelConfigFile`. Preserve VS Code secret references. Research, Context and Inference use the same native-selected model and saved per-model default effort. There is no Pi configuration or FRAG effort override picker. See [exact keys, limits and pinned API evidence](MODEL-CONFIGURATION.md).
+In the dedicated **Agents** window, use **Chat: Manage Language Models** and **Chat: Open Language Models (JSON)**. For the instance above the active resource is `$fragInstance/user-data/User/chatLanguageModels.json`. Set `frag.modelConfigFile` to that full absolute path; VS Code settings do not expand the PowerShell variable. An empty setting, another named Profile's file, a missing file or a linked file fails before startup. There is no `%APPDATA%` fallback. Preserve VS Code secret references and configure only this dedicated instance. FRAG does not read, copy or display API keys.
+
+Saving `[]` permits an installation/connection/Stop check with an empty model catalog. A real provider is not required for that check. Models not represented in the explicitly bound configuration are excluded. Research, Context and Inference use the same native-selected model and saved per-model default effort. See [configuration paths, verification steps and pinned API evidence](MODEL-CONFIGURATION.md).
 
 The preview freezes the stable model API inputs. It does not certify final provider HTTP fields, hidden retries, usage, billing or relay execution. FRAG performs zero automatic retries; schema/citation checks do not establish semantic correctness.
 
@@ -43,7 +71,9 @@ The preview freezes the stable model API inputs. It does not certify final provi
 
 State lives in the extension's local global storage under `projects/<canonical-path-hash>/`: `runtime.sqlite3`, `rag/` caches and `plugins/`. No state or credentials are written into the bound folder. The Host advertises only that root; native filesystem, terminal and edit operations remain unsupported. Linked paths, hidden configuration, rules and generated directories are excluded from project evidence.
 
-One extension instance owns one active project Host. Starting another project stops only its previous owned Host. **FRAG: Stop Project Host** removes only its registered address; closing the owner window stops it. After an abrupt process crash, inspect the stale owned process/registration manually before restarting. A different project's database is never reused.
+**FRAG: Stop Project Host** waits for the owned process shutdown, closes its bridge and removes only the exact owned name/address pair. Repeated Start/Stop operations are serialized; Start while a Host or incomplete cleanup is owned asks you to Stop first. Other registrations and processes are preserved. Enablement flags are restored only when there are no other registered hosts. Configuration writes are not atomic: a partial registration triggers independent cleanup attempts. Cleanup failures cannot replace the original startup error. An incomplete cleanup message retains the owned handle for an explicit Stop retry; inspect stale entries manually if the settings remain unavailable. Arbitrary provider error details are not printed because they can contain secrets.
+
+One extension instance owns one active project Host. Stop it explicitly before selecting another project. Closing the owner window also stops it. After an abrupt process crash, inspect the stale owned process/registration manually before restarting. A different project's database is never reused.
 
 Restart clears approvals. Reconnect reads snapshots without calling a model. Source/configuration changes require new preview; unknown outcomes require reconciliation and never resend. Legacy Pi reports stay readable/exportable but cannot resume. Native Stop waits for the governed boundary and cannot retract a dispatched provider request.
 

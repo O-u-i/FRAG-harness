@@ -62,6 +62,28 @@ class AgentHost(AgentReview):
         a, b = unquote(expected.path).rstrip("/"), unquote(received.path).rstrip("/")
         return a.casefold() == b.casefold() if os.name == "nt" else a == b
 
+    def directory_entries(self, value):
+        """Virtual ancestry for the native picker; never list/read the actual parents.
+
+        VS Code resolves parent directories while accepting defaultDirectory.
+        Only names already contained in the explicitly selected root are exposed.
+        Session creation and evidence access remain restricted to that root.
+        """
+        if not isinstance(value, str):
+            return None
+        expected, received = urlsplit(self.workspace), urlsplit(value)
+        if (received.scheme != "file" or received.netloc != expected.netloc
+                or received.query or received.fragment):
+            return None
+        normalize = str.casefold if os.name == "nt" else lambda path: path
+        root = unquote(expected.path).rstrip("/")
+        directories = {normalize(root): []}
+        while root:
+            parent, _, child = root.rpartition("/")
+            directories[normalize(parent)] = [{"name": child, "type": "directory"}]
+            root = parent
+        return directories.get(normalize(unquote(received.path).rstrip("/")))
+
     def models(self):
         if self.bridge:
             try:
@@ -349,10 +371,10 @@ class AgentConnection:
             return {"items": []}
         if method in ("resourceRead", "resourceResolve", "resourceList") and not isinstance(params.get("uri"), str):
             raise ProtocolError()
-        if method == "resourceResolve" and self.host.is_workspace(params.get("uri")):
-            return {"type": "directory"}
-        if method == "resourceList" and self.host.is_workspace(params.get("uri")):
-            return {"entries": []}
+        if method in ("resourceResolve", "resourceList"):
+            entries = self.host.directory_entries(params.get("uri"))
+            if entries is not None:
+                return {"type": "directory"} if method == "resourceResolve" else {"entries": entries}
         if method in ("resourceRead", "resourceResolve", "resourceList"):
             raise ProtocolError(-32008, "Only the bound project root is advertised; select file content in FRAG Review.")
         if method == "ping":

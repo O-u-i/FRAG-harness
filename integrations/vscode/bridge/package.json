@@ -20,7 +20,7 @@
       "title": "FRAG",
       "properties": {
         "frag.hostInstallation": { "type": "string", "default": "", "scope": "application", "description": "Installed Host directory. Empty uses the standard local v1.10.0 installation." },
-        "frag.modelConfigFile": { "type": "string", "default": "", "scope": "application", "description": "Active profile chatLanguageModels.json. Empty uses the default Windows Code profile. Read locally for revision binding; never copied to FRAG." }
+        "frag.modelConfigFile": { "type": "string", "default": "", "scope": "application", "description": "Required explicit path to the dedicated Agents instance's User/chatLanguageModels.json. VS Code 1.140.0 Agents shares that instance's Default resources; named editor profiles are not used. No implicit fallback or key copying." }
       }
     }
   }

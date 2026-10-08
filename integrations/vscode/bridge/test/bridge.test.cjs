@@ -5,6 +5,8 @@ const { mkdtempSync, writeFileSync } = require('node:fs');
 const { resolve, join } = require('node:path');
 const { startBridge } = require('../model-bridge.cjs');
 const { hostEnvironment } = require('../host-launcher.cjs');
+const vm = require('node:vm');
+const { readFileSync } = require('node:fs');
 
 function fakeVSCode(calls, generate = async function* () { yield '{"synthetic":true}'; }) {
   return { lm: { selectChatModels: async () => [{ id: 'synthetic-model', name: 'Synthetic', vendor: 'customendpoint',
@@ -75,4 +77,22 @@ test('installed environment does not inherit development provider or finance sec
   assert.equal(env.OPENAI_API_KEY, undefined); assert.equal(env.FRAG_RUNTIME_PATH, undefined);
   assert.equal(env.FINANCE_CORE_TOKEN, undefined); assert.equal(env.FRAG_BRIDGE_KEY, 'synthetic-session-key');
   assert.equal(env.FRAG_HOST_INSTALLED, '1');
+});
+test('empty dedicated configuration exposes no models and bridge close is idempotent', async t => {
+  const root = mkdtempSync(resolve('.tmp', 'bridge-test-')); const file = join(root, 'models.json');
+  writeFileSync(file, '[]'); const calls = [], vscode = fakeVSCode(calls);
+  vscode.lm.selectChatModels = async () => { throw Error('Empty configuration must not activate providers'); };
+  const bridge = await startBridge(vscode, file);
+  t.after(() => bridge.close());
+  const response = await fetch(bridge.address + '/models', { headers: { Authorization: 'Bearer ' + bridge.key } });
+  assert.deepEqual(await response.json(), []); assert.equal(calls.length, 0);
+  await bridge.close(); await bridge.close();
+  await assert.rejects(fetch(bridge.address + '/models'));
+});
+test('nonempty model discovery is bounded before any bridge is exposed', async () => {
+  const root = mkdtempSync(resolve('.tmp', 'bridge-test-')); const file = join(root, 'models.json'); configuration(file);
+  const sandbox = { module: { exports: {} }, require, Buffer, clearTimeout,
+    setTimeout: action => setTimeout(action, 20) };
+  vm.runInNewContext(readFileSync(join(__dirname, '../model-bridge.cjs'), 'utf8'), sandbox);
+  await assert.rejects(sandbox.module.exports.startBridge({ lm: { selectChatModels: () => new Promise(() => {}) } }, file), /discovery timed out/);
 });

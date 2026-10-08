@@ -70,4 +70,11 @@ def build():
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, default=OUT)
+    OUT = parser.parse_args().output_dir.resolve()
+    if not OUT.is_relative_to((ROOT / ".tmp").resolve()):
+        raise ValueError("Package output must stay inside the ignored repository .tmp directory.")
     build()
