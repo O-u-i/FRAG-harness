@@ -12,7 +12,67 @@ In the Agents window, click **New / Ctrl+N**, then the **folder-name button abov
 
 Open the right-hand **Browser** using **FRAG: Open Review**, paste the copied URL, and select the native session. The new FRAG Review page combines Harness/RAG evidence and Context controls into **Evidence → Context → Inference → Review**. Right-hand navigation uses gray transparent Glass Icons, with Workspace, Runs and Memory; ordinary text uses **Archivo Variable 5.3.0**. The standalone GUI keeps its layout. [Review components](src/agents/README.md).
 
-Models and credentials belong to VS Code's **Manage Language Models**, normally `%APPDATA%\Code\User\chatLanguageModels.json`. Other profiles require `frag.modelConfigFile`. The stable `vscode.lm` bridge uses the same native-selected model for every stage and inherits its saved default effort. It exposes no temporary effort override. Each stage previews exact **model API arguments** and requires separate one-use approval. Supplier HTTP fields, internal retries, billing and actual relay-side reasoning remain unknown. [Configuration and pinned API evidence](integrations/vscode/MODEL-CONFIGURATION.md).
+Models and credentials belong to VS Code's **Manage Language Models** in the dedicated instance. Set `frag.modelConfigFile` explicitly to that instance's `User/chatLanguageModels.json`; named editor profiles do not isolate Agents resources in the verified VS Code 1.140.0 route. The stable `vscode.lm` bridge uses the same native-selected model for every stage and inherits its saved default effort. It exposes no temporary effort override. Each stage previews exact **model API arguments** and requires separate one-use approval. Supplier HTTP fields, internal retries, billing and actual relay-side reasoning remain unknown. [Configuration and pinned API evidence](integrations/vscode/MODEL-CONFIGURATION.md).
+
+### Windows setup: VS Code → Manage Language Models
+
+Verified desktop baseline: VS Code 1.140.0. Paths use environment variables and placeholders; credentials, personal folders and machine-specific identifiers are omitted.
+
+1. **Open VS Code → Terminal → dedicated instance.** Separate user data and extensions; omit `--profile` because Agents shares Default resources.
+
+   ```powershell
+   $fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG\vscode-v110-human'
+   code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --new-window
+   ```
+
+2. **Verify instance → Open User Settings (JSON).** Confirm `<dedicated-user-data>/User/settings.json`; recent folders or model names alone cannot establish isolation.
+
+3. **Install matching repaired VSIX → Reload Window → FRAG: Enable in Agents Window → Open Agents.** Avoid stale packages sharing the same version.
+
+4. **Check prerequisites → PowerShell 7 x64, uv.** Windows PowerShell 5.1 is insufficient; verify approved versions before installing, retaining required notices.
+
+   ```powershell
+   & 'C:\Program Files\PowerShell\7\pwsh.exe' --version
+   uv --version
+   ```
+
+5. **Extract matching Host ZIP → locate install-host.ps1 → install separately.** “Script file not recognized”: correct the extracted path; quotation alone cannot fix it.
+
+   ```powershell
+   $fragInstaller = '<absolute-extracted-bundle-path>\install-host.ps1'
+   & 'C:\Program Files\PowerShell\7\pwsh.exe' -File $fragInstaller -InstallPath "$env:LOCALAPPDATA\FRAG\host\1.10.0-fixed"
+   ```
+
+6. **Agents → User Settings → frag.hostInstallation.** Enter the expanded absolute Host directory, without quotes; preserve the previous installation separately.
+
+7. **Chat: Open Language Models (JSON) → verify dedicated User path → save [].** Empty catalog permits installation checks without model calls.
+
+8. **User Settings → frag.modelConfigFile → expanded absolute JSON path.** Missing-path error: bind this dedicated file explicitly; avoid normal-instance or named-profile files.
+
+   ```text
+   <dedicated-user-data>/User/chatLanguageModels.json
+   ```
+
+9. **FRAG: Start Project Host → select synthetic project → Bind.** New → workspace button → Remote → FRAG · project ID → Folders.
+
+10. **Confirm FRAG workspace → close unsupported-terminal notification → Stop Project Host.** Verify owned registration removal in `chat.remoteAgentHosts`; cached picker entries may remain.
+
+11. **Chat: Manage Language Models → Add Models → Custom Endpoint.** Name provider, enter key privately, choose Responses; retain generated secret reference.
+
+12. **Complete model JSON → save → return to Manage Language Models.** Match provider ID, Responses URL, supported efforts and saved `low` default.
+
+    ```json
+    "supportsReasoningEffort": ["low", "medium", "high", "xhigh", "max", "ultra"],
+    "reasoningEffortFormat": "responses"
+    ```
+
+    ```json
+    "settings": {
+      "gpt-6.1-sol": { "reasoningEffort": "low" }
+    }
+    ```
+
+    Use these effort values only when supported by your provider. Place `settings` beside `models`; use `xhigh`, not `extra high`. Template token limits and Tools/Vision flags require provider confirmation. Valid JSON and model enumeration do not verify authentication, generation or actual reasoning effort. Every FRAG model call still requires a fresh preview and one-use approval.
 
 Pi execution, workers, dependency graph and configuration have been retired. Existing Pi reports remain readable/exportable; they cannot resume or silently migrate to another provider. Native MCP, Skills, Hooks and Plugins are not imported into FRAG. FRAG's optional selected-evidence plugins remain separate backend capabilities. [Plan E scope](docs/plan-e.md) · [Backend adapter](backend/frag_api/services/AGENT-HOST.md) · [Historical Plan D checks](integrations/vscode/NATIVE-AGENTS.md).
 
