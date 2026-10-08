@@ -1,4 +1,45 @@
-# Plan E verification — v1.10.1
+# Plan E verification — v1.10.2
+
+## Review layout follow-up — 2026-10-08
+
+The maintainer authorized four additional GUI repairs while retaining v1.10.2. This extends the uncommitted composer/Review repair below. Main content now scrolls inside the viewport with a stable native scrollbar gutter; the right sidebar stays fixed. Workspace, Runs and Memory share one page navigation, with labels before their right-side lines or glass icon. The single-item Background disclosure was removed: Memory is reviewed model context, not a settings category. Evidence/checklist headings use `and`. A baseline browser inspection confirmed that the previous ampersand was U+0026 and Archivo was loaded; no malformed entity or encoding corruption was found.
+
+| Verification | Executed result and limit |
+|---|---|
+| Page layout | Built Review tested in Edge at **570×900 and 960×900**. Workspace → Runs → Memory → Workspace retained identical main/sidebar rectangles and content widths, with a **15 px** gutter on every page and no document overflow. At **570×500**, overflowing Memory scrolled only the main region; sidebar bounds stayed fixed and keyboard focus scrolled its target into view. |
+| Navigation and visual | All three entries occupy one named navigation, exactly one page is current, and label bounds precede their marks. Keyboard activation, visible focus, decorative icon semantics and reduced-motion behavior passed. Screenshots of all three pages at both widths were inspected; Archivo loaded, no page errors or external requests. |
+| Workflow regression | Repeated the real local HTTP/WebSocket flow with Counting Fake: draft → task save → waiting → evidence → preview → single-use Context approval → separately approved Inference. Zero calls through preview; exactly Context and Inference afterward. Approval replay returned 409. Cancellation, replacement, refresh and reconnect passed. No real provider was called. |
+| Tests and builds | **62 frontend, 29 focused backend and 19 bridge tests passed**. TypeScript, architecture/module/privacy/version/diagram checks, Review and standalone production builds passed. The prior full backend result remains **466 passed, 2 skipped**; it was not rerun for this CSS/navigation follow-up. No backend or dependency was changed by this follow-up. |
+| Packages | Fresh **v1.10.2** Host ZIP and VSIX replaced the earlier local artifacts. All **90 file-backed Host payloads and 5 VSIX inputs** matched the checkout/build; duplicate, private/rule/test/database/source-map paths were rejected. Extracted Host smoke passed with zero runs/generation calls. The user's installed v1.10.1 Host was not replaced or restarted. |
+
+Current artifacts are `.tmp/packages/frag-host-1.10.2.zip` (SHA-256 `cd1dfca7fc859cd1d1d8affe5783f55dcd4bf061e73cf3ac6bb40756f1f35e91`) and `.tmp/packages/frag-bridge-1.10.2.vsix` (SHA-256 `505bde98447beadbd4b813ce88846590cba62c9b5d0c3ba2191a93998e22f3d2`). Receipts and runnable browser checks are under ignored `.tmp/v1102-ui-20261008-01/`. Use a new Host installation directory, select it through `frag.hostInstallation`, and restart the project Host to apply the package. Existing installations are not overwritten by the installer. The VSIX source inputs are unchanged by this GUI follow-up.
+
+Scope: **FRAG_ONLY**; cross-repo impact **NONE**, GUI contract change **NONE**, other repo **NOT_TOUCHED**. The earlier additive cancellation endpoint remains documented below. No commit, push, release or phase acceptance occurred. Actual VS Code desktop composer evidence below predates this GUI follow-up; these new layout checks use Edge, not a newly installed user Agents window.
+
+Proposed commit: `fix: repair native task state and stabilize Review UI in v1.10.2`
+
+## Composer and Review state repair — 2026-10-08
+
+Baseline HEAD: `4bfb391`; tracked worktree and staging were clean. The maintainer authorized the listed bugs, related omissions and v1.10.2. Scope: FRAG_ONLY. Dependencies and distributed third-party notices are unchanged. No personal configuration, credentials or Finance Core files were changed; no commit, push, phase advance or real-provider request occurred.
+
+Native Send now completes a saved-task receipt immediately. Review owns the separate pending workflow and explicitly shows evidence/approval waiting, cancellation and restart instructions. Cancel task or a replacement native task invalidates the old carrier controls and consumes its underlying stage token. Draft edits echo unchanged, remain volatile across same-process reconnects, and never enter SQLite; successful Send or explicit clear removes them. Attachment descriptors are never dereferenced. Length, attachment, malformed-message, model and session/turn failures have distinct errors. The earlier legal-length task's precise original failure is still unconfirmed; it is not attributed to length by this repair.
+
+| Verification | Executed result and limit |
+|---|---|
+| Backend | **466 passed, 2 skipped**, synthetic providers/sources, dotenv disabled and a fresh repository-local pytest base directory. The skips require separately supplied FC protocol artifacts. **29 focused Host/composer/bridge tests** cover drafting, no attachment reads, cancellation/replacement, Context/Inference/Research token revocation, failures and reconnect. |
+| Frontend and bridge | **62 frontend / 19 bridge passed**. Cancelled tasks hide evidence/approval controls; existing one-use, source, model and origin bindings remain enforced. |
+| Browser flow | Real local HTTP/WebSocket and built Review with Counting Fake: draft → save → wait → selected file/locator → preview → one-use Context approval → separately approved Inference. Calls remained zero through preview, then exactly one per stage; replay returned 409. Cancellation, automatic replacement, fresh consent and refresh/reconnect passed. No external Review requests or page errors. |
+| Native desktop | Actual installed **VS Code 1.141.0**, in a new isolated user-data/extensions directory with a synthetic local Remote Host. Continuous typing, paste, Context Changes chip addition/removal preserved input. Native Send saved one task, completed its reply, showed no visible Reasoning and no active Stop button, with zero additional model calls. This checks native AHP/composer behavior, not an installed VSIX lifecycle or provider authentication. |
+| Builds and visual | Review and standalone production builds, TypeScript, architecture/module/privacy/version/diagram checks passed. Review cancellation, restarted evidence selection and waiting screenshots were inspected at **570×900 and 960×900**; no horizontal overflow. Native completion was also visually inspected. |
+| Packages | v1.10.2 Host ZIP and VSIX built from a fresh Review output directory. All **73 backend/package inputs and 5 VSIX source inputs** matched the current checkout; duplicate paths and private/rule/test/runtime inclusions were rejected. The extracted Host independently saved a synthetic model-bound task with a completed native snapshot, zero runs and zero generation calls. This did not reinstall dependencies or modify the user's installed Host. |
+
+The native lifecycle decision was checked against the [VS Code 1.141.0 chat reducer](https://github.com/microsoft/vscode/blob/2a59476c9bfcb90b3ddc372c36762471b7dfad1c/src/vs/platform/agentHost/common/state/protocol/channels-chat/reducer.ts): completing the native turn ends its activity, while draft actions apply the supplied draft. Live progress/output and human review belong to Review; native reconnect snapshots derive saved output from the same runtime report. No later response is sent into a completed native turn.
+
+Private receipts are under ignored `.tmp/v1102-repair-20261008-01/`. Install matching **v1.10.2 Host ZIP and VSIX**, update `frag.hostInstallation`, reload Agents and restart the project Host to apply these changes to an existing installation. The running user Host was not updated. Unsent drafts do not survive a Host process restart. Real-model, live FC, selected personal KB and human semantic acceptance were not run by this repair. Historical evidence below retains its own versions.
+
+Proposed commit: `fix: preserve native drafts and separate Review task state in v1.10.2`
+
+Cross-repo impact: **NONE**. Contract change: **ADDITIVE** cancellation endpoint; AHP remains 0.9.0 and saved Review contracts retain their format. Other repo status: **NOT_TOUCHED**. No FC compatible-version change is required.
 
 ## Native model binding repair — 2026-10-08
 

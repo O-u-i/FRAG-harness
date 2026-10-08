@@ -62,6 +62,19 @@ class AgentReview:
             raise RuntimeConflictError()
         return carrier, carrier.turns[-1]
 
+    def discard_preview(self, session_id):
+        pending = self.pending.pop(session_id, None)
+        if pending:
+            preview = pending[4]
+            value = preview.preview
+            fingerprint = value.get("fingerprint") or value.get("inferenceFingerprint") or value.get("contextFingerprint")
+            token = value.get("approvalToken")
+            service = self.app.state.harness_service if preview.kind == "harness" else self.app.state.rag_service
+            report = self.runtime.repository.get(preview.run_id)
+            registry = self.app.state.research.approvals if report.research else service.pending_inference if preview.stage == "inference" else service.approvals
+            if token and fingerprint:
+                registry.consume(token, fingerprint)
+
     def prepare(self, session_id, request: AgentPrepare):
         with self.lock, self.model_route(session_id):
             carrier, turn = self.check(session_id, request.version, request.turn_id)
@@ -74,7 +87,7 @@ class AgentReview:
                     or selected.parent_run_id != turn.run_id):
                 raise RequestContractError([{"path": "sourceRequest", "message": "Bind the current native task, session and parent run."}])
             service = self.app.state.harness_service if request.kind == "harness" else self.app.state.rag_service
-            self.pending.pop(session_id, None)
+            self.discard_preview(session_id)
             if request.research:
                 value = self.app.state.research.start(request.kind, selected)
                 preview = RecoveryPreview(runId=value.run_id, kind=request.kind, stage=value.stage,
@@ -96,6 +109,7 @@ class AgentReview:
             if not turn.run_id or turn.state != "running":
                 raise RuntimeConflictError()
             report = self.runtime.repository.get(turn.run_id)
+            self.discard_preview(session_id)
             model = HarnessRequest if report.run.kind == "harness" else RagQueryRequest
             selected = model.model_validate(report.selection.input)
             service = self.app.state.harness_service if report.run.kind == "harness" else self.app.state.rag_service
@@ -136,8 +150,13 @@ class AgentReview:
             else:
                 service.run_inference(InferenceRunRequest(contextFingerprint=preview.context_fingerprint,
                     inferenceFingerprint=fingerprint, approvalToken=request.approval_token, approved=True))
+            report = self.runtime.repository.get(turn.run_id)
+            if report.model_output:
+                def finish(value):
+                    value.turns[-1].state = "complete"
+                self.runtime.repository.update_agent_session(session_id, finish)
             # Expose a fresh approval for a following stage only on explicit recovery.
-            return self.review_view(self.current(session_id), self.runtime.repository.get(turn.run_id), None)
+            return self.review_view(self.current(session_id), report, None)
 
     def cancel(self, session_id, turn_id):
         with self.lock:
@@ -148,12 +167,12 @@ class AgentReview:
                 return carrier
             if carrier.turns[-1].state != "running":
                 raise RuntimeConflictError()
-            self.pending.pop(session_id, None)
+            self.discard_preview(session_id)
             turn = carrier.turns[-1]
             if turn.run_id:
                 report = self.runtime.repository.get(turn.run_id)
                 self.runtime.review(turn.run_id, ReviewRequest(decision="paused", checklist=report.selection.task,
-                    note="Paused from the native conversation."))
+                    note="Paused by FRAG task cancellation."))
             def change(value):
                 value.turns[-1].state = "cancelled"
             return self.runtime.repository.update_agent_session(session_id, change)

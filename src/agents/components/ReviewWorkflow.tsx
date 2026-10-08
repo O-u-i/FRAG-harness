@@ -4,7 +4,7 @@ import type { HarnessConfig } from '../../../shared/contracts/harness';
 import type { TaskContract } from '../../../shared/contracts/governance';
 import { preparedCallSchema } from '../../../shared/contracts/governance';
 import type { MemorySelection } from '../../../shared/contracts/memory';
-import { executeAgent, prepareAgent, recoverAgent } from '../../api/agentClient';
+import { cancelAgent, executeAgent, prepareAgent, recoverAgent } from '../../api/agentClient';
 import { MemoryPicker } from '../../features/memory/MemoryPicker';
 import { emptyReviewTask, TaskChecklistEditor } from '../../features/runtime/TaskChecklistEditor';
 import { EvidencePicker, type EvidenceSelection } from './EvidencePicker';
@@ -25,7 +25,8 @@ export function ReviewWorkflow({ view, config, onChange }: {
   const [error, setError] = useState('');
   const active = useRef(true), actionActive = useRef(false), selectionKey = useRef('');
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
-  const preview = dirty ? null : view.preview;
+  const running = turn?.state === 'running';
+  const preview = dirty || !running ? null : view.preview;
   const report = view.report;
   const call = preview ? preparedCallSchema.parse(preview.preview.preparedCall) : undefined;
   const fingerprint = call?.fingerprint;
@@ -57,13 +58,21 @@ export function ReviewWorkflow({ view, config, onChange }: {
   const ready = !!config?.context.ready && !!config.inference.ready;
   const canApprove = !!preview && (!('canApprove' in preview.preview) || preview.preview.canApprove !== false) && !!preview.preview.approvalToken && ready && turn.state === 'running';
   return <div className="review-workflow">
-    <Stepper current={step} />
+    {turn.state !== 'cancelled' && <Stepper current={step} />}
     <section className="review-task"><span className="review-meta">Native task</span><h2>{turn.text}</h2>
-      <span className="review-status">{report?.run.status.replace(/_/g, ' ') ?? 'Choose evidence'}</span></section>
-    <details className="review-selection" open={!report || dirty}>
-      <summary>Evidence &amp; context{report ? ` · ${report.selection.candidateEvidence.length} excerpts` : ''}</summary>
+      <span className="review-status" role="status">{turn.state === 'cancelled' ? 'Task cancelled' : busy === 'execute' ? 'Running approved stage' : preview ? 'Waiting for approval' : report?.run.status.replace(/_/g, ' ') ?? 'Waiting for evidence selection'}</span>
+      {running && <p className="review-meta">The native reply is complete. Review controls this task; no model calls occur while waiting for evidence or approval.</p>}
+      {running && <button type="button" disabled={!!busy} onClick={() => void act('cancel', () => cancelAgent(view))}>Cancel task</button>}
+    </section>
+    {turn.state === 'cancelled' && <section className="review-alert" role="status"><strong>Task cancelled. Evidence selection and approval are disabled.</strong>
+      <p>Previous approvals are invalid. The cancelled task remains in history.</p>
+      <ol><li>Return to this native FRAG conversation and send a new task. Remove any native Context attachments; select evidence here instead.</li>
+        <li>After “Task saved”, this page switches to the new task automatically. If you created another session, use Sessions to select it.</li>
+        <li>Select evidence, preview the exact request, then approve it once.</li></ol></section>}
+    {running && <details className="review-selection" open={!report || dirty}>
+      <summary>Evidence and context{report ? ` · ${report.selection.candidateEvidence.length} excerpts` : ''}</summary>
       <EvidencePicker goal={turn.text} busy={!!busy || turn.state !== 'running'} onChange={changeSelection} />
-      <details><summary>Checklist &amp; background memory</summary>
+      <details><summary>Checklist and background memory</summary>
         <TaskChecklistEditor task={task} disabled={!!busy} onChange={(value) => { setTask(value); invalidate(); }} />
         <MemoryPicker runId={report?.run.id} query={turn.text} selected={memory} disabled={!!busy}
           onChange={(value) => { setMemory(value); invalidate(); }} />
@@ -72,9 +81,9 @@ export function ReviewWorkflow({ view, config, onChange }: {
         onChange={(e) => { setResearch(e.target.checked); invalidate(); }} />Research before Context</label>
       <button className="review-primary" type="button" disabled={!selection.ready || !!busy || turn.state !== 'running'}
         onClick={() => void act('prepare', () => prepareAgent(view, kind, input, research))}>Preview {research ? 'Research' : 'Context'}</button>
-    </details>
+    </details>}
     {error && <p className="review-alert" role="alert">{error}</p>}
-    {busy && <p role="status">{busy === 'execute' ? 'Running the approved stage…' : 'Preparing the exact request…'}</p>}
+    {busy && <p role="status">{busy === 'execute' ? 'Running the approved stage…' : busy === 'cancel' ? 'Cancelling this task…' : 'Preparing the exact request…'}</p>}
     {call && preview && <section className="review-approval"><h3>{stage === 'research' ? 'Research' : stage === 'inference' ? 'Inference' : 'Context'} approval</h3>
       <RequestPreview call={call} />
       {'warnings' in preview.preview && preview.preview.warnings.map((warning: string) => <p className="review-meta" key={warning}>{warning}</p>)}
@@ -87,7 +96,7 @@ export function ReviewWorkflow({ view, config, onChange }: {
     {!preview && canRecover && !dirty && <button type="button" className="review-primary" disabled={!!busy}
       onClick={() => void act('recover', () => recoverAgent(view))}>Preview next stage</button>}
     {report?.run.status === 'outcome_unknown' && <p className="review-alert">Unknown external outcome. Reconcile it before starting a new task; this run will not resend.</p>}
-    {turn.state !== 'running' && <p className="review-meta">Send a new native task to start another run.</p>}
+    {turn.state === 'complete' && <p className="review-meta">This task is complete. Review the saved result below, or send a new native task.</p>}
     {report && <ReviewReport report={report} onChange={(value) => onChange({ ...view, report: value, preview: null })} />}
   </div>;
 }

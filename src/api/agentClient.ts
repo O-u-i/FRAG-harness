@@ -28,6 +28,13 @@ export async function recoverAgent(view: AgentView) {
     version: view.session.version, turnId: turn.id,
   }));
 }
+export async function cancelAgent(view: AgentView) {
+  const turn = view.session.turns[view.session.turns.length - 1];
+  if (!turn) throw new Error('No current native task.');
+  return agentViewSchema.parse(await request(`${path(view.session.sessionId)}/cancel`, {
+    version: view.session.version, turnId: turn.id,
+  }));
+}
 export function executionBody(view: AgentView) {
   const turn = view.session.turns[view.session.turns.length - 1], preview = view.preview, report = view.report;
   if (!turn || turn.state !== 'running' || !report || !preview || preview.runId !== turn.runId

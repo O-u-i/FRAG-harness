@@ -35,6 +35,7 @@ const exactChecks = [
   ['backend health identity', backendHealth.includes('"service": "frag-harness"')],
   ['review HTML title', readFileSync('agents.html', 'utf8').includes(`FRAG Review · ${packageVersion}`)],
   ['review title and footer', readFileSync('src/agents/AgentReviewApp.tsx', 'utf8').includes(`FRAG Review · ${packageVersion}`)],
+  ['review footer', readFileSync('src/agents/AgentReviewApp.tsx', 'utf8').includes(`<span>${packageVersion}</span>`)],
   ['VSIX version', JSON.parse(readFileSync('integrations/vscode/bridge/package.json', 'utf8')).version === packageVersion],
   ['installed launcher version', readFileSync('integrations/vscode/bridge/host-launcher.cjs', 'utf8').includes(`serviceVersion === '${packageVersion}'`)],
   ['extension default installation', readFileSync('integrations/vscode/bridge/extension.cjs', 'utf8').includes(`'host', '${packageVersion}'`)],

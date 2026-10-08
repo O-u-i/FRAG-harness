@@ -1,6 +1,6 @@
 [project]
 name = "frag-harness-backend"
-version = "1.10.1"
+version = "1.10.2"
 description = "Local governed retrieval and two-stage LLM harness"
 requires-python = ">=3.12,<3.13"
 dependencies = [

@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from frag_api.errors import RuntimeConflictError, RuntimeNotFoundError, RequestContractError
 from frag_api.http import reject_body, reject_query
 from frag_api.schemas.agents import AgentPrepare, AgentExecute, AgentCheck
-from frag_api.services.agent_host import AgentConnection, ProtocolError, ROOT, chat_uri
+from frag_api.services.agent_host import AgentConnection, ProtocolError
 
 router = APIRouter()
 LOOPBACK = {"127.0.0.1", "::1", "localhost"}
@@ -71,6 +71,15 @@ def execute(request: Request, session_id: str, body: Annotated[AgentExecute, Bod
     return request.app.state.agent_host.execute(session_id, body)
 
 
+@router.post("/api/agents/sessions/{session_id}/cancel", dependencies=guards)
+def cancel(request: Request, session_id: str, body: Annotated[AgentCheck, Body()]):
+    host = request.app.state.agent_host
+    with host.lock:
+        host.check(session_id, body.version, body.turn_id)
+        host.cancel(session_id, body.turn_id)
+        return view(request, session_id)
+
+
 @router.get("/review")
 def review_page(request: Request):
     if not request.app.state.agent_host_enabled or not allowed(request):
@@ -85,53 +94,6 @@ def review_page(request: Request):
 @router.get("/review/help", dependencies=[Depends(enabled)])
 def help_page(request: Request):
     return FileResponse(request.app.state.review_help, media_type="text/plain")
-
-
-async def observe(connection):
-    """Reflect saved status/output; polling never prepares or dispatches a request."""
-    host = connection.host
-    seen = {}
-    while True:
-        await asyncio.sleep(1)
-        for channel in tuple(connection.subscriptions):
-            if not channel.startswith("ahp-chat://"):
-                continue
-            carrier = host.carrier_for(channel)
-            if not carrier.turns:
-                continue
-            turn = carrier.turns[-1]
-            if turn.state != "running" or not turn.run_id:
-                continue
-            report = host.runtime.repository.get(turn.run_id)
-            marker = (turn.id, report.run.id, report.run.version)
-            if seen.get(channel) == marker:
-                continue
-            seen[channel] = marker
-            if connection.queue.full():
-                connection.failed = True
-                return
-            # Only this observer emits to its connection; other clients replay snapshots.
-            terminal = bool(report.model_output) or report.run.status in ("error", "outcome_unknown", "rejected", "paused")
-            host.seq += 1
-            action = {"type": "chat/responsePart", "turnId": turn.id,
-                "part": {"kind": "markdown", "id": f"result-{turn.id}",
-                    "content": host.content(carrier, turn, include_link=False)}} if terminal else {
-                "type": "chat/activityChanged", "activity": "FRAG: " + report.run.status.replace("_", " ")}
-            connection.queue.put_nowait({"jsonrpc": "2.0", "method": "action", "params": {
-                "channel": channel, "serverSeq": host.seq, "action": action}})
-            if terminal:
-                with host.lock:
-                    current = host.current(carrier.session_id)
-                    if current.turns[-1].id != turn.id or current.turns[-1].state != "running":
-                        continue
-                    def finish(value):
-                        if value.turns[-1].id == turn.id and value.turns[-1].state == "running":
-                            value.turns[-1].state = "complete"
-                    host.runtime.repository.update_agent_session(carrier.session_id, finish)
-                await host.emit(channel, {"type": "chat/turnComplete", "turnId": turn.id, "duration": 0})
-                await host.emit(channel, {"type": "chat/activityChanged"})
-                await host.publish("root/sessionSummaryChanged", {"channel": ROOT, "session": carrier.resource,
-                    "changes": {"status": 1}})
 
 
 @router.websocket("/api/agents/ahp")
@@ -153,7 +115,7 @@ async def carrier(socket: WebSocket):
                 return
             await socket.send_json(await connection.queue.get())
 
-    tasks = [asyncio.create_task(writer()), asyncio.create_task(observe(connection))]
+    tasks = [asyncio.create_task(writer())]
     try:
         while True:
             raw = await socket.receive_text()

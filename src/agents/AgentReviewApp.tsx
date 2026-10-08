@@ -6,7 +6,7 @@ import { fetchAgentSessions, fetchAgentView } from '../api/agentClient';
 import { fetchHarnessConfig } from '../api/harnessClient';
 import { fetchRuns, fetchRunReport } from '../api/runtimeClient';
 import { MemoryPanel } from '../features/memory/MemoryPanel';
-import { LineSidebar, GlassIcons, type ReviewPage } from './components/Navigation';
+import { LineSidebar, type ReviewPage } from './components/Navigation';
 import { ReviewWorkflow } from './components/ReviewWorkflow';
 import { ReviewReport } from './components/ReviewReport';
 import './styles.css';
@@ -55,7 +55,7 @@ export default function AgentReviewApp() {
   }, []);
   useEffect(() => {
     let active = true;
-    document.title = 'FRAG Review · 1.10.1';
+    document.title = 'FRAG Review · 1.10.2';
     Promise.all([fetchAgentSessions(), fetchHarnessConfig()]).then(([items, routes]) => {
       if (active) { setSessions(items); setConfig(routes); }
     }).catch(() => { if (active) setError('Start the local FRAG Agents host to connect.'); });
@@ -102,10 +102,7 @@ export default function AgentReviewApp() {
     </main>
     <aside className="review-sidebar"><a className="review-brand" href="/review" aria-label="FRAG Review home"><span>F</span><strong>FRAG</strong></a>
       <LineSidebar active={page} onSelect={setPage} />
-      <div className="review-customizations"><details open className="review-branches"><summary>Background</summary>
-        <GlassIcons active={page} onSelect={setPage} colorful={false} />
-      </details></div>
-      <footer><a href="/review/help" target="_blank" rel="noreferrer">Documentation</a><span>1.10.1</span></footer>
+      <footer><a href="/review/help" target="_blank" rel="noreferrer">Documentation</a><span>1.10.2</span></footer>
     </aside>
   </div>;
 }

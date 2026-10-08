@@ -1,5 +1,4 @@
 """Native Send, review approvals and durable replay with synthetic providers only."""
-import asyncio
 from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
@@ -84,7 +83,9 @@ def test_native_send_is_durable_without_source_access_or_model_approval(tmp_path
             listed = rpc(socket, "listSessions", {"channel": ROOT})["result"]["items"]
             assert listed[0]["resource"] == uri
             snapshot = rpc(socket, "subscribe", {"channel": chat_uri(uri)})["result"]["snapshot"]["state"]
-            assert snapshot["activeTurn"]["message"]["text"] == "Explain the synthetic finding"
+            assert "activeTurn" not in snapshot and snapshot["status"] == 1
+            assert snapshot["turns"][-1]["message"]["text"] == "Explain the synthetic finding"
+            assert snapshot["turns"][-1]["state"] == "complete"
             # Duplicate native turn ID after reconnect cannot create another task or run.
             assert "error" not in rpc(socket, "dispatchAction", {"channel": chat_uri(uri), "clientSeq": 2,
                 "action": {"type": "chat/turnStarted", "turnId": "synthetic-turn",
@@ -118,19 +119,12 @@ def test_two_exact_approvals_and_native_result_are_same_runtime_run(tmp_path, so
         with client.websocket_connect("ws://127.0.0.1:8787/api/agents/ahp") as socket:
             initialize(socket)
             snapshot = rpc(socket, "subscribe", {"channel": chat_uri(uri)})["result"]["snapshot"]["state"]
-            parts = snapshot["activeTurn"]["responseParts"]
+            assert "activeTurn" not in snapshot
+            parts = snapshot["turns"][-1]["responseParts"]
             assert [p["id"] for p in parts] == ["frag-synthetic-turn", "result-synthetic-turn"]
             assert report["modelOutput"]["answer"] not in parts[0]["content"]
             assert report["modelOutput"]["answer"] in parts[1]["content"]
-            # Actual observer completes the native turn from the saved result.
-            for _ in range(8):
-                message = socket.receive_json()
-                if message.get("params", {}).get("action", {}).get("type") == "chat/responsePart":
-                    assert message["params"]["action"]["part"]["id"] == parts[1]["id"]
-                if message.get("params", {}).get("action", {}).get("type") == "chat/turnComplete":
-                    break
-            else:
-                pytest.fail("Saved result did not complete the native turn")
+            assert view(client, sid)["session"]["turns"][-1]["state"] == "complete"
 
 
 def test_prepare_invalidates_previous_controls_and_source_change_blocks_dispatch(tmp_path, source_root):
@@ -293,7 +287,8 @@ def test_native_reconnect_and_restart_handshakes_restore_without_dispatch(tmp_pa
             restored = rpc(socket, "initialize", {"channel": ROOT, "clientId": "synthetic-client",
                 "protocolVersions": ["0.9.0"], "initialSubscriptions": resources})["result"]
             assert {s["resource"] for s in restored["snapshots"]} == set(resources)
-            assert restored["snapshots"][-1]["state"]["activeTurn"]["id"] == "synthetic-turn"
+            assert "activeTurn" not in restored["snapshots"][-1]["state"]
+            assert restored["snapshots"][-1]["state"]["turns"][-1]["id"] == "synthetic-turn"
         assert view(client, sid)["preview"] is None
         assert client.post(f"/api/agents/sessions/{sid}/execute", json=execute_body(prepared)).status_code == 409
         assert provider.calls == []

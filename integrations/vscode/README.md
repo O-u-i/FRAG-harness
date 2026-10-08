@@ -1,4 +1,4 @@
-# FRAG in VS Code Agents — Plan E / v1.10.1
+# FRAG in VS Code Agents — Plan E / v1.10.2
 
 FRAG is an installed selected-evidence conversation agent under **Remote**, with a right-hand **Browser** review page. Three directories stay separate: installed program, explicitly selected project folder, and project state. It does not modify the project with coding tools or implicitly use the FRAG development repository.
 
@@ -10,12 +10,12 @@ From the source checkout, build the two private local artifacts:
 npm.cmd run package:agents
 ```
 
-Extract `.tmp/packages/frag-host-1.10.1.zip` into a temporary bundle directory. With **PowerShell 7**, run that bundle's `install-host.ps1`. It copies only application/resources into `%LOCALAPPDATA%\FRAG\host\1.10.1` and initializes **Python 3.12** plus the unchanged locked backend dependencies using existing `uv`. Use `-InstallPath` for another new directory. An existing target is never overwritten. The ZIP excludes wheels, a Python runtime, development rules, `.env`, tests and private runtime/source data. Keep its distributed notices with the application.
+Extract `.tmp/packages/frag-host-1.10.2.zip` into a temporary bundle directory. With **PowerShell 7**, run that bundle's `install-host.ps1`. It copies only application/resources into `%LOCALAPPDATA%\FRAG\host\1.10.2` and initializes **Python 3.12** plus the unchanged locked backend dependencies using existing `uv`. Use `-InstallPath` for another new directory. An existing target is never overwritten. The ZIP excludes wheels, a Python runtime, development rules, `.env`, tests and private runtime/source data. Keep its distributed notices with the application.
 
 For an explicit new target:
 
 ```powershell
-pwsh -File ./bundle/install-host.ps1 -InstallPath "$env:LOCALAPPDATA/FRAG/host/1.10.1-local"
+pwsh -File ./bundle/install-host.ps1 -InstallPath "$env:LOCALAPPDATA/FRAG/host/1.10.2-local"
 ```
 
 The installer rejects unknown arguments and uses dependency copy mode across drives. If initialization fails, retain the directory for inspection and choose another new target; no recursive cleanup is performed.
@@ -29,16 +29,16 @@ Use new, dedicated user-data and extension directories. This creates FRAG-owned 
 ```powershell
 $fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG\vscode-v110-human'
 code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --new-window
-$fragVsix = '<absolute-package-directory>\frag-bridge-1.10.1.vsix'
+$fragVsix = '<absolute-package-directory>\frag-bridge-1.10.2.vsix'
 code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --install-extension $fragVsix
 code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --list-extensions --show-versions | Select-String '^frag-local\.frag-bridge@'
 ```
 
-Replace the package-directory placeholder with the actual absolute directory containing the matching VSIX. If you already have a dedicated instance, retain its existing directories. Confirm `frag-local.frag-bridge@1.10.1` in the version listing. Do not add `--profile`: the isolated instance's Default resources are intentionally dedicated to FRAG.
+Replace the package-directory placeholder with the actual absolute directory containing the matching VSIX. If you already have a dedicated instance, retain its existing directories. Confirm `frag-local.frag-bridge@1.10.2` in the version listing. Do not add `--profile`: the isolated instance's Default resources are intentionally dedicated to FRAG.
 
-Alternatively, in that instance's **ordinary editor window**, press `Ctrl+Shift+X` → Extensions view `...` menu → **Install from VSIX...** → select `frag-bridge-1.10.1.vsix`. The command palette (`Ctrl+Shift+P`) also offers **Extensions: Install from VSIX...**. Inspect **FRAG Local Host** there and confirm version **1.10.1**. Both installation methods install the extension into the chosen instance; the Host ZIP's `install-host.ps1` installs the separate backend program. [Official VSIX installation instructions](https://code.visualstudio.com/docs/configure/extensions/extension-marketplace#install-from-a-vsix).
+Alternatively, in that instance's **ordinary editor window**, press `Ctrl+Shift+X` → Extensions view `...` menu → **Install from VSIX...** → select `frag-bridge-1.10.2.vsix`. The command palette (`Ctrl+Shift+P`) also offers **Extensions: Install from VSIX...**. Inspect **FRAG Local Host** there and confirm version **1.10.2**. Both installation methods install the extension into the chosen instance; the Host ZIP's `install-host.ps1` installs the separate backend program. [Official VSIX installation instructions](https://code.visualstudio.com/docs/configure/extensions/extension-marketplace#install-from-a-vsix).
 
-Keep those same directory arguments on every subsequent launch. No Marketplace publication, configuration schema injection or VS Code installation edits are required. Before Start, the extension and Host must both be **1.10.1**; an old **1.10.0** extension rejects the new Host's health version even when `frag.hostInstallation` points to the new directory.
+Keep those same directory arguments on every subsequent launch. No Marketplace publication, configuration schema injection or VS Code installation edits are required. Before Start, the extension and Host must both be **1.10.2**; an old **1.10.0** extension rejects the new Host's health version even when `frag.hostInstallation` points to the new directory.
 
 In that ordinary isolated window, reload after installation and run **FRAG: Enable in Agents Window**. It preserves other `extensions.supportAgentsWindow` entries and opts in `frag-local.frag-bridge`. Select **Open Agents** to use VS Code's native same-instance window command. Alternatively:
 
@@ -63,13 +63,21 @@ Set `frag.hostInstallation` in this isolated instance if the Host was installed 
 
 For installation acceptance with `[]`, stop after connection/folder selection and run **FRAG: Stop Project Host**. The FRAG composer has no configured model, so do not send a task. The native window can display sign-in notices or a terminal-unavailable error after folder trust: FRAG deliberately rejects native terminal/coding requests. These notices do not authorize those capabilities or certify provider readiness.
 
-The native conversation receives the same saved run's answer/status. Right-hand navigation provides Workspace, Runs and Memory with gray transparent icons and Archivo. Models/Plugins management is not duplicated there. Native Customizations remains available; it does not imply FRAG imported its MCP, Skills, Hooks or coding tools. FRAG selected-evidence plugins remain backend features.
+Native Send completes with a saved-task receipt. Live workflow progress and output belong to Review; reconnect snapshots include the same saved run's answer/status. Right-hand navigation provides Workspace, Runs and Memory with gray transparent icons and Archivo. Models/Plugins management is not duplicated there. Native Customizations remains available; it does not imply FRAG imported its MCP, Skills, Hooks or coding tools. FRAG selected-evidence plugins remain backend features.
 
 ## Model configuration
 
+### v1.10.2 composer and Review repair
+
+Native Send saves the task and completes its native reply immediately. Review displays **Waiting for evidence selection** or **Waiting for approval**; neither waiting state sends a model request. Use **Cancel task** in Review to revoke the waiting workflow. A new task in the same conversation cancels the previous unfinished task and replaces Review's evidence/approval controls. A cancelled task remains cancelled in history, with explicit restart steps. Unknown external outcomes still require reconciliation.
+
+Draft text, model selection and Context attachment descriptors are acknowledged unchanged and retained only in Host process memory for same-process reconnects. Drafts are never written to the runtime database, attachment URIs are never dereferenced, and a Host restart discards unsent drafts. Successful Send or an explicit draft-clear action clears the volatile draft. Native attachments cannot become evidence through Send: remove Context attachments, resend the text task, then choose evidence in Review. Length, attachment, message-format, model-selection and turn/session-state failures have distinct messages.
+
+Upgrade an installed v1.10.1 setup with the matching **v1.10.2 Host ZIP and VSIX**, update `frag.hostInstallation`, reload Agents and restart the project Host. Preserve the old installation and saved project state. A source checkout change does not update a running installed Host. See [repair verification](PLAN-E-VERIFICATION.md).
+
 ### v1.10.1 session repair and upgrade
 
-The current repair was desktop-tested on VS Code **1.141.0** for native provisional creation, explicit model selection, task persistence and owned Stop with a synthetic model and zero generation calls. The original **1.140.0** configuration/API review remains historical; this bounded check does not certify real-provider authentication, effort, generation or full upgrade compatibility. See [repair verification](PLAN-E-VERIFICATION.md).
+That earlier repair was desktop-tested on VS Code **1.141.0** for native provisional creation, explicit model selection, task persistence and owned Stop with a synthetic model and zero generation calls. The original **1.140.0** configuration/API review remains historical; this bounded check does not certify real-provider authentication, effort, generation or full upgrade compatibility. See [repair verification](PLAN-E-VERIFICATION.md).
 
 VS Code can create a provisional session without a model before the composer submits a task. The Host now accepts that unbound session without choosing a default. Send must supply an explicit ID from the current model catalog; it binds the saved task without a model call or automatic indexing. Missing selection, a model no longer in the bound catalog and catalog retrieval failure produce distinct errors. Invalid IDs and per-session effort overrides remain rejected; each generation still needs its own exact preview and one-use approval.
 

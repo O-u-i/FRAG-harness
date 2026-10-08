@@ -1,4 +1,4 @@
-# FRAG Review v1.10.1
+# FRAG Review v1.10.2
 
 FRAG Review is the new right-hand page for VS Code Agents. The standalone FRAG GUI keeps its existing layout and fonts. Both entry points reuse the same backend services; the installed route stores its project sessions, runs and review records separately from development state.
 
@@ -10,7 +10,7 @@ Install the matching Host ZIP and VSIX, enable the extension for the Agents wind
 
 [Installation and exact picker steps](../../integrations/vscode/README.md). The installed route needs no source checkout, backend `.env`, proposed extension API or VS Code modification. The advertised directory is the bound project; native file/edit/terminal operations remain unsupported.
 
-v1.10.1 permits an unbound native provisional session, but Send must explicitly select a currently available configured model before a task is saved. Send performs zero model calls; Review owns each later preview and approval. Missing selection, stale model IDs and catalog lookup failures have separate messages. Install matching v1.10.1 Host and VSIX packages to apply this repair; editing the checkout does not update an installed Host.
+v1.10.2 permits an unbound native provisional session, but Send must explicitly select a currently available configured model before a task is saved. Send performs zero model calls; Review owns each later preview and approval. Missing selection, stale model IDs and catalog lookup failures have separate messages. Install matching v1.10.2 Host and VSIX packages to apply this repair; editing the checkout does not update an installed Host.
 
 The native model manager can show the same model under its supplier and **Frag**. Frag is the running Host's bridge entry over the dedicated instance's bound `chatLanguageModels.json`, not another provider configuration. Stopping the Host withdraws that entry; supplier credentials and saved project state remain. [Configuration and model identity](../../integrations/vscode/MODEL-CONFIGURATION.md).
 
@@ -24,13 +24,15 @@ The same steps show **Evidence → Context → Inference → Review**. Optional 
 
 The answer renders bounded Markdown: headings, paragraphs, emphasis, inline/fenced code, lists, quotes, tables and HTTP(S) links. Citation checks and notes are collapsed review details, including a visible count of missing-information gaps. Raw HTML remains escaped text; remote images are never fetched automatically. Saved model text and exports are unchanged. This renderer is original application code with no extra dependency; it does not claim full CommonMark support or nested-list syntax.
 
-**Memory** reuses FRAG's reviewed memory service. Navigation sits on the right; adapted Glass Icons use `colorful={false}` with gray transparent faces. Models and Plugins management are absent here. VS Code owns native Customizations; its MCP, Skills, Hooks and coding-tool registrations are not imported into this carrier. FRAG evidence-plugin selection remains in Workspace.
+**Memory** reuses FRAG's reviewed memory service. Workspace, Runs and Memory share one right-hand page navigation; labels precede their lines or icons. Memory retains its gray transparent Glass Icon. It is reviewed model context, not a settings page. Models and Plugins management are absent here. VS Code owns native Customizations; its MCP, Skills, Hooks and coding-tool registrations are not imported into this carrier. FRAG evidence-plugin selection remains in Workspace.
 
 Models and saved effort are configured through VS Code. The request preview reports saved effort and exposes the exact stable API messages/options. Final provider HTTP, internal retries and usage are unknown. [Configuration requirements](../../integrations/vscode/MODEL-CONFIGURATION.md).
 
 ## Stop, reload and recovery
 
-The central native turn waits for review and displays saved run progress. Its Stop action pauses the run at the next safe host boundary; it cannot retract an already dispatched external request. A reconnect restores carrier metadata and derives its answer from the same runtime report, without preparing or sending a model request.
+Native Send completes immediately with a task receipt. Review separately displays Waiting for evidence selection or Waiting for approval, with zero model calls while waiting. Use Cancel task in Review to pause the workflow at the next safe host boundary; it cannot retract an already dispatched external request. Cancelled tasks show recovery steps and hide evidence/approval controls. Sending a new native task switches this page automatically and cancels the previous unfinished task, invalidating its approval. A reconnect restores completed native receipts and saved Review state without preparing or sending a model request.
+
+Unsent text and Context descriptors remain volatile for same-process reconnects only; they are never saved to disk or read as evidence. Native attachments produce a specific removal/reselection error, rather than a text-length error.
 
 The completed native conversation is a delivery summary. Later human review and revisions are authoritative in the Review/Runs page; the completed native message is not a live report editor. Only record semantic acceptance after your own review.
 
@@ -55,7 +57,7 @@ shared/contracts/agents.ts      Carrier and review response contracts
 public/agents/                  Font assets and distributed notices
 ```
 
-The layout uses the supplied component references: adapted LineSidebar and GlassIcons, an original dependency-free progress Stepper, branched Customizations and native select controls styled for compact selection. The supplied animation and Hugeicons packages are not installed. Styling is scoped to `.review-root` so this entry does not restyle the standalone application.
+The layout uses the supplied component references: adapted LineSidebar and GlassIcons in one page navigation, an original dependency-free progress Stepper and native select controls styled for compact selection. Main content scrolls independently with a stable native scrollbar gutter, keeping the right sidebar and page widths fixed when switching pages. The supplied animation and Hugeicons packages are not installed. Styling is scoped to `.review-root` so this entry does not restyle the standalone application.
 
 All ordinary text uses **Archivo Variable 5.3.0**, normal style, variable weight **100–900**, with `Archivo, Arial, sans-serif` fallbacks. The three unchanged Latin, extended Latin and Vietnamese WOFF2 files match the source font package. Code uses the system monospace stack. Neither Public Sans nor Libre Bodoni is used by this page.
 

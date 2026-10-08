@@ -50,6 +50,7 @@ class AgentHost(AgentReview):
         self.seq = 0
         self.clients = set()
         self.client_ids = set()
+        self.drafts = {}  # Volatile composer state only; never written to runtime storage.
 
     def is_workspace(self, value):
         """VS Code percent-encodes drive colons; compare only this already-bound root."""
@@ -139,7 +140,10 @@ class AgentHost(AgentReview):
         return f"{self.review_origin}/review?sessionId={carrier.session_id}"
 
     def content(self, carrier, turn, include_link=True):
-        text = f"Task saved. Open [FRAG Review]({self.review_url(carrier)}) in the right-hand Browser tab." if include_link else ""
+        if turn.state == "cancelled":
+            return f"Task cancelled. Previous approvals are invalid. Send a new task in this native conversation, then select evidence in [FRAG Review]({self.review_url(carrier)})."
+        text = (f"Task saved. Continue in [FRAG Review]({self.review_url(carrier)})." if turn.run_id else
+                f"Task saved. Waiting for evidence selection in [FRAG Review]({self.review_url(carrier)}). The native reply is complete; no model request has been sent. Open Review in the right-hand Browser tab.") if include_link else ""
         if not turn.run_id:
             return text
         report = self.runtime.repository.get(turn.run_id)
@@ -157,15 +161,15 @@ class AgentHost(AgentReview):
 
     def turn_state(self, carrier, turn):
         parts = [{"kind": "markdown", "id": "frag-" + turn.id,
-                  "content": f"Task saved. Open [FRAG Review]({self.review_url(carrier)}) in the right-hand Browser tab."}]
+                  "content": self.content(carrier, turn) if not turn.run_id else f"Task saved. Continue in [FRAG Review]({self.review_url(carrier)})."}]
         if turn.run_id:
             parts.append({"kind": "markdown", "id": "result-" + turn.id,
                           "content": self.content(carrier, turn, include_link=False)})
         value = {"id": turn.id, "startedAt": turn.created_at,
             "message": {"text": turn.text, "origin": {"kind": "user"}, "model": {"id": turn.model_id or carrier.model_id or MODEL}},
             "responseParts": parts}
-        if turn.state != "running":
-            value.update(state=turn.state, duration=0)
+        # AgentTurn.state belongs to Review. Native Send only delivers the saved-task receipt.
+        value.update(state="cancelled" if turn.state == "cancelled" else "complete", duration=0)
         return value
 
     def summary(self, carrier):
@@ -173,7 +177,7 @@ class AgentHost(AgentReview):
         turn = carrier.turns[-1] if carrier.turns else None
         title = turn.text[:80] if turn else session.title
         return {"provider": "frag", "resource": carrier.resource, "title": title,
-            "status": 24 if turn and turn.state == "running" else 1,
+            "status": 1,
             "workingDirectories": [self.workspace], "defaultChat": chat_uri(carrier.resource),
             "createdAt": session.created_at, "modifiedAt": turn.created_at if turn else session.created_at}
 
@@ -191,10 +195,9 @@ class AgentHost(AgentReview):
                     customizations=[], changesets=[])
             else:
                 state = {**chat, "workingDirectories": [self.workspace], "changesets": [],
-                    "turns": [self.turn_state(carrier, t) for t in carrier.turns if t.state != "running"]}
-                if carrier.turns and carrier.turns[-1].state == "running":
-                    state["activeTurn"] = self.turn_state(carrier, carrier.turns[-1])
-                    state["activity"] = "Awaiting FRAG review"
+                    "turns": [self.turn_state(carrier, t) for t in carrier.turns]}
+                if carrier.session_id in self.drafts:
+                    state["draft"] = self.drafts[carrier.session_id]
         return {"resource": channel, "state": state, "fromSeq": self.seq}
 
     async def emit(self, channel, action, origin=None):
@@ -243,37 +246,49 @@ class AgentHost(AgentReview):
         carrier = self.carrier_for(channel)
         if kind == "chat/turnStarted" and channel == chat_uri(carrier.resource):
             message = action.get("message", {})
+            if not isinstance(message, dict) or not isinstance(message.get("origin"), dict):
+                raise ProtocolError(-32602, "Invalid task message format. Send a user text message from the native composer.")
             text = message.get("text")
             turn_id = action.get("turnId")
-            model_id = self.selected_model(message.get("model", {}), carrier.model_id)
-            if (not isinstance(text, str) or not 3 <= len(text.strip()) <= 500
+            if (not isinstance(text, str) or message["origin"].get("kind") != "user"
                     or not isinstance(turn_id, str) or not 1 <= len(turn_id) <= 128
-                    or message.get("origin", {}).get("kind") != "user" or message.get("attachments")
-                    or not model_id):
-                raise ProtocolError(-32602, "Use 3–500 characters of task text; select evidence in FRAG Review.")
+                    or not isinstance(message.get("attachments", []), list)):
+                raise ProtocolError(-32602, "Invalid task message format. Send a user text message with a valid turn ID and attachment list.")
+            if not 3 <= len(text.strip()) <= 500:
+                raise ProtocolError(-32602, "Task text must contain 3–500 characters after trimming whitespace.")
+            if message.get("attachments"):
+                raise ProtocolError(-32602, "Native Context attachments cannot be submitted as evidence. Remove them from the composer, resend the task, then select evidence in FRAG Review. Attachment contents were not read.")
+            model_id = self.selected_model(message.get("model", {}), carrier.model_id)
             safe = durable_value(text.strip(), self.runtime.redaction_secrets)
             with self.lock:
                 carrier = self.current(carrier.session_id)
                 duplicate = next((t for t in carrier.turns if t.id == turn_id), None)
                 if duplicate:
                     if duplicate.text != safe or (duplicate.model_id and duplicate.model_id != model_id):
-                        raise ProtocolError()
+                        raise ProtocolError(-32000, "This turn ID already belongs to a different saved task. Send a new native message.")
                     return  # Durable replay is observation, never execution.
-                if len(carrier.turns) >= 200 or any(t.state == "running" for t in carrier.turns):
-                    raise ProtocolError(-32000, "Finish or stop the current FRAG turn first.")
-                self.pending.pop(carrier.session_id, None)
+                if len(carrier.turns) >= 200:
+                    raise ProtocolError(-32000, "This session has reached its 200-task limit. Start a new native FRAG session.")
+                if carrier.turns and carrier.turns[-1].state == "running":
+                    previous = carrier.turns[-1]
+                    if previous.run_id and self.runtime.repository.get(previous.run_id).run.status == "outcome_unknown":
+                        raise ProtocolError(-32000, "The previous task has an unknown external outcome. Reconcile it in FRAG Review before starting another task.")
+                    self.cancel(carrier.session_id, previous.id)
+                self.discard_preview(carrier.session_id)
                 def append(value):
                     value.model_id = model_id
                     value.turns.append(AgentTurn(id=turn_id, text=safe, createdAt=now(), modelId=model_id))
                 carrier = self.runtime.repository.update_agent_session(carrier.session_id, append)
+                self.drafts.pop(carrier.session_id, None)
             accepted = {"type": kind, "turnId": turn_id, "startedAt": carrier.turns[-1].created_at,
                 "message": {"text": safe, "origin": {"kind": "user"}, "model": {"id": model_id}}}
             await self.emit(channel, accepted, origin)
             await self.emit(channel, {"type": "chat/responsePart", "turnId": turn_id,
                 "part": {"kind": "markdown", "id": "frag-" + turn_id, "content": self.content(carrier, carrier.turns[-1])}})
-            await self.emit(channel, {"type": "chat/activityChanged", "activity": "Awaiting FRAG review"})
+            await self.emit(channel, {"type": "chat/turnComplete", "turnId": turn_id, "duration": 0})
+            await self.emit(channel, {"type": "chat/activityChanged"})
             await self.publish("root/sessionSummaryChanged", {"channel": ROOT, "session": carrier.resource,
-                "changes": {"title": safe[:80], "status": 24, "modifiedAt": now()}})
+                "changes": {"title": safe[:80], "status": 1, "modifiedAt": now()}})
         elif kind == "chat/turnCancelled" and channel == chat_uri(carrier.resource):
             carrier = await asyncio.to_thread(self.cancel, carrier.session_id, action.get("turnId"))
             await self.emit(channel, {"type": kind, "turnId": action["turnId"], "duration": 0}, origin)
@@ -288,8 +303,12 @@ class AgentHost(AgentReview):
         elif kind == "session/isReadChanged" and channel == carrier.resource:
             await self.emit(channel, {"type": kind, "isRead": bool(action.get("isRead"))}, origin)
         elif kind == "chat/draftChanged" and channel == chat_uri(carrier.resource):
-            # Do not persist draft text, attachments or native file/tool metadata.
-            await self.emit(channel, {"type": kind, "draft": None}, origin)
+            # Acknowledge the exact edit; attachment descriptors are never dereferenced.
+            if action.get("draft") is None:
+                self.drafts.pop(carrier.session_id, None)
+            else:
+                self.drafts[carrier.session_id] = action["draft"]
+            await self.emit(channel, action, origin)
         elif kind == "session/configChanged" and channel == carrier.resource and not action.get("config"):
             await self.emit(channel, {"type": kind, "config": {}}, origin)
         else:

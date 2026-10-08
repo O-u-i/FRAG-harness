@@ -116,13 +116,14 @@ def create_app(
             finally:
                 app.state.research.close()
                 app.state.agent_host.pending.clear()
+                app.state.agent_host.drafts.clear()
                 for _, service in services:
                     service.approvals.clear()
                     service.pending_inference.clear()
                     service.flow.runtime = None
                 app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.10.1", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.10.2", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.agent_host_enabled = agent_host_enabled if agent_host_enabled is not None else os.environ.get("FRAG_AGENT_HOST_ENABLED") == "1"
     app.state.project_name = workspace_root.name if workspace_root else "FRAG workspace"

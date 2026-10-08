@@ -1,6 +1,6 @@
 # Plan E: installed FRAG in native VS Code Agents
 
-Target: **v1.10.1**. Scope: **FRAG_ONLY**. Finance Core source, storage, contracts and release remain untouched. Commits, pushes, tags and releases belong to the maintainer.
+Target: **v1.10.2**. Scope: **FRAG_ONLY**. Finance Core source, storage, contracts and release remain untouched. Commits, pushes, tags and releases belong to the maintainer.
 
 | Decision | Implementation boundary |
 |---|---|
