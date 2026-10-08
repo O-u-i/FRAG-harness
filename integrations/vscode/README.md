@@ -2,6 +2,19 @@
 
 FRAG is an installed selected-evidence conversation agent under **Remote**, with a right-hand **Browser** review page. Three directories stay separate: installed program, explicitly selected project folder, and project state. It does not modify the project with coding tools or implicitly use the FRAG development repository.
 
+## Execution windows and Workspace
+
+| Surface | What to do there |
+| --- | --- |
+| Dedicated instance's ordinary editor / Welcome window | Install or inspect the VSIX, edit this instance's settings, then run **FRAG: Enable in Agents Window → Open Agents**. |
+| The same instance's **Agents** window | Configure models, run **FRAG: Start Project Host**, select the FRAG Remote project, chat, open Review and stop the owned Host. |
+| **Choose FRAG evidence project → Bind project** dialog | Select the local folder containing the intended evidence. This is the folder the Host binds. |
+| Right-hand Review **Workspace** page | Select evidence and control the current task's stages within that bound folder. It does not change the Host's project binding. |
+
+**Run FRAG: Start Project Host in the Agents window.** The ordinary editor does not register the native Remote Host settings required by Start. A key saved in `settings.json` does not add that capability to the ordinary window. Preserve the same `--user-data-dir` and `--extensions-dir` when switching windows; a normal VS Code instance or named editor Profile can use different resources. Confirm the title is **Agents** before starting.
+
+The evidence Workspace is your selected source folder, for example a separate `FRAG-Test` folder containing `sample.txt`. Select one local folder; for a multi-root VS Code workspace, choose the intended evidence root rather than the `.code-workspace` file. It is distinct from the installed Host directory, extension global-storage state and VS Code user-data directory. You do not need to open the FRAG source checkout. Selecting the project bounds file selection; it does not index all files or send them to a model. Opening a local folder alone does not connect the native conversation to FRAG: select **Remote → FRAG · project ID → Folders** after startup.
+
 ## Build and install
 
 From the source checkout, build the two private local artifacts:
@@ -45,8 +58,11 @@ Keep those same directory arguments on every subsequent launch. No Marketplace p
 In that ordinary isolated window, reload after installation and run **FRAG: Enable in Agents Window**. It preserves other `extensions.supportAgentsWindow` entries and opts in `frag-local.frag-bridge`. Select **Open Agents** to use VS Code's native same-instance window command. Alternatively:
 
 ```powershell
+$fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG\vscode-v110-human'
 code --user-data-dir "$fragInstance/user-data" --extensions-dir "$fragInstance/extensions" --agents
 ```
+
+Switch to that **Agents** window before running **FRAG: Start Project Host**. Keep the ordinary window for extension installation and inspection.
 
 Reload an already open Agents window with **Developer: Reload Window**. Its `Ctrl+Shift+P` palette must list all four FRAG commands. **Extensions: Show Installed Extensions** is unavailable in this Agents window; install/list extensions using the isolated ordinary window or the CLI with the same directory arguments. Do not diagnose it using a different ordinary Profile. If commands are absent, check installation in the isolated Default extension list, the opt-in, workspace trust and reload before proceeding.
 
@@ -56,14 +72,22 @@ Set `frag.hostInstallation` in this isolated instance if the Host was installed 
 
 ## Start in a separate test project
 
-1. Create a new folder containing only intended synthetic evidence, such as `sample.txt`. Open **Agents in the dedicated instance** using the steps above. Configure its own model file, or explicitly save `[]` for a zero-model installation check. Trust the local workspace.
-2. In Agents, run **FRAG: Start Project Host**. Explicitly select that evidence folder. The extension checks registered settings, the local trusted execution environment and the explicit model-file binding before opening a bridge or child process. It starts its own loopback Host on an unused port and adds only its new Remote entry. A matching stale entry is preserved and requires manual inspection before restart. Starting from the ordinary editor fails with a clear message before any process is launched.
+1. Create a separate local folder containing only intended synthetic evidence, such as `FRAG-Test/sample.txt`. Open **Agents in the dedicated instance** using the steps above. Configure its own model file; use `[]` only for a new empty model-free test configuration. Preserve existing providers when reusing an instance. If Workspace Trust restricts the current window, review that intended workspace before Start.
+2. Confirm the window is titled **Agents**, press `Ctrl+Shift+P`, then run **FRAG: Start Project Host**. In **Choose FRAG evidence project**, select the folder containing `sample.txt` and click **Bind project**. The extension checks registered settings, the local trusted execution environment and the explicit model-file binding before opening a bridge or child process. It starts its own loopback Host on an unused port and adds only its new Remote entry. A matching stale entry is preserved and requires manual inspection before restart. Starting from the ordinary editor fails with a clear message before any process is launched.
 3. Click **New / Ctrl+N**. Click the **current folder-name capsule above the composer**. There is no fixed menu named Workspace. Under **Remote**, choose **FRAG · project ID → Folders**. Accept the advertised root with **OK**, retaining its native URI-style path (for example `/S:/.../project/` on this Windows build). Do not replace it with a backslash path. The Host supplies virtual ancestry containing only that selected path so the native picker can validate parents; it never enumerates actual parent directories, siblings or project files. Confirm trust only for your intended synthetic folder. The normal local-folder `Ctrl+O` action does not select a Remote FRAG provider.
 4. Select an available model and send a 3–500 character task. Native Send saves a task, with zero model calls or automatic indexing.
 5. Run **FRAG: Open Review**. The URL is copied; paste it into the right-hand Browser address bar. Choose the matching FRAG session, select files/locators or retrieval scope, and preview Context.
 6. Review exact API arguments and bindings, check consent, and approve Context. Explicitly prepare and separately approve Inference. Each optional Research turn also needs fresh approval. Review the cited result and record human acceptance separately.
 
-For installation acceptance with `[]`, stop after connection/folder selection and run **FRAG: Stop Project Host**. The FRAG composer has no configured model, so do not send a task. The native window can display sign-in notices or a terminal-unavailable error after folder trust: FRAG deliberately rejects native terminal/coding requests. These notices do not authorize those capabilities or certify provider readiness.
+Before Send, confirm that the native folder picker is using the intended **FRAG Remote** project. When opening Review, select the matching Host/session. For installation acceptance with `[]`, stop after connection/folder selection and run **FRAG: Stop Project Host** in Agents. The FRAG composer has no configured model, so do not send a task. The native window can display sign-in notices or a terminal-unavailable error after folder trust: FRAG deliberately rejects native terminal/coding requests. These notices do not authorize those capabilities or certify provider readiness.
+
+To change the evidence project, stop the owned Host in that Agents window, start again and bind the new folder, then choose its new FRAG Remote entry. Changing a local editor folder or clicking Review's Workspace page does not rebind an existing Host. Saved per-project state stays separate.
+
+### Reuse an already configured instance
+
+If the matching v1.10.2 components, dedicated paths and Agents opt-in are already present, skip artifact installation and opt-in setup. Retain the existing model JSON and credentials. Open Agents with the same directory arguments above, check whether the existing FRAG Host is connected, and select its Remote project. Run Start only when a new owned Host is needed; inspect a matching stale registration before restarting.
+
+**Open User Settings (JSON)** confirms saved configuration and which instance's file is open. It does not certify running processes or settings registration in the executing window. `This window has no registered chat.remoteAgentHosts setting` is the window-capability preflight failure: open the dedicated Agents window and retry there. If it persists in Agents, confirm the same instance directories and extension version, reload Agents and recheck the supported VS Code build. Adding another JSON entry in the ordinary editor does not resolve an unregistered setting.
 
 Native Send completes with a saved-task receipt. Live workflow progress and output belong to Review; reconnect snapshots include the same saved run's answer/status. Right-hand navigation provides Workspace, Runs and Memory with gray transparent icons and Archivo. Models/Plugins management is not duplicated there. Native Customizations remains available; it does not imply FRAG imported its MCP, Skills, Hooks or coding tools. FRAG selected-evidence plugins remain backend features.
 

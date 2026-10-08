@@ -3,10 +3,12 @@
 Private local VSIX for the native VS Code Agents window. Install the matching Host bundle first; this extension does not download or bundle a model runtime.
 
 1. In the dedicated instance's ordinary editor window, open Extensions (`Ctrl+Shift+X`) → `...` → **Install from VSIX...** and choose `frag-bridge-1.10.2.vsix`. The command palette also offers **Extensions: Install from VSIX...**. Confirm **FRAG Local Host 1.10.2** in the extension details.
-2. Run **Developer: Reload Window**, then **FRAG: Enable in Agents Window** in that ordinary isolated window, and reload the Agents window.
-3. Run **FRAG: Start Project Host**, explicitly choose your evidence project folder.
-4. In Agents, click **New / Ctrl+N**, then the folder-name button above the composer: **Remote → FRAG · project ID → Folders → your project**. Select a model and send your task.
-5. Run **FRAG: Open Review**. Paste the copied URL into the right-hand Browser address bar and choose your FRAG session. Select excerpts and approve each stage separately.
+2. Run **Developer: Reload Window**, then **FRAG: Enable in Agents Window** in that ordinary isolated window. Select **Open Agents** and switch to the window titled **Agents**; reload it if it was already open.
+3. **In the Agents window**, press `Ctrl+Shift+P` → **FRAG: Start Project Host**. In **Choose FRAG evidence project**, select the local folder containing your intended evidence and click **Bind project**. Start requires the native Remote Host settings registered in Agents; the ordinary Welcome/editor window fails before launching a process.
+4. In Agents, click **New / Ctrl+N**, then the folder-name button above the composer: **Remote → FRAG · project ID → Folders → your project → OK**. Keep the advertised native URI-style path and trust only that intended folder. Confirm FRAG Remote is selected, then select a configured model and send your task. An empty model catalog permits connection checks only; stop before Send.
+5. **In Agents**, run **FRAG: Open Review**. Paste the copied URL into the right-hand Browser address bar and choose your FRAG session. Select excerpts and approve each stage separately.
+
+The folder selected by **Bind project** is the evidence Workspace. Keep it separate from the installed Host, VS Code user data and extension state. Opening a local folder with `Ctrl+O` does not select the FRAG Remote provider. Review's **Workspace** page controls evidence/tasks for the bound project; it does not bind another folder. To change projects, stop the owned Host in Agents, start again with the new folder, then select that new FRAG Remote project.
 
 FRAG is a selected-evidence conversation agent. It has no native edit, terminal, coding-tool, MCP, Skills or Hooks bridge. Native Customizations remains VS Code's surface; it does not automatically grant FRAG those capabilities.
 
@@ -22,6 +24,15 @@ code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\e
 ```
 
 Expect `frag-local.frag-bridge@1.10.2`, then reload the ordinary and Agents windows. Installing the VSIX and running the Host ZIP installer are separate operations. Both components must be **1.10.2** before Start; a **1.10.0** extension rejects the new Host's health version. See [VS Code's VSIX installation instructions](https://code.visualstudio.com/docs/configure/extensions/extension-marketplace#install-from-a-vsix).
+
+For an already configured instance with matching components, skip reinstalling and enabling again. Preserve the existing provider configuration and credentials, then open its Agents window directly:
+
+```powershell
+$fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG\vscode-v110-human'
+code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --agents
+```
+
+**Open User Settings (JSON)** verifies saved paths/settings, not a running Host or native setting registration. If Start reports `This window has no registered chat.remoteAgentHosts setting`, open the same instance's Agents window and retry there; adding the key again in the ordinary editor cannot register that capability. If Agents still reports it, check instance directories and extension version, reload Agents and recheck the supported VS Code build. If a matching Remote Host is already registered, inspect its connection before starting a duplicate.
 
 Model setup belongs to **Chat: Manage Language Models** in that dedicated Agents window. **Chat: Open Language Models (JSON)** opens `<dedicated-user-data>/User/chatLanguageModels.json`. Set `frag.modelConfigFile` explicitly to that absolute path. Empty, missing, linked or different Profile paths fail before any process starts. No default-profile configuration is guessed or copied. Save `[]` explicitly for a model-free installation check; it exposes no models. FRAG reads the bound file locally only to bind changes and report saved `settings[modelId].reasoningEffort`; raw keys and URLs are never copied to Host storage. There is no FRAG effort override picker. Unbound models are excluded; ambiguous registrations fail closed.
 
