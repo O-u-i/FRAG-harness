@@ -62,7 +62,7 @@ if ($PSCmdlet.ParameterSetName -eq 'Release') {
     if ($uri.Scheme -ne 'https' -or $uri.Host -notin @('github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com')) {
         throw 'ReleaseUrl must be an HTTPS GitHub release asset.'
     }
-    $downloadPath = Join-Path $projectRoot '.tmp\plugin-download.zip'
+    $downloadPath = Join-Path $projectRoot '.tmp\plugin-uploads\plugin-download.zip'
     Assert-NoReparsePoint $downloadPath
     New-Item -ItemType Directory -Path (Split-Path $downloadPath) -Force | Out-Null
     Invoke-WebRequest -Uri $uri -OutFile $downloadPath -MaximumRedirection 5

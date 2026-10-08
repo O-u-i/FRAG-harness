@@ -1,8 +1,9 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { mkdtempSync, writeFileSync } = require('node:fs');
-const { resolve, join } = require('node:path');
+const { writeFileSync } = require('node:fs');
+const { join } = require('node:path');
+const temporaryCase = require('./tmp.cjs')('bridge-tests');
 const { startBridge } = require('../model-bridge.cjs');
 const { hostEnvironment } = require('../host-launcher.cjs');
 const vm = require('node:vm');
@@ -24,7 +25,7 @@ function configuration(file, effort = 'high') {
     apiKey: '${input:synthetic-secret}', settings: { 'synthetic-model': { reasoningEffort: effort } } }]));
 }
 async function fixture(t, generate) {
-  const root = mkdtempSync(resolve('.tmp', 'bridge-test-'));
+  const root = temporaryCase();
   const file = join(root, 'models.json'); configuration(file);
   const calls = [], bridge = await startBridge(fakeVSCode(calls, generate), file);
   t.after(() => bridge.close());
@@ -79,7 +80,7 @@ test('installed environment does not inherit development provider or finance sec
   assert.equal(env.FRAG_HOST_INSTALLED, '1');
 });
 test('empty dedicated configuration exposes no models and bridge close is idempotent', async t => {
-  const root = mkdtempSync(resolve('.tmp', 'bridge-test-')); const file = join(root, 'models.json');
+  const root = temporaryCase(); const file = join(root, 'models.json');
   writeFileSync(file, '[]'); const calls = [], vscode = fakeVSCode(calls);
   vscode.lm.selectChatModels = async () => { throw Error('Empty configuration must not activate providers'); };
   const bridge = await startBridge(vscode, file);
@@ -90,7 +91,7 @@ test('empty dedicated configuration exposes no models and bridge close is idempo
   await assert.rejects(fetch(bridge.address + '/models'));
 });
 test('nonempty model discovery is bounded before any bridge is exposed', async () => {
-  const root = mkdtempSync(resolve('.tmp', 'bridge-test-')); const file = join(root, 'models.json'); configuration(file);
+  const root = temporaryCase(); const file = join(root, 'models.json'); configuration(file);
   const sandbox = { module: { exports: {} }, require, Buffer, clearTimeout,
     setTimeout: action => setTimeout(action, 20) };
   vm.runInNewContext(readFileSync(join(__dirname, '../model-bridge.cjs'), 'utf8'), sandbox);

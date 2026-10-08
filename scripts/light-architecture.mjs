@@ -100,7 +100,7 @@ assert(selection.length === 0 || (selection.length === 2 && selection[0] === '--
   selection[1] === 'vscode-migration/architecture'), 'Use --check and optionally --diagram vscode-migration/architecture.');
 const migrationOnly = selection.length > 0;
 const selectedDiagrams = migrationOnly ? ['vscode-migration/architecture'] : diagrams;
-const receiptPath = migrationOnly ? '.tmp/vscode-migration/light-output-transform.json'
+const receiptPath = migrationOnly ? '.local-plan-e/diagrams/light-output-transform.json'
   : '.local-plan-b/phase-8/diagrams/light-output-transform.json';
 let priorReceipt = null;
 try { priorReceipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch {}

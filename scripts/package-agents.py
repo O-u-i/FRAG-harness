@@ -1,5 +1,6 @@
 """Build private local Host/VSIX packages from explicit application file allowlists."""
 from hashlib import sha256
+from datetime import datetime, timezone
 from pathlib import Path
 import json
 import zipfile
@@ -63,7 +64,8 @@ def build():
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="json" ContentType="application/json"/><Default Extension="cjs" ContentType="application/javascript"/><Default Extension="md" ContentType="text/markdown"/><Default Extension="vsixmanifest" ContentType="text/xml"/></Types>''')
         archive.writestr("extension.vsixmanifest", f'''<?xml version="1.0" encoding="UTF-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011"><Metadata><Identity Language="en-US" Id="frag-bridge" Version="{VERSION}" Publisher="frag-local"/><DisplayName>FRAG Local Host</DisplayName><Description xml:space="preserve">Governed project conversation and VS Code model bridge.</Description><Properties><Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.140.0"/><Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="ui"/></Properties></Metadata><Installation><InstallationTarget Id="Microsoft.VisualStudio.Code"/></Installation><Dependencies/><Assets><Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true"/><Asset Type="Microsoft.VisualStudio.Services.Content.Details" Path="extension/README.md" Addressable="true"/></Assets></PackageManifest>''')
-    receipt = [{"file": file.name, "bytes": file.stat().st_size, "sha256": sha256(file.read_bytes()).hexdigest()}
+    receipt = [{"file": file.name, "bytes": file.stat().st_size, "sha256": sha256(file.read_bytes()).hexdigest(),
+                "artifactWrittenAt": datetime.fromtimestamp(file.stat().st_mtime, timezone.utc).isoformat()}
                for file in (host, vsix)]
     (OUT / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(json.dumps(receipt, indent=2))

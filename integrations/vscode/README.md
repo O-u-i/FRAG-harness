@@ -10,6 +10,8 @@ From the source checkout, build the two private local artifacts:
 npm.cmd run package:agents
 ```
 
+The installation files are **`frag-host-1.10.2.zip`** and **`frag-bridge-1.10.2.vsix`**, both in **`.tmp/packages/`**. The extension filename starts with `frag-`. If the VSIX is absent from the install dialog's file list, enter its full absolute path. Other temporary verification files are not installation packages.
+
 Extract `.tmp/packages/frag-host-1.10.2.zip` into a temporary bundle directory. With **PowerShell 7**, run that bundle's `install-host.ps1`. It copies only application/resources into `%LOCALAPPDATA%\FRAG\host\1.10.2` and initializes **Python 3.12** plus the unchanged locked backend dependencies using existing `uv`. Use `-InstallPath` for another new directory. An existing target is never overwritten. The ZIP excludes wheels, a Python runtime, development rules, `.env`, tests and private runtime/source data. Keep its distributed notices with the application.
 
 For an explicit new target:

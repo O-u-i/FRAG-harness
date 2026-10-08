@@ -4,9 +4,10 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
+const temporaryCase = require('./tmp.cjs')('extension-tests');
 
 function fixture(t, options = {}) {
-  const root = fs.mkdtempSync(path.resolve('.tmp', 'extension-test-'));
+  const root = temporaryCase();
   const storage = path.join(root, 'User', 'globalStorage', 'frag-local.frag-bridge');
   fs.mkdirSync(storage, { recursive: true });
   const file = path.join(root, 'User', 'chatLanguageModels.json'); fs.writeFileSync(file, '[]');

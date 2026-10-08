@@ -259,8 +259,6 @@ flowchart TD
 npm test
 npm run typecheck
 npm run build
-$runId = [guid]::NewGuid().ToString('N')
-$env:PYTEST_ADDOPTS="--basetemp=.tmp/pytest-frag-$runId -p no:cacheprovider"
 npm run test:python
 ```
 

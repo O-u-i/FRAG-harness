@@ -33,7 +33,7 @@ Use the matching VS Code build and a separate development profile. From the FRAG
 ```powershell
 $codeExe = 'C:\Path\To\Microsoft VS Code\Code.exe'
 $repoRoot = (Get-Location).Path
-$probeRoot = Join-Path $repoRoot ('.tmp/vscode-plan-d-' + [guid]::NewGuid().ToString('N'))
+$probeRoot = pwsh -NoProfile -File ./scripts/maintain-tmp.ps1 -NewRun vscode-chat-probe
 $userData = Join-Path $probeRoot 'user-data'
 $extensions = Join-Path $probeRoot 'extensions'
 $workspace = Join-Path $probeRoot 'workspace'
@@ -66,6 +66,8 @@ $launchArgs = @(
 )
 Start-Process -FilePath $codeExe -ArgumentList $launchArgs -WindowStyle Hidden
 ```
+
+After closing the development window and confirming its processes have stopped, close the task with `pwsh -NoProfile -File ./scripts/maintain-tmp.ps1 -CloseRun $probeRoot`. This profile is not marked disposable; retain its evidence before any cleanup.
 
 In that development window:
 

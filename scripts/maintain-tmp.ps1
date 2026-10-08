@@ -1,94 +1,145 @@
 [CmdletBinding()]
 param(
-    [switch]$Apply,
+    [switch]$Apply, [string]$NewRun, [string]$CloseRun, [switch]$Disposable,
+    [ValidateRange(0, 2147483647)][int]$OwnerProcessId = 0,
     [ValidateRange(1, 3650)][int]$RetentionDays = 14,
     [ValidateRange(1, 10240)][int]$MaxEvidenceMiB = 300,
-    [ValidateRange(1, 365)][int]$PressureMinAgeDays = 2
+    [ValidateRange(1, 365)][int]$PressureMinAgeDays = 2,
+    [ValidateRange(1, 10240)][int]$MaxTotalMiB = 2048
 )
-
 $ErrorActionPreference = 'Stop'
-$projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
+$projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $temporaryRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot '.tmp'))
-$evidenceRoot = [IO.Path]::GetFullPath((Join-Path $temporaryRoot 'artifacts'))
+$runsRoot = Join-Path $temporaryRoot 'runs'
 $comparison = [StringComparison]::OrdinalIgnoreCase
+$namePattern = '^\d{8}-\d{4}\+0800-[a-z][a-z0-9-]*-\d{2,}$'
+$now = [DateTimeOffset]::UtcNow.ToOffset([TimeSpan]::FromHours(8))
+if (@(@($NewRun, $CloseRun, $(if ($Apply) { 'apply' })) | Where-Object { $_ }).Count -gt 1) { throw 'Choose one operation.' }
 
-if (-not $temporaryRoot.StartsWith($projectRoot + '\', $comparison) -or
-    -not $evidenceRoot.StartsWith($temporaryRoot + '\', $comparison)) {
-    throw 'Temporary paths must remain inside this project.'
+function Assert-Path([string]$target) {
+    $target = [IO.Path]::GetFullPath($target)
+    if (!$target.Equals($temporaryRoot, $comparison) -and !$target.StartsWith($temporaryRoot + '\', $comparison)) { throw 'Path escaped the temporary root.' }
+    $ancestor = $target
+    while ($ancestor -and $ancestor.StartsWith($temporaryRoot, $comparison)) {
+        if (Test-Path -LiteralPath $ancestor) {
+            if ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Linked temporary paths are not allowed.' }
+        }
+        $ancestor = [IO.Path]::GetDirectoryName($ancestor)
+    }
+    return $target
 }
-if (-not (Test-Path -LiteralPath $evidenceRoot -PathType Container)) {
-    Write-Output 'No disposable artifact area exists; no cleanup candidate.'
-    return
-}
-
-$temporaryItem = Get-Item -LiteralPath $temporaryRoot -Force
-if (($temporaryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-    throw 'The project temporary directory is a reparse point.'
-}
-$rootItem = Get-Item -LiteralPath $evidenceRoot -Force
-if (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-    throw 'The disposable artifact area is a reparse point.'
-}
-
-$directories = [System.Collections.Generic.Stack[System.IO.DirectoryInfo]]::new()
-$files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
-$directories.Push($rootItem)
-while ($directories.Count -gt 0) {
-    $directory = $directories.Pop()
-    foreach ($entry in Get-ChildItem -LiteralPath $directory.FullName -Force) {
-        if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
-        if ($entry.PSIsContainer) {
-            $directories.Push($entry)
-        } elseif ($entry -is [IO.FileInfo]) {
-            $files.Add($entry)
+function Read-Tree([string]$root) {
+    $files = [Collections.Generic.List[IO.FileInfo]]::new()
+    $dirs = [Collections.Generic.List[IO.DirectoryInfo]]::new()
+    $blocked = [Collections.Generic.List[string]]::new()
+    $links = [Collections.Generic.List[string]]::new()
+    $stack = [Collections.Generic.Stack[string]]::new()
+    if (Test-Path -LiteralPath $root) { $stack.Push((Assert-Path $root)) }
+    while ($stack.Count) {
+        $directory = $stack.Pop()
+        try { $entries = @(Get-ChildItem -LiteralPath $directory -Force -ErrorAction Stop) }
+        catch { $blocked.Add($directory); continue }
+        foreach ($entry in $entries) {
+            if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { $links.Add($entry.FullName); continue }
+            if ($entry.PSIsContainer) { $dirs.Add($entry); $stack.Push($entry.FullName) }
+            else { $files.Add($entry) }
         }
     }
+    $bytes = [long]0
+    foreach ($file in $files) { $bytes += $file.Length }
+    return [pscustomobject]@{files=@($files.ToArray()); dirs=@($dirs.ToArray()); blocked=@($blocked.ToArray()); links=@($links.ToArray()); bytes=$bytes}
 }
-
-$now = [DateTime]::UtcNow
-$evidenceBytes = [long]0
-foreach ($file in $files) { $evidenceBytes += $file.Length }
-$limitBytes = [long]$MaxEvidenceMiB * 1MB
-$overLimit = $evidenceBytes -gt $limitBytes
-$candidates = foreach ($file in $files) {
-    $ageDays = ($now - $file.LastWriteTimeUtc).TotalDays
-    $reason = if ($ageDays -ge $RetentionDays) {
-        'age'
-    } elseif ($overLimit -and $ageDays -ge $PressureMinAgeDays) {
-        'size pressure'
-    } else {
-        $null
-    }
-    if ($reason) {
-        [pscustomobject]@{ File = $file; Reason = $reason; AgeDays = $ageDays }
-    }
-}
-$candidate = $candidates | Sort-Object { $_.File.LastWriteTimeUtc }, { $_.File.FullName } | Select-Object -First 1
-$sizeMiB = [math]::Round($evidenceBytes / 1MB, 2)
-if (-not $candidate) {
-    Write-Output "Disposable artifacts: $sizeMiB MiB across $($files.Count) files. No file qualifies for cleanup."
+if ($CloseRun) {
+    $target = Assert-Path $CloseRun
+    if (![IO.Path]::GetDirectoryName($target).Equals($runsRoot, $comparison) -or [IO.Path]::GetFileName($target) -notmatch $namePattern) { throw 'CloseRun requires a named task directly under .tmp/runs.' }
+    $manifestPath = Assert-Path (Join-Path $target 'run.json')
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.status = 'closed'
+    $manifest | Add-Member -NotePropertyName closedAt -NotePropertyValue $now.ToString('o') -Force
+    $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding utf8
     return
 }
-
-$selectedPath = [IO.Path]::GetFullPath($candidate.File.FullName)
-if (-not $selectedPath.StartsWith($evidenceRoot + '\', $comparison)) {
-    throw 'The selected file escaped the disposable artifact area.'
-}
-$relativePath = $selectedPath.Substring($projectRoot.Length + 1)
-$age = [math]::Round($candidate.AgeDays, 1)
-$mode = if ($Apply) { 'APPLY' } else { 'PREVIEW' }
-Write-Output "${mode}: $relativePath ($($candidate.Reason); $age days old; $sizeMiB MiB in disposable artifacts)."
-
-if ($Apply) {
-    $current = Get-Item -LiteralPath $selectedPath -Force -ErrorAction Stop
-    if ($current.PSIsContainer -or
-        ($current.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
-        $current.Length -ne $candidate.File.Length -or
-        $current.LastWriteTimeUtc -ne $candidate.File.LastWriteTimeUtc) {
-        throw 'The selected file changed after inspection; nothing was deleted.'
+$inventory = Read-Tree $temporaryRoot
+if ($NewRun) {
+    if ($NewRun -notmatch '^[a-z][a-z0-9-]{1,47}$') { throw 'Purpose must be a short lowercase kebab-case identifier.' }
+    if ($inventory.bytes -ge ([long]$MaxTotalMiB * 1MB)) { throw 'Temporary storage exceeds its ceiling. Clean eligible work before creating another run.' }
+    if ($inventory.blocked.Count -or $inventory.links.Count) { [Console]::Error.WriteLine('Temporary size is a lower bound: unreadable or linked legacy paths are protected.') }
+    $null = Assert-Path $runsRoot
+    $null = New-Item -ItemType Directory -Path $runsRoot -Force
+    $stem = $now.ToString('yyyyMMdd-HHmm') + '+0800-' + $NewRun
+    for ($sequence = 1; $sequence -le 9999; $sequence++) {
+        $target = Assert-Path (Join-Path $runsRoot ('{0}-{1:D2}' -f $stem, $sequence))
+        try { $null = New-Item -ItemType Directory -Path $target -ErrorAction Stop; break }
+        catch { if (!(Test-Path -LiteralPath $target -PathType Container)) { throw } }
     }
-    Remove-Item -LiteralPath $selectedPath -Force -ErrorAction Stop
-    Write-Output "Deleted one file: $relativePath"
-} else {
-    Write-Output 'Preview only. Re-run with -Apply to delete this one eligible file.'
+    if ($sequence -gt 9999) { throw 'Minute collision limit reached.' }
+    @{purpose=$NewRun; createdAt=$now.ToString('o'); status='active'; disposable=[bool]$Disposable;
+      ownerProcessId=$(if ($OwnerProcessId) { $OwnerProcessId } else { $PID })} |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $target 'run.json') -Encoding utf8
+    Write-Output $target
+    return
 }
+$allowedRoots = @('runs','evidence','packages','agents-dist','uv-cache','npm-cache','plugin-uploads','artifacts')
+$namingWarnings = @()
+if (Test-Path -LiteralPath $temporaryRoot) {
+    $namingWarnings = @(Get-ChildItem -LiteralPath $temporaryRoot -Force | Where-Object { $_.Name -notin $allowedRoots } | Select-Object -ExpandProperty Name)
+}
+$evidenceRoot = Join-Path $temporaryRoot 'evidence'
+if (Test-Path -LiteralPath $evidenceRoot) {
+    $null = Assert-Path $evidenceRoot
+    $namingWarnings += @(Get-ChildItem -LiteralPath $evidenceRoot -Force | Where-Object { !$_.PSIsContainer -or $_.Name -notmatch $namePattern } | ForEach-Object { 'evidence/' + $_.Name })
+}
+$tasks = @()
+if (Test-Path -LiteralPath $runsRoot) {
+    $null = Assert-Path $runsRoot
+    foreach ($directory in Get-ChildItem -LiteralPath $runsRoot -Directory -Force) {
+        if ($directory.Name -notmatch $namePattern) { $namingWarnings += 'runs/' + $directory.Name; continue }
+        try {
+            $manifestPath = Assert-Path (Join-Path $directory.FullName 'run.json')
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+            # PowerShell 7.5 deserializes ISO JSON dates; older releases retain strings.
+            if ($manifest.createdAt -is [DateTime]) { $created = [DateTimeOffset]$manifest.createdAt }
+            elseif ($manifest.createdAt -is [string]) { $created = [DateTimeOffset]::ParseExact($manifest.createdAt, 'o', [Globalization.CultureInfo]::InvariantCulture) }
+            else { throw 'Invalid creation timestamp.' }
+            if ($manifest.status -ne 'closed' -or $manifest.disposable -isnot [bool] -or !$manifest.disposable -or
+                ($manifest.ownerProcessId -isnot [long] -and $manifest.ownerProcessId -isnot [int]) -or $manifest.ownerProcessId -le 0) { continue }
+            if (Get-Process -Id $manifest.ownerProcessId -ErrorAction SilentlyContinue) { continue }
+            $tree = Read-Tree $directory.FullName
+            if ($tree.blocked.Count -or $tree.links.Count) { continue }
+            $tasks += [pscustomobject]@{path=$directory.FullName; tree=$tree; ageDays=($now-$created).TotalDays;
+                manifestPath=$manifestPath; manifestHash=(Get-FileHash -LiteralPath $manifestPath).Hash; ownerProcessId=$manifest.ownerProcessId}
+        } catch { $namingWarnings += 'unclassified:' + $directory.Name }
+    }
+}
+$disposableBytes = [long]0
+foreach ($task in $tasks) { $disposableBytes += $task.tree.bytes }
+$candidates = @($tasks | Where-Object { $_.ageDays -ge $RetentionDays -or ($disposableBytes -gt ([long]$MaxEvidenceMiB*1MB) -and $_.ageDays -ge $PressureMinAgeDays) })
+$deletedFiles = 0; $deletedBytes = [long]0; $failures = @()
+if ($Apply) {
+    foreach ($task in $candidates) {
+        try {
+            $null = Assert-Path $task.path
+            if ((Get-FileHash -LiteralPath $task.manifestPath).Hash -ne $task.manifestHash -or (Get-Process -Id $task.ownerProcessId -ErrorAction SilentlyContinue)) { throw 'Run changed or its owner is active.' }
+            # Keep the manifest until last, so an interrupted batch remains classified.
+            foreach ($file in ($task.tree.files | Sort-Object { $_.FullName -eq $task.manifestPath })) {
+                $target = Assert-Path $file.FullName
+                $current = Get-Item -LiteralPath $target -Force
+                if ($current.PSIsContainer -or $current.Length -ne $file.Length -or $current.LastWriteTimeUtc -ne $file.LastWriteTimeUtc) { throw 'File changed after inventory.' }
+                Remove-Item -LiteralPath $target -Force -ErrorAction Stop
+                $deletedFiles++; $deletedBytes += $file.Length
+            }
+            foreach ($directory in ($task.tree.dirs | Sort-Object { $_.FullName.Length } -Descending)) {
+                $null = Assert-Path $directory.FullName
+                [IO.Directory]::Delete($directory.FullName, $false)
+            }
+            $null = Assert-Path $task.path
+            [IO.Directory]::Delete($task.path, $false)
+        } catch { $failures += @{run=[IO.Path]::GetFileName($task.path); reason=$_.Exception.Message} }
+    }
+}
+[ordered]@{mode=$(if ($Apply) {'apply'} else {'inventory'}); readableMiB=[math]::Round($inventory.bytes/1MB,2);
+    maxTotalMiB=$MaxTotalMiB; totalIsLowerBound=[bool]($inventory.blocked.Count -or $inventory.links.Count);
+    aboveCeiling=($inventory.bytes -ge ([long]$MaxTotalMiB*1MB)); unreadablePaths=$inventory.blocked; linkedPaths=$inventory.links;
+    namingWarnings=$namingWarnings; eligibleRuns=@($candidates | ForEach-Object { [IO.Path]::GetFileName($_.path) });
+    deletedFiles=$deletedFiles; deletedBytes=$deletedBytes; failures=$failures} | ConvertTo-Json -Depth 4
+if ($failures.Count) { exit 1 }
