@@ -70,7 +70,19 @@ For the zero-model installation check, choose **Continue Without Signing In** if
 
 Set `frag.hostInstallation` in this isolated instance if the Host was installed at a nonstandard path. Set `frag.modelConfigFile` explicitly as described below. Application settings belong to the isolated instance, rather than a named editor Profile.
 
-## Start in a separate test project
+## Open Review and Settings without a session
+
+After installation/configuration, use the dedicated **Agents** welcome screen; do not create or open a native session just to enter FRAG:
+
+1. `Ctrl+Shift+P` → **FRAG: Start Project Host** → choose the evidence folder → **Bind project**. A project is required, but a session is not. Skip Start if this window already owns the running Host.
+2. `Ctrl+Shift+P` → **FRAG: Open Review**. This copies the running Host's `/review` URL and attempts to open a right-hand Browser tab. There is no session ID in this entry URL, and no session is created by the command.
+3. Paste the copied URL into the **Browser address bar** and press `Enter`; opening the tab alone does not navigate it. If the right pane still shows Files/Changes, use its `+` menu to open Browser. Do not use the composer or Files search, and do not reuse an old port.
+4. On **Select a native session**, leave the selection empty and open **Settings** from the right navigation (Settings icon in narrow panes). Save application preferences and explicit project sources. No New/Remote conversation selection/Send is needed for this configuration route. Model readiness is Not checked until a native task has a saved model selection.
+5. Start a native conversation using the next section only when ready for a task. For configuration only, finish with **FRAG: Stop Project Host**.
+
+Start can enumerate configured models, but neither Start nor opening Review generates a model response. Saving Settings does not automatically index evidence or run Research/Context/Inference. A terminal-unavailable notification is the deliberate native coding-tool boundary, not an instruction to open FRAG through a terminal. Files is not the Review page.
+
+## Start a conversation in a separate test project
 
 1. Create a separate local folder containing only intended synthetic evidence, such as `FRAG-Test/sample.txt`. Open **Agents in the dedicated instance** using the steps above. Configure its own model file; use `[]` only for a new empty model-free test configuration. Preserve existing providers when reusing an instance. If Workspace Trust restricts the current window, review that intended workspace before Start.
 2. Confirm the window is titled **Agents**, press `Ctrl+Shift+P`, then run **FRAG: Start Project Host**. In **Choose FRAG evidence project**, select the folder containing `sample.txt` and click **Bind project**. The extension checks registered settings, the local trusted execution environment and the explicit model-file binding before opening a bridge or child process. It starts its own loopback Host on an unused port and adds only its new Remote entry. A matching stale entry is preserved and requires manual inspection before restart. Starting from the ordinary editor fails with a clear message before any process is launched.

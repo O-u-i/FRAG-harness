@@ -10,6 +10,20 @@ Install the private local **Host ZIP + VSIX** in the dedicated instance. In its 
 
 The folder selected by **Start Project Host → Bind project** is the evidence Workspace. Choose the folder containing the intended source files, separately from the installed Host and its state directory. After startup, select that same project through the native **Remote** picker below. Opening a local folder with `Ctrl+O` does not select the FRAG Remote Host. Review's **Workspace** navigation entry opens evidence/task controls for the bound project; it does not bind a different folder. A source checkout and `backend/.env` are unnecessary for this route.
 
+### Open FRAG before creating or opening a session
+
+Once the matching Host/VSIX and dedicated-instance settings are ready, you can open FRAG and configure evidence without **New**, selecting a conversation, or sending a task:
+
+1. In the dedicated window titled **Agents**, press `Ctrl+Shift+P` → **FRAG: Start Project Host** → select the evidence folder → **Bind project**. This works from the welcome screen; no native session is required. If this window already owns the running FRAG Host, skip Start rather than starting it twice. A bound evidence project is still required.
+2. Press `Ctrl+Shift+P` → **FRAG: Open Review**. The command copies the running Host's `/review` URL and attempts to open a right-hand **Browser** tab. It does not create a session and does not navigate the Browser automatically.
+3. In that Browser's **address bar**, paste with `Ctrl+V` and press `Enter`. If only **Files** or **Changes** is visible, open a Browser tab using the right pane's `+` menu and paste there. Do not paste the URL into the chat composer or Files search. Use the copied URL; the Host port changes between starts.
+4. Review initially shows **Select a native session**. Leave that selection empty and click **Settings** in the right navigation; in a narrow pane, use the Settings icon. Save application preferences and explicit project evidence there before creating a conversation. Model readiness is **Not checked** until a native task supplies its saved model selection.
+5. Create/select a native session only when you are ready to send a task and enter Context. The conversation steps below are not prerequisites for opening Settings. Use **FRAG: Stop Project Host** when finished with configuration only.
+
+Starting the Host may enumerate the configured model catalog, but it does not generate a model response. Opening Review and saving Settings do not execute Research, Context or Inference, and do not build an index automatically. **Files** is the native file view, not FRAG Review. A terminal-unavailable notification means FRAG deliberately rejects native terminal/coding operations; use **Open Review**, not Run Task or a terminal, to enter the application.
+
+### Start a native conversation when ready
+
 In the Agents window, click **New / Ctrl+N**, then the **folder-name button above the composer**: **Remote → FRAG · project ID → Folders → your project**. Choose a model and send a task. This is a selected-evidence conversation agent. It has no edit or terminal bridge; native coding and Git operations remain VS Code operations.
 
 Open the right-hand **Browser** using **FRAG: Open Review**, paste the copied URL, and select the native session. Save project evidence in **Settings**, then use **Context → Inference → Review**. A special run or conversation configuration adds **Evidence → Research (optional)** before Context. The right navigation has Workspace, Runs, Settings and expandable Memory, with an icon rail in narrow Browser panes. Step entries and read-only Back remain sticky; reports have a separate display area. Ordinary text uses **Archivo Variable 5.3.0**. The standalone GUI keeps its layout. [Review components](src/agents/README.md), [v1.10.3 verification and handoff](integrations/vscode/REVIEW-SETTINGS-VERIFICATION.md).
@@ -68,6 +82,8 @@ Run each step in the location at the start of its flow; the text in parentheses 
 
 6. **In the Agents window → Ctrl+, → search `frag.hostInstallation`** (bind the initialized Host installation). Enter the expanded absolute Host directory in the setting's text field, without literal quote characters; preserve the previous installation separately.
 
+   If editing Settings JSON instead, use `"frag.hostInstallation": "<expanded-absolute-host-directory>"`. The outer JSON quotes delimit the string; do not add escaped `\"` characters inside its value. Quotes around PowerShell's `-InstallPath` argument are shell syntax, not part of the path to paste into Settings.
+
 7. **In the Agents window → Ctrl+Shift+P → Chat: Open Language Models (JSON)** (create or verify the dedicated model catalog). Verify the dedicated User path. For a new model-free test configuration, save `[]`. Preserve an existing provider configuration when reusing or upgrading an instance; connection checks can stop before Send.
 
 8. **In the Agents window → Ctrl+, → search `frag.modelConfigFile`** (bind the dedicated model JSON file). Enter its expanded absolute path in the setting's text field. Missing-path error: bind this dedicated file explicitly; avoid normal-instance or named-profile files.
@@ -76,7 +92,7 @@ Run each step in the location at the start of its flow; the text in parentheses 
    <dedicated-user-data>/User/chatLanguageModels.json
    ```
 
-9. **In the Agents window → Ctrl+Shift+P → FRAG: Start Project Host** (start the Host for the selected evidence Workspace). In **Choose FRAG evidence project**, select the folder containing your synthetic files and click **Bind project**. Then follow **In the Agents window → New / Ctrl+N → folder-name button above the composer → Remote → FRAG · project ID → Folders → your project → OK** (connect the native conversation to that Workspace). Retain its native URI-style path and trust only that intended folder. The FRAG Remote entry must be selected before sending a task.
+9. **In the Agents window → Ctrl+Shift+P → FRAG: Start Project Host** (start the Host for the selected evidence Workspace). In **Choose FRAG evidence project**, select the folder containing your synthetic files and click **Bind project**. For configuration without a session, run **FRAG: Open Review**, paste the copied URL into the right-hand Browser address bar and open **Settings**; no **New** or **Send** is needed. Only when starting a conversation, follow **New / Ctrl+N → folder-name button above the composer → Remote → FRAG · project ID → Folders → your project → OK**. Retain its native URI-style path and trust only that intended folder. The FRAG Remote entry must be selected before sending a task.
 
 10. **In the Agents window → Ctrl+Shift+P → FRAG: Stop Project Host** (finish the connection check and stop the owned Host). Confirm the intended FRAG Remote project before stopping. For the installation check, stop before Send; close an unsupported-terminal notification if it appears. Verify owned registration removal in `chat.remoteAgentHosts`; cached picker entries may remain.
 

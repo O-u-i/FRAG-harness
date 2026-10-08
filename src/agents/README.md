@@ -6,7 +6,21 @@ The delivery target is desktop VS Code and its resizable Browser pane. Mobile la
 
 ## Open
 
-Install the matching Host ZIP and VSIX, enable the extension for the Agents window, reload, and run **FRAG: Start Project Host**. Choose a separate evidence folder. In **New / Ctrl+N**, use the folder-name button above the composer: **Remote → FRAG → Folders → your project**. Send a task, run **FRAG: Open Review**, and paste the copied URL into the native right-hand Browser address bar.
+Install the matching Host ZIP and VSIX, enable the extension for the Agents window, reload, and run **FRAG: Start Project Host**. Choose a separate evidence folder. A native session is not required to start the Host or open Review.
+
+### Configure before creating or opening a session
+
+1. In the dedicated **Agents** window, run **FRAG: Start Project Host** and **Bind project** from the welcome screen; skip Start if this window already owns the running Host. A bound evidence project is still required.
+2. Run **FRAG: Open Review**. It copies the running Host's `/review` URL and attempts to open a right-hand Browser tab; it does not create a session or navigate the Browser automatically.
+3. Paste the URL into the **Browser address bar** and press `Enter`. If Files/Changes is visible instead, open Browser using the right pane's `+` menu. Do not paste into the composer or Files search, and do not reuse an old Host port.
+4. Leave **Select a native session** empty and open **Settings** in the right navigation (Settings icon in a narrow pane). Save application preferences and explicit project evidence. Model readiness is Not checked until a native task has a saved model selection. No New, conversation selection or Send is required here.
+5. Create a conversation only when ready for a task, or run **FRAG: Stop Project Host** after configuration only. Start may enumerate configured models but does not generate a model response. Opening Review and saving Settings do not run model stages or automatically build an index.
+
+The native Files view is not FRAG Review. FRAG deliberately rejects terminals/native coding tools; a terminal-unavailable notification is not a Review opening failure. Use Open Review rather than Run Task or a terminal.
+
+### Enter a task when ready
+
+In **New / Ctrl+N**, use the folder-name button above the composer: **Remote → FRAG → Folders → your project**. Choose a configured model and send a task. Then select the matching saved session in Review to prepare and separately approve its model stages. Session selection is required for task/run controls, not for the Settings entry above.
 
 [Installation and exact picker steps](../../integrations/vscode/README.md). The installed route needs no source checkout, backend `.env`, proposed extension API or VS Code modification. The advertised directory is the bound project; native file/edit/terminal operations remain unsupported.
 
