@@ -14,6 +14,7 @@ tmp/
 .local-plugins/
 .local-runtime/
 .local-plan-b/
+.local-plan-e/
 .local-agent-context.json
 .pytest_cache/
 *.tsbuildinfo
@@ -137,12 +138,6 @@ local-sources/**
 # Keep source placeholder examples when intentionally created
 !.env.example
 !README.md
-
-# Reviewed, original Pi Responses modules and dependency notices are source artifacts.
-!backend/pi-worker/vendor/pi-ai/dist/
-!backend/pi-worker/vendor/pi-ai/dist/**
-!backend/pi-worker/licenses/openai/
-!backend/pi-worker/licenses/openai/**
 
 # Original versioned KB plugin release artifact (three files, no private data).
 !docs/release/kb-frag-plugin-v1.0.0.zip

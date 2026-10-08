@@ -192,7 +192,7 @@ class ResearchFlow:
             if report.consumed_tokens > report.run_token_limit:
                 raise RequestBudgetError()
             output = output_model_for(state["prepared"]).model_validate(call.output)
-            if estimated_tokens(output.model_dump(by_alias=True)) > state["prepared"].request_body()["max_output_tokens"]:
+            if estimated_tokens(output.model_dump(by_alias=True)) > state["prepared"].output_limit:
                 raise RagOutputError()
             if state["prepared"].purpose == "research":
                 checkpoint_research(self.runtime, state["run_id"], state["call_id"], output)

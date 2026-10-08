@@ -1,24 +1,28 @@
-# FRAG-harness v1.9.0
+# FRAG-harness v1.10.0
 
-The optional [Pi Responses adapter](docs/pi-adapter.md) uses a pinned, reviewed backend-only module selection. Enable it separately for Research, Context and Inference; every request retains exact preview and one-use approval. The maintainer reports real-model and manual integration verification complete for the existing FRAG functionality; those results are separate from the VS Code carrier check below.
+The maintainer reports real-model and manual integration verification complete for the existing runtime. The v1.10.0 VS Code bridge has its own verification boundary; prior acceptance does not certify a new provider route.
 
 FRAG-harness is a local application for governed evidence retrieval, an optional bounded Research loop and two formal model stages. It starts with no Finance Core installation, account, token, or database. Research collects selected evidence through real read tools; the Context LLM compresses approved evidence and the Inference LLM produces a cited answer. Selection, redaction, token budgeting, approval, output validation, and citation checks are deterministic host code.
 
-## VS Code migration: Plan D
+## VS Code integration: Plan E
 
-Plan D connects FRAG to the native Agents window through a local **AHP 0.9.0** host under **Remote**. A new FRAG-designed page opens in the right-hand **Browser** tab; the standalone GUI keeps its existing layout. The review page merges Harness/RAG evidence and Context controls, shares reports and human review, and uses **Archivo Variable 5.3.0** with the supplied component references.
+Install the private local **Host ZIP + VSIX**, then run **FRAG: Enable in Agents Window** and **FRAG: Start Project Host**. The installed Host binds one explicitly chosen project. Program files, project evidence and per-project runtime state use separate directories. A source checkout and `backend/.env` are unnecessary for this route. [Installation and exact picker steps](integrations/vscode/README.md).
 
-Start with `npm run agents`, merge the generated ignored connection settings into Agents, select **Remote → FRAG → Folders → frag-workspace**, then open the review URL from the native reply in **Sessions: Browser**. Native Send saves a task; every model request still needs its exact preview and separate approval. [Startup](integrations/vscode/README.md) · [Review UI and component structure](src/agents/README.md) · [Backend adapter](backend/frag_api/services/AGENT-HOST.md).
+In the Agents window, click **New / Ctrl+N**, then the **folder-name button above the composer**: **Remote → FRAG · project ID → Folders → your project**. Choose a model and send a task. This is a selected-evidence conversation agent. It has no edit or terminal bridge; native coding and Git operations remain VS Code operations.
 
-The actual native flow was verified on VS Code **1.140.0** with synthetic evidence and two Fake calls: native task, Browser approvals, saved run and native result. This migration check made no paid provider, real KB or live FC call. Native tools/skills/MCP are not imported, terminals are unsupported, and Browser opening is manual. The earlier proposed Chat extension remains a [failed historical probe](integrations/vscode/CHAT-PROBE.md). [Native evidence](integrations/vscode/NATIVE-AGENTS.md).
+Open the right-hand **Browser** using **FRAG: Open Review**, paste the copied URL, and select the native session. The new FRAG Review page combines Harness/RAG evidence and Context controls into **Evidence → Context → Inference → Review**. Right-hand navigation uses gray transparent Glass Icons, with Workspace, Runs and Memory; ordinary text uses **Archivo Variable 5.3.0**. The standalone GUI keeps its layout. [Review components](src/agents/README.md).
 
-[Explore the migration boundary](docs/architecture/vscode-migration/architecture.html) · [Editable source](docs/architecture/vscode-migration/architecture.json).
+Models and credentials belong to VS Code's **Manage Language Models**, normally `%APPDATA%\Code\User\chatLanguageModels.json`. Other profiles require `frag.modelConfigFile`. The stable `vscode.lm` bridge uses the same native-selected model for every stage and inherits its saved default effort. It exposes no temporary effort override. Each stage previews exact **model API arguments** and requires separate one-use approval. Supplier HTTP fields, internal retries, billing and actual relay-side reasoning remain unknown. [Configuration and pinned API evidence](integrations/vscode/MODEL-CONFIGURATION.md).
 
-![Native AHP conversation and new Browser review sharing the governed FRAG host](docs/architecture/vscode-migration/architecture.svg)
+Pi execution, workers, dependency graph and configuration have been retired. Existing Pi reports remain readable/exportable; they cannot resume or silently migrate to another provider. Native MCP, Skills, Hooks and Plugins are not imported into FRAG. FRAG's optional selected-evidence plugins remain separate backend capabilities. [Plan E scope](docs/plan-e.md) · [Backend adapter](backend/frag_api/services/AGENT-HOST.md) · [Historical Plan D checks](integrations/vscode/NATIVE-AGENTS.md).
+
+[Explore the installed Host and model boundary](docs/architecture/vscode-migration/architecture.html) · [Editable source](docs/architecture/vscode-migration/architecture.json).
+
+![Native Agents and Browser approvals connecting an installed FRAG Host to a VS Code model bridge and isolated project state](docs/architecture/vscode-migration/architecture.svg)
 
 ## What runs in the core
 
-The React interface offers Harness, RAG Lab, Runs, Memory, and Plugins. The FastAPI backend owns local source parsing, exact outbound previews, single-use approval tokens for each model stage, the two model routes, citation validation, durable run history and human review, and rebuildable SQLite FTS5 indexes. RAG Lab can use the bundled synthetic dataset or one explicitly selected local file and its selected locators. Fake model providers work offline. Real model API credentials live only in `backend/.env`.
+The standalone React interface offers Harness, RAG Lab, Runs, Memory, and Plugins. The FastAPI backend owns local source parsing, exact outbound previews, single-use approval tokens for each model stage, the two model routes, citation validation, durable run history and human review, and rebuildable SQLite FTS5 indexes. RAG Lab can use the bundled synthetic dataset or one explicitly selected local file and its selected locators. Fake model providers work offline. Standalone direct API credentials live in backend environment configuration; the installed native route uses VS Code-managed credentials.
 
 Both stages execute the server-owned `PreparedCall` that was previewed. It binds the complete request JSON, destination, transport, model, output schema, timeout, source revisions, selected locators, checklist and host policy versions. Revalidation rejects changed bindings; execution does not rebuild a request from evidence. Source hashing and parsing use one byte snapshot, and RAG hits, parent text and index revision share a database read snapshot. Input estimates include instructions and schemas; each stage and the cumulative run have budget checks.
 
@@ -155,7 +159,7 @@ Disabling a package preserves its files and immediately hides its reader, routes
 
 ## Checks and boundaries
 
-The engineering version remains v1.9.0. The maintainer reports real-model and manual integration verification complete for existing FRAG functionality. This migration task did not repeat those checks or assess live FC. Private acceptance receipts, explicit phase acceptance and final versioned regression remain separate from a version change; this task does not close Phase 8 or release v2.0.0. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend constraints](docs/frontend-iteration.md) record the behavior retained by the standalone GUI and the new Browser review surface.
+The engineering version remains v1.10.0. The maintainer reports real-model and manual integration verification complete for existing FRAG functionality. This migration task did not repeat those checks or assess live FC. Private acceptance receipts, explicit phase acceptance and final versioned regression remain separate from a version change; this task does not close Phase 8 or release v2.0.0. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend constraints](docs/frontend-iteration.md) record the behavior retained by the standalone GUI and the new Browser review surface.
 
 ```mermaid
 flowchart TD
@@ -183,6 +187,6 @@ npm run test:python
 
 Tests use synthetic sources and temporary indexes. Backend-only keys and optional FC tokens must never enter browser assets, prompts, logs, tracked files, or error responses. Model answers require human review. FRAG does not connect to trading, banking, payment, or live-market APIs. The [plugin handoff](docs/finance-core-plugin-handoff.md) defines the optional FC integration boundary.
 
-LangGraph runs embedded in FastAPI for Research turn/tool routing, Context Run, and Inference Run orchestration. Preview is an ordinary host function and makes no model call. Host code still owns evidence selection, budgets, approval tokens, provider calls, validation and durable checkpoints. The graphs have no LangGraph checkpointer, external Agent Server, or LangSmith tracing. Research supports complete typed model proposals and optional native Pi tool-call transport. [Future Agent Server assessment](docs/horizon/horizon-1.md). Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
+LangGraph runs embedded in FastAPI for Research turn/tool routing, Context Run, and Inference Run orchestration. Preview is an ordinary host function and makes no model call. Host code still owns evidence selection, budgets, approval tokens, provider calls, validation and durable checkpoints. The graphs have no LangGraph checkpointer, external Agent Server, or LangSmith tracing. Research supports complete typed model proposals; the native bridge returns the same structured proposal contract. [Future Agent Server assessment](docs/horizon/horizon-1.md). Archify is an optional project-local Codex skill under the Git-ignored `.agents/skills/archify` directory for development review, not an application dependency.
 
 Thanks to [Archify](https://github.com/tt-a1i/archify) for the diagram tooling. The Archify 2.17 viewers are distributed with their [MIT copyright and permission notice](docs/architecture/ARCHIFY-LICENSE.txt); retain this notice when sharing the viewers separately.

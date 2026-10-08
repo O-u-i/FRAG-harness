@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { harnessConfigSchema } from './harness';
 import { recoveryPreviewSchema, runReportSchema } from './runtime';
 import { researchPreviewSchema } from './research';
 
@@ -12,12 +13,14 @@ const agentPreviewSchema = z.union([recoveryPreviewSchema, z.object({
 
 export const agentSessionSchema = z.object({
   sessionId: z.string().regex(/^[a-f0-9]{32}$/), resource: z.string().startsWith('frag:/'),
-  version: z.number().int().positive(), turns: z.array(z.object({
-    id: z.string(), text: z.string(), createdAt: z.string(),
+  version: z.number().int().positive(), modelId: z.string().nullable().optional(), turns: z.array(z.object({
+    id: z.string(), modelId: z.string().nullable().optional(), text: z.string(), createdAt: z.string(),
     state: z.enum(['running', 'complete', 'cancelled']), runId: z.string().nullable(),
   }).strict()),
 }).strict();
 export const agentViewSchema = z.object({
+  project: z.object({ name: z.string(), uri: z.string() }).strict().optional(),
+  config: harnessConfigSchema.optional(),
   session: agentSessionSchema, report: runReportSchema.nullable(), preview: agentPreviewSchema.nullable(),
 }).strict();
 export type AgentSession = z.infer<typeof agentSessionSchema>;

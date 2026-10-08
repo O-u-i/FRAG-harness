@@ -1,22 +1,28 @@
 # FRAG Review
 
-FRAG Review is the new right-hand page for VS Code Agents. The standalone FRAG GUI keeps its existing layout and fonts. Both entry points use the same backend, durable sessions, runs and human review records.
+FRAG Review is the new right-hand page for VS Code Agents. The standalone FRAG GUI keeps its existing layout and fonts. Both entry points reuse the same backend services; the installed route stores its project sessions, runs and review records separately from development state.
+
+The delivery target is desktop VS Code and its resizable Browser pane. Mobile layouts and device testing are outside scope.
 
 ## Open
 
-Run `npm run agents` from the repository root. Merge the generated, ignored `.local-runtime/vscode/connection.settings.json` entries into the native Agents settings, preserving any other hosts. Select **Remote → FRAG → Folders → frag-workspace**, then send a task of 3–500 characters. Open **Sessions: Browser** (`Ctrl+Shift+B` on the verified Windows build) and enter the review URL shown by FRAG, or use `http://127.0.0.1:8787/review` to select a native session.
+Install the matching Host ZIP and VSIX, enable the extension for the Agents window, reload, and run **FRAG: Start Project Host**. Choose a separate evidence folder. In **New / Ctrl+N**, use the folder-name button above the composer: **Remote → FRAG → Folders → your project**. Send a task, run **FRAG: Open Review**, and paste the copied URL into the native right-hand Browser address bar.
 
-This route needs no VSIX, proposed extension API or VS Code source modification. Start the host before selecting its folder. The empty virtual workspace does not expose the repository, personal files or terminal commands.
+[Installation and exact picker steps](../../integrations/vscode/README.md). The installed route needs no source checkout, backend `.env`, proposed extension API or VS Code modification. The advertised directory is the bound project; native file/edit/terminal operations remain unsupported.
 
 ## One shared workflow
 
 **Workspace** combines the Context features previously presented separately in Harness and RAG Lab. Choose selected files, RAG retrieval or installed plugin evidence. File sections and plugin records remain explicit selections. Building a RAG index is a separate manual action; neither opening the page nor sending a task builds it.
 
-The same steps show **Evidence → Context → Inference → Review**. Optional Research runs before Context and still requires approval for each model turn. Inspect the provider, model, endpoint, full request body and bindings; check **I reviewed this exact request**, then approve that single stage. Preparing the next stage is another explicit action. Native Send and VS Code permission settings never approve a model call.
+The same steps show **Evidence → Context → Inference → Review**. Optional Research runs before Context and still requires approval for each model turn. Inspect the provider, model, endpoint, exact model API arguments and bindings; check **I reviewed this exact request**, then approve that single stage. Preparing the next stage is another explicit action. Native Send and VS Code permission settings never approve a model call.
 
 **Runs** is scoped to the selected native session. Output, requests, sources and review share one report. Human revisions preserve the original output. JSON and Markdown exports use the existing runtime report. Structural/citation checks and human semantic review remain separate outcomes.
 
-**Customizations** groups Memory, Plugins and model-route readiness. These reuse FRAG's existing services with the new page styling. Native VS Code skills, MCP, hooks and client tool descriptions are not automatically imported or executed; this carrier has no native coding-tool or terminal bridge. The native shell may still discover global customizations on its own.
+The answer renders bounded Markdown: headings, paragraphs, emphasis, inline/fenced code, lists, quotes, tables and HTTP(S) links. Citation checks and notes are collapsed review details, including a visible count of missing-information gaps. Raw HTML remains escaped text; remote images are never fetched automatically. Saved model text and exports are unchanged. This renderer is original application code with no extra dependency; it does not claim full CommonMark support or nested-list syntax.
+
+**Memory** reuses FRAG's reviewed memory service. Navigation sits on the right; adapted Glass Icons use `colorful={false}` with gray transparent faces. Models and Plugins management are absent here. VS Code owns native Customizations; its MCP, Skills, Hooks and coding-tool registrations are not imported into this carrier. FRAG evidence-plugin selection remains in Workspace.
+
+Models and saved effort are configured through VS Code. The request preview reports saved effort and exposes the exact stable API messages/options. Final provider HTTP, internal retries and usage are unknown. [Configuration requirements](../../integrations/vscode/MODEL-CONFIGURATION.md).
 
 ## Stop, reload and recovery
 
@@ -36,6 +42,7 @@ src/agents/
     EvidencePicker.tsx          File, retrieval and plugin selection
     ReviewWorkflow.tsx          Shared exact-preview and approval flow
     ReviewReport.tsx            Output, requests, sources and human review
+    ReviewMarkdown.tsx          Safe model text and collapsed review annotations
   styles.css                    Scoped layout and component styles
   fonts.css                     Archivo font-face definitions
   README.md
@@ -56,4 +63,4 @@ Archivo uses [SIL OFL 1.1](https://github.com/Omnibus-Type/Archivo/blob/master/O
 
 ## Compatibility
 
-The carrier is pinned to the verified **VS Code 1.140.0** build and **AHP 0.9.0**. It is a bounded FRAG evidence harness, not a general AHP filesystem, terminal or coding agent. Unsupported operations return protocol errors. VS Code can show a terminal-unavailable notification for the virtual remote workspace. Recheck native discovery, session creation, message ownership, Browser placement and output rendering after a VS Code update.
+The carrier is pinned to the verified **VS Code 1.140.0** build and **AHP 0.9.0**. It is a bounded FRAG evidence harness, not a general AHP filesystem, terminal or coding agent. Unsupported operations return protocol errors. VS Code can show a terminal-unavailable notification for the bound remote project. Recheck native discovery, session creation, message ownership, Browser placement and output rendering after a VS Code update.

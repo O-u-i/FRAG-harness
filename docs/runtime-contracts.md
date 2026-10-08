@@ -1,6 +1,6 @@
 # Governed runtime contracts
 
-`GET /api/harness/capabilities` lists executable registrations separately from planned capabilities. The runtime registers the fixed Context → Inference runner, optional Research → Context → Inference runner, `frag.host` HTTP CLI, `kb.read.cli` carrier, native `kb.search` and CLI-backed `kb.read`. Tool arguments and private carrier input schemas are separately declared; the carrier receives only trusted selected snapshots after host authorization. Fixed model requests contain no model tools. Research accepts complete typed model proposals, validates them and feeds actual observations into the next separately approved turn. Native Pi tool-call transport remains a later integration.
+`GET /api/harness/capabilities` lists executable registrations separately from planned capabilities. The runtime registers the fixed Context → Inference runner, optional Research → Context → Inference runner, `frag.host` HTTP CLI, `kb.read.cli` carrier, native `kb.search` and CLI-backed `kb.read`. Tool arguments and private carrier input schemas are separately declared; the carrier receives only trusted selected snapshots after host authorization. Fixed model requests contain no model tools. Research accepts complete typed model proposals, validates them and feeds actual observations into the next separately approved turn. The VS Code route uses this same structured contract without importing native coding tools.
 
 ## Prepared requests and approval
 

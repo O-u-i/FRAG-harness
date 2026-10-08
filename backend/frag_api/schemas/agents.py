@@ -10,6 +10,7 @@ class AgentTurn(ApiModel):
     created_at: str = Field(alias="createdAt")
     state: Literal["running", "complete", "cancelled"] = "running"
     run_id: str | None = Field(default=None, alias="runId")
+    model_id: str | None = Field(default=None, alias="modelId")
 
 
 class AgentSession(ApiModel):
@@ -17,6 +18,16 @@ class AgentSession(ApiModel):
     resource: str
     version: int = 1
     turns: list[AgentTurn] = Field(default_factory=list)
+    model_id: str | None = Field(default=None, alias="modelId")
+
+
+class BridgeModel(ApiModel):
+    id: str = Field(min_length=1, max_length=300)
+    name: str = Field(min_length=1, max_length=200)
+    vendor: str = Field(min_length=1, max_length=100)
+    revision: str = Field(pattern=r"^[a-f0-9]{64}$")
+    effort: str | None = Field(default=None, max_length=30)
+    max_input_tokens: int = Field(alias="maxInputTokens", gt=0)
 
 
 class AgentCheck(ApiModel):

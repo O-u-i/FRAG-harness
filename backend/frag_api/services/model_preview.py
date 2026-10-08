@@ -39,9 +39,9 @@ def context_preview_fields(*, settings: LlmSettings, evidence: list[RagEvidence]
                                   "outputLimit":INFERENCE_OUTPUT_LIMIT},
                               "inferenceRoute": stage_route(settings.inference)}, secrets),
     )
-    body = call.request_body()
+    instructions, serialized_input = call.preview_text()
     return {"candidateEvidence": [RagEvidence.model_validate(item) for item in call.request_body_input()["evidence"]],
-            "instructions": body["instructions"], "input": body["input"] if isinstance(body["input"], str) else canonical_json(body["input"]),
+            "instructions": instructions, "input": serialized_input,
             "preparedCall": call, "sourceBindings": sources,
             "task": TaskContract.model_validate(redact_value(task.model_dump(by_alias=True), secrets)),
             "canApprove": bool(evidence) and not task.blocking_ids, "contextFingerprint": call.fingerprint, "approvalToken": "",

@@ -27,18 +27,19 @@ class LlmStageSettings:
     base_url: str | None
     api_key: str | None
     timeout_seconds: float
-    adapter: str = "native"
+    configuration_revision: str = ""
+    reasoning_effort: str | None = None
+    max_input_tokens: int = 6000
+    model_name: str | None = None
+    model_vendor: str | None = None
 
     @property
     def ready(self) -> bool:
-        if self.adapter == "pi":
-            from frag_api.providers.pi_process import worker_ready
-            return self.provider == "openai" and bool(self.api_key) and worker_ready(self.model, self.base_url)
         if self.provider == "fake":
             return True
         if not self.model:
             return False
-        return bool(self.api_key) if self.provider == "openai" else bool(self.base_url)
+        return bool(self.api_key) if self.provider in {"openai", "vscode"} else bool(self.base_url)
 
 
 @dataclass(frozen=True)
@@ -55,8 +56,9 @@ class LlmSettings:
             prefix = f"FRAG_{name}_LLM"
             provider = os.environ.get(f"{prefix}_PROVIDER", "fake").lower()
             adapter = os.environ.get(f"{prefix}_ADAPTER", "native").lower()
-            if adapter not in {"native", "pi"} or (adapter == "pi" and provider != "openai"):
+            if adapter != "native":
                 raise RagNotReadyError()
+            # Installed VS Code routes are injected by the authenticated bridge, never environment configuration.
             if provider not in {"fake", "openai", "ollama"}:
                 raise RagNotReadyError()
             base_url = os.environ.get(f"{prefix}_BASE_URL")
@@ -68,7 +70,6 @@ class LlmSettings:
                 base_url=base_url,
                 api_key=os.environ.get("OPENAI_API_KEY") if provider == "openai" else "ollama",
                 timeout_seconds=timeout,
-                adapter=adapter,
             )
 
         return cls(context=stage("CONTEXT"), inference=stage("INFERENCE"), research=stage("RESEARCH"))
@@ -192,7 +193,7 @@ def inference_input(compressed: RagContextCompression, query: str) -> tuple[str,
 
 
 def provider_for(settings: LlmStageSettings) -> LlmProvider:
-    if settings.adapter == "pi":
-        from frag_api.providers.pi import PiProvider
-        return PiProvider(settings)
+    if settings.provider == "vscode":
+        from frag_api.providers.vscode import VSCodeProvider
+        return VSCodeProvider(settings)
     return FakeLlmProvider() if settings.provider == "fake" else OpenAICompatibleProvider(settings)

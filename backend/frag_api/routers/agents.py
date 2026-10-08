@@ -44,12 +44,13 @@ def sessions(request: Request):
 @router.get("/api/agents/sessions/{session_id}", dependencies=[*guards, Depends(reject_body)])
 def view(request: Request, session_id: str):
     host = request.app.state.agent_host
-    carrier = host.current(session_id)
-    turn = carrier.turns[-1] if carrier.turns else None
-    report = host.runtime.repository.get(turn.run_id) if turn and turn.run_id else None
-    pending = host.pending.get(session_id)
-    preview = pending[4] if pending and carrier.version == pending[0] and report and report.run.version == pending[2] else None
-    return {"session": carrier, "report": report, "preview": preview}
+    with host.lock, host.model_route(session_id):
+        carrier = host.current(session_id)
+        turn = carrier.turns[-1] if carrier.turns else None
+        report = host.runtime.repository.get(turn.run_id) if turn and turn.run_id else None
+        pending = host.pending.get(session_id)
+        preview = pending[4] if pending and carrier.version == pending[0] and report and report.run.version == pending[2] else None
+        return host.review_view(carrier, report, preview)
 
 
 @router.post("/api/agents/sessions/{session_id}/prepare", dependencies=guards)
@@ -74,7 +75,7 @@ def execute(request: Request, session_id: str, body: Annotated[AgentExecute, Bod
 def review_page(request: Request):
     if not request.app.state.agent_host_enabled or not allowed(request):
         raise HTTPException(404)
-    path = Path(__file__).resolve().parents[3] / "dist/index.html"
+    path = request.app.state.review_assets / "index.html"
     if not path.is_file():
         raise HTTPException(503)
     return FileResponse(path, headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
@@ -82,8 +83,8 @@ def review_page(request: Request):
 
 
 @router.get("/review/help", dependencies=[Depends(enabled)])
-def help_page():
-    return FileResponse(Path(__file__).resolve().parents[3] / "src/agents/README.md", media_type="text/plain")
+def help_page(request: Request):
+    return FileResponse(request.app.state.review_help, media_type="text/plain")
 
 
 async def observe(connection):

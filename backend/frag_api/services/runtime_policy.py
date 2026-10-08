@@ -23,7 +23,7 @@ def redact(text: str, secrets: tuple[str, ...] = ()) -> str:
 
 def configured_secrets(settings) -> tuple[str, ...]:
     return tuple(stage.api_key for stage in (settings.context, settings.inference, getattr(settings, "research", None))
-                 if stage is not None and stage.provider == "openai" and stage.api_key)
+                 if stage is not None and stage.provider in {"openai", "vscode"} and stage.api_key)
 
 
 def redact_value(value, secrets: tuple[str, ...] = ()):
@@ -42,13 +42,13 @@ class RunBudget:
     consumed: int = 0
 
     def reserve(self, call: PreparedCall) -> None:
-        estimated = call.estimated_input_tokens + call.request_body()["max_output_tokens"]
+        estimated = call.estimated_input_tokens + call.output_limit
         if self.consumed + estimated > self.limit:
             raise RequestBudgetError()
 
     def charge(self, call: PreparedCall, usage: ProviderUsage) -> "RunBudget":
         count = ((usage.input_tokens if usage.input_tokens is not None else call.estimated_input_tokens)
-                 + (usage.output_tokens if usage.output_tokens is not None else call.request_body()["max_output_tokens"]))
+                 + (usage.output_tokens if usage.output_tokens is not None else call.output_limit))
         updated = RunBudget(self.limit, self.consumed + count)
         if updated.consumed > updated.limit:
             raise RequestBudgetError()

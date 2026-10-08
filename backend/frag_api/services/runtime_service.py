@@ -74,12 +74,13 @@ class RuntimeService:
             for call in report.requests:
                 if call.status != "completed" or call.structural_validation != "UNDETERMINED":
                     continue
+                if call.prepared_call.transport == "pi-responses-v1":
+                    continue  # Retired route: preserve historical state without replay or promotion.
                 try:
                     if report.consumed_tokens > report.run_token_limit:
                         self.failure(report.run.id, call.id, "REQUEST_BUDGET_EXCEEDED")
                         continue
-                    if ((call.prepared_call.transport == "pi-responses-v1" and not call.output_digest)
-                            or (call.output_digest and call.output_digest != fingerprint(call.output))):
+                    if call.output_digest and call.output_digest != fingerprint(call.output):
                         raise ValueError()
                     if call.stage == "research":
                         from frag_api.services.research_checkpoint import checkpoint_research
@@ -160,7 +161,7 @@ class RuntimeService:
                 raise RuntimeConflictError()
             if allow_paused and report.reviews:
                 HostPolicy.require_task(report.reviews[-1].checklist)
-            reservation = prepared.estimated_input_tokens + prepared.request_body()["max_output_tokens"]
+            reservation = prepared.estimated_input_tokens + prepared.output_limit
             if report.consumed_tokens + reservation > report.run_token_limit:
                 raise RequestBudgetError()
             report.requests.append(AttemptRecord(id=call_id, stage=stage, status="prepared", preparedCall=safe_call, createdAt=now()))
@@ -190,7 +191,7 @@ class RuntimeService:
             call = next(c for c in report.requests if c.id == call_id)
             if call.status != "prepared" or call.prepared_call.fingerprint != prepared.fingerprint:
                 raise RuntimeConflictError()
-            reservation = prepared.estimated_input_tokens + prepared.request_body()["max_output_tokens"]
+            reservation = prepared.estimated_input_tokens + prepared.output_limit
             if report.consumed_tokens + reservation > report.run_token_limit:
                 raise RequestBudgetError()
             call.status = "dispatching"
@@ -209,22 +210,17 @@ class RuntimeService:
             call = next(c for c in report.requests if c.id == call_id)
             if call.status != "dispatching":
                 raise RuntimeConflictError()
-            from frag_api.providers.research_native import validate_native_replay
-            from frag_api.schemas.research import ResearchDecision
-            if call.stage == "research":
-                replay = validate_native_replay(call.prepared_call, ResearchDecision.model_validate(safe_output), safe_native)
-            else:
-                if native_replay is not None:
-                    raise RagOutputError()
-                replay = None
+            if native_replay is not None:
+                raise RagOutputError()
+            replay = None
             call.status, call.finished_at = "completed", now()
             call.output, call.usage, call.structural_validation = safe_output, usage, "UNDETERMINED"
             call.output_digest = fingerprint(safe_output)
             call.native_replay = replay
             call.native_replay_digest = fingerprint(safe_native) if replay is not None else None
             prepared = call.prepared_call
-            reservation = prepared.estimated_input_tokens + prepared.request_body()["max_output_tokens"]
-            count = (usage.input_tokens if usage.input_tokens is not None else prepared.estimated_input_tokens) + (usage.output_tokens if usage.output_tokens is not None else prepared.request_body()["max_output_tokens"])
+            reservation = prepared.estimated_input_tokens + prepared.output_limit
+            count = (usage.input_tokens if usage.input_tokens is not None else prepared.estimated_input_tokens) + (usage.output_tokens if usage.output_tokens is not None else prepared.output_limit)
             report.consumed_tokens += count - reservation
             report.run.updated_at = now()
         self.repository.update(run_id, change)

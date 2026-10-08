@@ -1,5 +1,7 @@
 # Native Agents integration evidence
 
+This is the historical **Plan D** receipt. The current installed route, project binding and VSIX model bridge are documented in [Plan E](../../docs/plan-e.md); the virtual workspace and no-VSIX statements below describe the earlier test only.
+
 ## Implemented route
 
 On 2026-10-07 the original bounded FRAG adapter connected to **VS Code 1.140.0**, commit `07f806f999227108933c2e30515b26eecc1fda74`, negotiating **AHP 0.9.0**. The maintainer accepted a local host under Remote and the right-hand Browser page. The test used the actual backend adapter, a synthetic source and Fake model providers.

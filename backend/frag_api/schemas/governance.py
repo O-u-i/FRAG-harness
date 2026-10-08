@@ -8,7 +8,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from frag_api.schemas.common import ApiModel, ProviderKind
 
-HOST_VERSION = "1.9.0"
+HOST_VERSION = "1.10.0"
 POLICY_VERSION = "selected-read-v1"
 REDACTION_VERSION = "outbound-v1"
 TASK_TEMPLATE_VERSION = "evidence-review-v1"
@@ -102,12 +102,13 @@ class LoopLimits(FrozenModel):
 
 class PreparedCall(FrozenModel):
     """Immutable JSON strings prevent mutation of nested request or binding objects."""
-    schema_version: Literal[1] = Field(default=1, alias="schemaVersion")
+    schema_version: Literal[1, 2] = Field(default=1, alias="schemaVersion")
     purpose: Literal["context", "inference", "research"]
     provider: ProviderKind
     model: str
     endpoint: str
-    transport: Literal["fake", "responses-v1", "pi-responses-v1"]
+    # Legacy transport is readable history only; no provider can execute it.
+    transport: Literal["fake", "responses-v1", "pi-responses-v1", "vscode-lm-v1"]
     body: str
     binding: str
     timeout_seconds: float = Field(alias="timeoutSeconds", gt=0, le=120)
@@ -128,10 +129,22 @@ class PreparedCall(FrozenModel):
         return json.loads(self.body)
 
     def request_body_input(self) -> dict:
-        value = self.request_body()["input"]
+        body = self.request_body()
+        value = body["messages"][1]["content"] if self.transport == "vscode-lm-v1" else body["input"]
         if isinstance(value, list):
             value = value[0]["content"][0]["text"]
         return json.loads(value)
+
+    @property
+    def output_limit(self) -> int:
+        body = self.request_body()
+        return body["options"]["modelOptions"]["max_tokens"] if self.transport == "vscode-lm-v1" else body["max_output_tokens"]
+
+    def preview_text(self) -> tuple[str, str]:
+        body = self.request_body()
+        if self.transport == "vscode-lm-v1":
+            return body["messages"][0]["content"], body["messages"][1]["content"]
+        return body["instructions"], body["input"] if isinstance(body["input"], str) else json.dumps(body["input"], ensure_ascii=False)
 
     def request_binding(self) -> dict:
         return json.loads(self.binding)

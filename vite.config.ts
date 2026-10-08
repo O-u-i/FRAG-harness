@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { resolve } from 'node:path';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  build: mode === 'agents' ? { rollupOptions: { input: resolve('agents.html') } } : {},
   server: {
     proxy: {
       '/api': {
@@ -23,4 +25,4 @@ export default defineConfig({
       '/plugins': 'http://127.0.0.1:8787',
     },
   },
-});
+}));

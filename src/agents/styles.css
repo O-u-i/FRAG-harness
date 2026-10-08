@@ -12,14 +12,14 @@ body:has(.review-root) { margin: 0; }
   --review-border: #383838;
   --review-text: #f0f0f0;
   --review-muted: #b2b2ba;
-  --review-accent: #c0b7ef;
+  --review-accent: #d1d1d1;
   --accent: var(--review-accent);
   --border: var(--review-border);
   --border-strong: #49454f;
   --text-primary: var(--review-text);
   --text-secondary: var(--review-muted);
   display: grid;
-  grid-template-columns: 146px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 146px;
   min-height: 100vh;
   background: var(--review-bg);
   color: var(--review-text);
@@ -42,9 +42,9 @@ body:has(.review-root) { margin: 0; }
 .review-root button:hover { background: #353535; border-color: #66616f; }
 .review-root button:disabled { cursor: default; opacity: .48; }
 .review-root :focus-visible { outline: 2px solid var(--review-accent); outline-offset: 3px; box-shadow: none; }
-.review-sidebar { position: sticky; top: 0; height: 100vh; border-right: 1px solid var(--review-border); padding: 25px 13px 18px; display: flex; flex-direction: column; gap: 38px; background: #141414; }
+.review-sidebar { position: sticky; top: 0; height: 100vh; border-left: 1px solid var(--review-border); padding: 25px 13px 18px; display: flex; flex-direction: column; gap: 38px; background: #141414; }
 .review-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--review-text) !important; }
-.review-brand span { width: 32px; height: 34px; display: grid; place-items: center; border: 1px solid #746b9c; border-radius: 8px; font-size: 24px; font-weight: 450; }
+.review-brand span { width: 32px; height: 34px; display: grid; place-items: center; border: 1px solid #626262; border-radius: 8px; font-size: 24px; font-weight: 450; }
 .review-brand strong { font-size: 16px; font-weight: 550; letter-spacing: .06em; }
 .review-line-sidebar { display: grid; gap: 10px; }
 .review-line-sidebar button { --effect: 0; display: flex; align-items: center; gap: 10px; border: 0; background: transparent; text-align: left; padding: 8px 0; min-height: 44px; }
@@ -115,12 +115,25 @@ body:has(.review-root) { margin: 0; }
 .review-endpoint { font-size: 12px; overflow-wrap: anywhere; }
 .review-tabs { display: flex; gap: 4px; padding: 18px 0 12px; flex-wrap: wrap; }
 .review-tabs [role="tab"] { border-color: transparent; background: transparent; color: var(--review-muted); padding: 8px 11px; min-height: 38px; }
-.review-tabs [aria-selected="true"] { background: #302d3b; border-color: #4d465f; color: var(--review-text); }
+.review-tabs [aria-selected="true"] { background: #303030; border-color: #565656; color: var(--review-text); }
 .review-verdicts { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--review-muted); margin: 14px 0; }
 .review-verdicts strong { margin-left: 7px; color: var(--review-text); font-weight: 500; }
+.review-markdown { line-height: 1.75; overflow-wrap: anywhere; }
+.review-markdown h2 { font-size: 20px; margin: 24px 0 8px; }
+.review-markdown h3,.review-markdown h4,.review-markdown h5,.review-markdown h6 { font-size: 16px; margin: 20px 0 8px; }
+.review-markdown p { margin: 10px 0; white-space: pre-line; }
+.review-markdown ul,.review-markdown ol { padding-left: 22px; }
+.review-markdown blockquote { margin: 16px 0; padding: 1px 0 1px 14px; border-left: 2px solid #676767; color: var(--review-muted); }
+.review-markdown hr { border: 0; border-top: 1px solid var(--review-border); margin: 20px 0; }
+.review-markdown :not(pre)>code { font-size: .9em; padding: 2px 4px; background: #ffffff0d; border-radius: 3px; }
+.review-table-scroll { overflow-x: auto; }
+.review-markdown table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.review-markdown th,.review-markdown td { border-bottom: 1px solid var(--review-border); text-align: left; padding: 8px; }
+.review-annotation { color: var(--review-muted); font-size: 13px; }
+.review-annotation>div { border-left: 1px solid #555; padding-left: 12px; margin: 12px 0; }
+.review-citations { font-family: ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
 .review-report-footer { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--review-muted); border-top: 1px solid var(--review-border); padding: 18px 0; margin-top: 18px; }
 .review-report-footer span { margin-right: auto; }
-.review-models article { border-top: 1px solid var(--review-border); padding: 20px 0; }
 .review-root .card { background: transparent; border: 0; box-shadow: none; padding: 14px 0; border-radius: 0; }
 .review-root .section-heading { margin-bottom: 16px; }
 .review-root .section-heading h2 { font-size: 18px; margin: 0 0 6px; }
@@ -134,7 +147,7 @@ body:has(.review-root) { margin: 0; }
 .review-root .checklist-controls { gap: 10px; }
 .review-root .checklist-controls label { font-size: 12px; }
 @media (max-width: 700px) {
-  .review-root { grid-template-columns: 108px minmax(0,1fr); }
+  .review-root { grid-template-columns: minmax(0,1fr) 108px; }
   .review-sidebar { padding: 22px 10px 16px; }
   .review-brand { gap: 7px; }
   .review-brand strong { font-size: 13px; }
@@ -151,20 +164,6 @@ body:has(.review-root) { margin: 0; }
   .review-header { padding: 12px 15px; }
   .review-content { padding: 23px 15px 45px; }
   .review-task h2 { font-size: 20px; }
-}
-@media (max-width: 430px) {
-  .review-root { grid-template-columns: 81px minmax(0,1fr); }
-  .review-brand strong { display: none; }
-  .review-root .review-line-sidebar button { font-size: 10px; gap: 3px; }
-  .review-line-sidebar [aria-current="page"] .review-tick { width: 7px; }
-  .review-glass-icons button { flex-direction: column; align-items: flex-start; height: auto; gap: 4px; }
-  .review-root .review-branches summary { font-size: 10px; overflow-wrap: anywhere; }
-  .review-sidebar footer { font-size: 10px; }
-  .review-header { padding: 10px 12px; }
-  .review-header strong { font-size: 12px; }
-  .review-content { padding: 20px 12px 40px; }
-  .review-stepper li { font-size: 9px; }
-  .review-root button { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .review-root * { animation: none !important; transition: none !important; }

@@ -118,10 +118,15 @@ def test_two_exact_approvals_and_native_result_are_same_runtime_run(tmp_path, so
         with client.websocket_connect("ws://127.0.0.1:8787/api/agents/ahp") as socket:
             initialize(socket)
             snapshot = rpc(socket, "subscribe", {"channel": chat_uri(uri)})["result"]["snapshot"]["state"]
-            assert report["modelOutput"]["answer"] in snapshot["activeTurn"]["responseParts"][0]["content"]
+            parts = snapshot["activeTurn"]["responseParts"]
+            assert [p["id"] for p in parts] == ["frag-synthetic-turn", "result-synthetic-turn"]
+            assert report["modelOutput"]["answer"] not in parts[0]["content"]
+            assert report["modelOutput"]["answer"] in parts[1]["content"]
             # Actual observer completes the native turn from the saved result.
             for _ in range(8):
                 message = socket.receive_json()
+                if message.get("params", {}).get("action", {}).get("type") == "chat/responsePart":
+                    assert message["params"]["action"]["part"]["id"] == parts[1]["id"]
                 if message.get("params", {}).get("action", {}).get("type") == "chat/turnComplete":
                     break
             else:

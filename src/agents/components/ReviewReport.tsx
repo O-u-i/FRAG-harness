@@ -2,15 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import type { RunReport } from '../../../shared/contracts/runtime';
 import type { PreparedCall } from '../../../shared/contracts/governance';
 import { reviewRun, saveRevision } from '../../api/runtimeClient';
-import { RuntimeAnswer } from '../../features/runtime/RunReportView';
+import { ReviewAnswer } from './ReviewMarkdown';
 import { RunReviewPanel } from '../../features/runtime/RunReviewPanel';
 
 export function RequestPreview({ call }: { call: PreparedCall }) {
+  const native = call.transport === 'vscode-lm-v1';
+  const binding = JSON.parse(call.binding);
   return <section className="review-request" aria-label="Exact outbound request">
-    <div className="review-route"><strong>{call.provider}</strong><span>{call.model}</span></div>
+    <div className="review-route"><strong>{binding.modelVendor ?? call.provider}</strong><span>{binding.modelLabel ?? call.model}</span></div>
     <code className="review-endpoint">{call.endpoint}</code>
-    <p className="review-meta">{call.estimatedInputTokens} input tokens (estimated) · {call.timeoutSeconds}s · {call.maxRetries} retries</p>
-    <details open><summary>Complete request JSON</summary><pre>{JSON.stringify(JSON.parse(call.body), null, 2)}</pre></details>
+    <p className="review-meta">{call.estimatedInputTokens} input tokens (estimated) · {call.timeoutSeconds}s · {call.maxRetries} FRAG retries</p>
+    {native && <p className="review-meta">Saved effort: {binding.configuredEffort ?? 'Provider default'} · Provider HTTP, retries and usage: unknown</p>}
+    {call.transport === 'pi-responses-v1' && <p className="review-meta">Retired transport · read-only history</p>}
+    <details open><summary>{native ? 'Exact model API arguments' : 'Complete request JSON'}</summary><pre>{JSON.stringify(JSON.parse(call.body), null, 2)}</pre></details>
     <details><summary>Source, checklist and memory bindings</summary><pre>{JSON.stringify(JSON.parse(call.binding), null, 2)}</pre></details>
   </section>;
 }
@@ -47,12 +51,12 @@ export function ReviewReport({ report, onChange }: { report: RunReport; onChange
       {error && <p className="review-alert" role="alert">{error}</p>}
       {tab === 'output' && <>
         <div className="review-verdicts"><span>Structure <strong>{report.structuralValidation}</strong></span><span>Human review <strong>{report.semanticReview}</strong></span></div>
-        {report.modelOutput ? <RuntimeAnswer answer={report.modelOutput} /> : <p className="review-meta">No Inference output yet.</p>}
+        {report.modelOutput ? <ReviewAnswer answer={report.modelOutput} /> : <p className="review-meta">No Inference output yet.</p>}
         {report.context && <details><summary>Context output</summary><pre>{JSON.stringify(report.context, null, 2)}</pre></details>}
-        {report.revisions.map((revision, index) => <details key={revision.id}><summary>Human revision {index + 1} · {revision.reviewStatus}</summary><RuntimeAnswer answer={revision.result} /></details>)}
+        {report.revisions.map((revision, index) => <details key={revision.id}><summary>Human revision {index + 1} · {revision.reviewStatus}</summary><ReviewAnswer answer={revision.result} /></details>)}
       </>}
       {tab === 'requests' && <>
-        <p className="review-meta">{report.consumedTokens} / {report.runTokenLimit} tokens · {report.requests.length} requests</p>
+        <p className="review-meta">Budget charge {report.consumedTokens} / {report.runTokenLimit} · {report.requests.length} request records</p>
         {report.requests.map((attempt) => <details key={attempt.id}><summary>{attempt.stage} · {attempt.status}</summary>
           <RequestPreview call={attempt.preparedCall} />{attempt.errorCode && <p role="alert">{attempt.errorCode}</p>}</details>)}
         {report.research && <details><summary>Research trajectory</summary><pre>{JSON.stringify(report.research, null, 2)}</pre></details>}

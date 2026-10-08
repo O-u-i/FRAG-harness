@@ -2,23 +2,23 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "FRAG / native Agents integration",
+    "title": "FRAG v1.10.0 / native Agents",
     "locale": "en",
     "quality_profile": "showcase",
     "viewBox": [
       1080,
-      620
+      665
     ]
   },
   "components": [
     {
-      "id": "frag-ui",
+      "id": "native",
       "type": "frontend",
-      "label": "FRAG workspace",
-      "sublabel": "Existing standalone GUI",
+      "label": "Native Agents",
+      "sublabel": "Task / model selection",
       "pos": [
-        80,
-        95
+        65,
+        85
       ],
       "size": [
         210,
@@ -26,13 +26,13 @@
       ]
     },
     {
-      "id": "frag-host",
+      "id": "host",
       "type": "backend",
-      "label": "Governed FRAG host",
-      "sublabel": "Durable runs / exact approval",
+      "label": "Installed FRAG Host",
+      "sublabel": "One bound evidence project",
       "pos": [
         435,
-        95
+        85
       ],
       "size": [
         210,
@@ -40,13 +40,55 @@
       ]
     },
     {
-      "id": "model-api",
+      "id": "bridge",
+      "type": "backend",
+      "label": "VS Code model bridge",
+      "sublabel": "Stable language model API",
+      "pos": [
+        805,
+        85
+      ],
+      "size": [
+        210,
+        88
+      ]
+    },
+    {
+      "id": "review",
+      "type": "frontend",
+      "label": "Right-hand Browser",
+      "sublabel": "Evidence / approval / review",
+      "pos": [
+        65,
+        300
+      ],
+      "size": [
+        210,
+        88
+      ]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "Project state",
+      "sublabel": "Runs / snapshots / memory",
+      "pos": [
+        435,
+        300
+      ],
+      "size": [
+        210,
+        88
+      ]
+    },
+    {
+      "id": "provider",
       "type": "external",
-      "label": "Model API",
-      "sublabel": "Approved requests only",
+      "label": "Configured model provider",
+      "sublabel": "VS Code owns credentials",
       "pos": [
-        790,
-        95
+        805,
+        300
       ],
       "size": [
         210,
@@ -54,69 +96,13 @@
       ]
     },
     {
-      "id": "agents-shell",
-      "type": "frontend",
-      "label": "Native Agents window",
-      "sublabel": "VS Code 1.140.0",
+      "id": "project",
+      "type": "external",
+      "label": "Selected project folder",
+      "sublabel": "Explicit files and locators",
       "pos": [
-        80,
-        290
-      ],
-      "size": [
-        210,
-        88
-      ]
-    },
-    {
-      "id": "ahp-probe",
-      "type": "backend",
-      "label": "FRAG loopback adapter",
-      "sublabel": "AHP 0.9.0 / review controls",
-      "pos": [
-        435,
-        290
-      ],
-      "size": [
-        210,
-        88
-      ]
-    },
-    {
-      "id": "native-session",
-      "type": "frontend",
-      "label": "Native FRAG conversation",
-      "sublabel": "Saved run result and status",
-      "pos": [
-        790,
-        290
-      ],
-      "size": [
-        210,
-        88
-      ]
-    },
-    {
-      "id": "browser-tab",
-      "type": "frontend",
-      "label": "Right-hand Browser tab",
-      "sublabel": "Native Agents side pane",
-      "pos": [
-        80,
-        485
-      ],
-      "size": [
-        210,
-        88
-      ]
-    },
-    {
-      "id": "review-fixture",
-      "type": "backend",
-      "label": "New FRAG Review",
-      "sublabel": "Shared Context / Archivo font",
-      "pos": [
-        435,
-        485
+        65,
+        515
       ],
       "size": [
         210,
@@ -126,78 +112,80 @@
   ],
   "connections": [
     {
-      "id": "existing-http",
-      "from": "frag-ui",
-      "to": "frag-host",
-      "label": "HTTP",
-      "variant": "emphasis"
-    },
-    {
-      "id": "approved-request",
-      "from": "frag-host",
-      "to": "model-api",
-      "label": "approval",
-      "variant": "security"
-    },
-    {
-      "id": "native-ahp",
-      "from": "agents-shell",
-      "to": "ahp-probe",
+      "id": "native-to-host",
+      "from": "native",
+      "to": "host",
       "label": "AHP"
     },
     {
-      "id": "native-reply",
-      "from": "ahp-probe",
-      "to": "native-session",
-      "label": "events"
+      "id": "host-to-bridge",
+      "from": "host",
+      "to": "bridge",
+      "label": "approved API"
     },
     {
-      "id": "review-http",
-      "from": "browser-tab",
-      "to": "review-fixture",
-      "label": "HTTP"
+      "id": "bridge-to-provider",
+      "from": "bridge",
+      "to": "provider",
+      "label": "vscode.lm",
+      "labelDy": 70
     },
     {
-      "id": "shared-host",
-      "from": "ahp-probe",
-      "to": "frag-host",
-      "label": "same runs",
-      "variant": "emphasis"
+      "id": "review-to-host",
+      "from": "review",
+      "to": "host",
+      "label": "HTTP review"
     },
     {
-      "id": "review-controls",
-      "from": "review-fixture",
-      "to": "ahp-probe",
-      "label": "approve",
-      "variant": "security"
+      "id": "host-to-state",
+      "from": "host",
+      "to": "state",
+      "label": "SQLite",
+      "labelDy": 70
+    },
+    {
+      "id": "host-to-project",
+      "from": "host",
+      "to": "project",
+      "label": "selected reads",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          310,
+          129
+        ],
+        [
+          310,
+          559
+        ]
+      ],
+      "labelDy": 90
     }
   ],
   "cards": [
     {
-      "dot": "emerald",
-      "title": "One governed runtime",
+      "dot": "slate",
+      "title": "Separate directories",
       "items": [
-        "Standalone GUI retained",
-        "Native tasks link to existing durable runs",
-        "Fresh approval for every model request"
+        "Installed program / bound project / local state",
+        "No source checkout needed to run"
       ]
     },
     {
       "dot": "cyan",
-      "title": "Native flow verified",
+      "title": "Saved model configuration",
       "items": [
-        "Remote host and right-hand Browser",
-        "Synthetic source / two Fake model calls",
-        "Saved answer rendered in native conversation"
+        "One selected model for every stage",
+        "Saved effort; final provider HTTP unknown"
       ]
     },
     {
       "dot": "amber",
-      "title": "Explicit boundaries",
+      "title": "Governed conversation",
       "items": [
-        "No native tool or customization import",
-        "No terminal or AHP filesystem bridge",
-        "VS Code 1.140.0 / AHP 0.9.0 pin"
+        "Fresh approval for each stage",
+        "No coding tools or customization import"
       ]
     }
   ]

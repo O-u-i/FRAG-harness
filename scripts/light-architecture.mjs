@@ -64,9 +64,15 @@ function lightSvg(original) {
   if (original.includes(marker)) return original;
   let text = replaceOnce(original, /<svg\b([^>]*)>/,
     `<svg$1 data-theme="light" ${marker}>`, 'SVG root');
-  text = replaceOnce(text,
-    /\n:root, svg \{ [^{}]* \}\n@media \(prefers-color-scheme: light\) \{ :root, svg \{ ([^{}]*) \} \}\n/,
-    '\n:root, svg { $1 }\n', 'dual-theme SVG variables');
+  if (text.includes('prefers-color-scheme')) {
+    text = replaceOnce(text,
+      /\n:root, svg \{ [^{}]* \}\n@media \(prefers-color-scheme: light\) \{ :root, svg \{ ([^{}]*) \} \}\n/,
+      '\n:root, svg { $1 }\n', 'dual-theme SVG variables');
+  } else {
+    // Canonical export from the light-only viewer already contains the selected light variables.
+    assert(/:root, svg \{ --bg: #f8fafc;/.test(text) && !text.includes('[data-theme="dark"]'),
+      'Unsupported canonical light SVG variables.');
+  }
   text = removeDarkRules(text);
   assert(svgSemanticBytes(original) === svgSemanticBytes(text), 'SVG transformation changed authored content.');
   return text;

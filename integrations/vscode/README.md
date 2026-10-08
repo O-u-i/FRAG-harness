@@ -1,37 +1,58 @@
-# FRAG in VS Code Agents
+# FRAG in VS Code Agents — Plan E / v1.10.0
 
-Plan D connects the existing governed FRAG runtime to the native Agents window through an opt-in loopback **AHP 0.9.0** host. The accepted entry is **Remote → FRAG**, with a new FRAG-designed page in the right-hand **Browser** tab. The standalone application keeps its existing GUI.
+FRAG is an installed selected-evidence conversation agent under **Remote**, with a right-hand **Browser** review page. Three directories stay separate: installed program, explicitly selected project folder, and project state. It does not modify the project with coding tools or implicitly use the FRAG development repository.
 
-## Start and connect
+## Build and install
+
+From the source checkout, build the two private local artifacts:
 
 ```powershell
-npm run agents
+npm.cmd run package:agents
 ```
 
-The command builds the frontend, starts the backend on `127.0.0.1:8787`, and writes ignored `.local-runtime/vscode/connection.settings.json`. Merge its entries into Agents settings while preserving other hosts. It does not edit VS Code settings automatically, install an extension, or change VS Code source. Existing backend configuration and credentials remain in `backend/.env`.
+Extract `.tmp/packages/frag-host-1.10.0.zip` into a temporary bundle directory. With **PowerShell 7**, run that bundle's `install-host.ps1`. It copies only application/resources into `%LOCALAPPDATA%\FRAG\host\1.10.0` and initializes **Python 3.12** plus the unchanged locked backend dependencies using existing `uv`. Use `-InstallPath` for another new directory. An existing target is never overwritten. The ZIP excludes wheels, a Python runtime, development rules, `.env`, tests and private runtime/source data. Keep its distributed notices with the application.
 
-1. In the workspace picker above the native composer, choose **Remote**, the online **FRAG** host, then **Folders → frag-workspace**. Confirm the harness is FRAG and the model label shows the backend Context/Inference routes.
-2. Send a task of 3–500 characters. Native Send saves a task; it does not select evidence or call a model.
-3. Open **Sessions: Browser** (`Ctrl+Shift+B` on the verified Windows build). Enter the session review URL in the native reply, or `http://127.0.0.1:8787/review` and choose the session.
-4. Select evidence, preview the full request, confirm it, and approve Context. Explicitly prepare and approve Inference next. Optional Research requires its own approval for each model turn.
-5. Review the saved output in the Browser page. The native conversation receives the same run's result, citations and separate structural/human-review status.
+For an explicit new target:
 
-Keep the terminal running while connected; `Ctrl+C` stops the host. Native Stop pauses at the next safe host boundary and cannot retract an external request already sent. Restart or source changes require fresh preview and approval. Unknown outcomes never resend automatically.
+```powershell
+pwsh -File ./bundle/install-host.ps1 -InstallPath "$env:LOCALAPPDATA/FRAG/host/1.10.0-local"
+```
 
-## UI and ownership
+The installer rejects unknown arguments and uses dependency copy mode across drives. If initialization fails, retain the directory for inspection and choose another new target; no recursive cleanup is performed.
 
-The new page merges Harness/RAG evidence and Context controls into **Workspace → Evidence → Context → Inference → Review**. **Runs** displays one report with Output, Requests, Sources and Review tabs. **Customizations** groups Memory, Plugins and model readiness. The layout adapts the supplied Line Sidebar and Glass Icons references, with a dependency-free Stepper and compact selects. Ordinary text uses **Archivo Variable 5.3.0**, with system monospace for code. Component structure, font provenance and distributed notices are documented in [FRAG Review](../../src/agents/README.md).
+In VS Code, run **Extensions: Install from VSIX**, selecting `.tmp/packages/frag-bridge-1.10.0.vsix`. No Marketplace publication or VS Code source modification is required. Run **FRAG: Enable in Agents Window** in regular VS Code; it sets the existing `extensions.supportAgentsWindow` opt-in for `frag-local.frag-bridge`. Reload the Agents window. If installed elsewhere, set the application setting `frag.hostInstallation` to the initialized Host directory.
 
-VS Code owns the native conversation and Browser tab; FRAG owns evidence selection, durable runs, exact requests, approvals and human review. This route needs no VSIX. Browser opening and choosing the review URL are manual; a dedicated title-bar logo button and separate native Review tab are outside this delivery.
+## Start in a separate test project
 
-Registering a session does not transfer native skills, MCP, hooks or tool descriptors. The adapter has no native coding-tool, terminal or filesystem bridge. Its empty virtual workspace is a navigation anchor; evidence stays under explicit FRAG selection. Native global Customizations counts describe VS Code, not FRAG adoption.
+1. Create a new folder containing only intended synthetic evidence, such as a Markdown note. Open VS Code there, then the **Agents window** (`code --agents`).
+2. In Agents, run **FRAG: Start Project Host**. Explicitly select that evidence folder. The extension starts its own loopback Host on an unused port and adds only its named Remote entry, preserving other registrations. It does not stop unrelated Hosts.
+3. Click **New / Ctrl+N**. Click the **current folder-name capsule above the composer**. There is no fixed menu named Workspace. Select **Remote → FRAG · project ID → Folders → your folder**. The normal local-folder `Ctrl+O` action does not select a Remote FRAG provider.
+4. Select an available model and send a 3–500 character task. Native Send saves a task, with zero model calls or automatic indexing.
+5. Run **FRAG: Open Review**. The URL is copied; paste it into the right-hand Browser address bar. Choose the matching FRAG session, select files/locators or retrieval scope, and preview Context.
+6. Review exact API arguments and bindings, check consent, and approve Context. Explicitly prepare and separately approve Inference. Each optional Research turn also needs fresh approval. Review the cited result and record human acceptance separately.
 
-## Verified compatibility and limits
+The native conversation receives the same saved run's answer/status. Right-hand navigation provides Workspace, Runs and Memory with gray transparent icons and Archivo. Models/Plugins management is not duplicated there. Native Customizations remains available; it does not imply FRAG imported its MCP, Skills, Hooks or coding tools. FRAG selected-evidence plugins remain backend features.
 
-The implemented route was exercised in **VS Code 1.140.0**, commit `07f806f999227108933c2e30515b26eecc1fda74`, with synthetic local evidence and Fake providers. Native task → right-hand source selection → separate Context/Inference approvals → saved run → native result was observed. Exactly two Fake calls completed the fixed flow; real model calls were zero. This does not repeat or extend the maintainer's reported real-model acceptance of the existing runtime.
+## Model configuration
 
-Backend regression covers selected files, RAG, bounded Research, stale controls, source changes, duplicate messages, restart, unknown outcomes, cancellation and malformed protocol input. This bounded carrier is not a general AHP coding agent. VS Code can display an unsupported-terminal notification; dismiss it to resume Browser. Recheck discovery, session creation, Browser placement and result rendering after VS Code updates.
+Use **Chat: Manage Language Models**. The default Windows profile still stores providers in `%APPDATA%\Code\User\chatLanguageModels.json`; another profile needs its actual path in `frag.modelConfigFile`. Preserve VS Code secret references. Research, Context and Inference use the same native-selected model and saved per-model default effort. There is no Pi configuration or FRAG effort override picker. See [exact keys, limits and pinned API evidence](MODEL-CONFIGURATION.md).
 
-See [native evidence and pinned references](NATIVE-AGENTS.md), [backend adapter](../../backend/frag_api/services/AGENT-HOST.md), and [architecture diagram](../../docs/architecture/vscode-migration/architecture.html).
+The preview freezes the stable model API inputs. It does not certify final provider HTTP fields, hidden retries, usage, billing or relay execution. FRAG performs zero automatic retries; schema/citation checks do not establish semantic correctness.
 
-This directory's `extension.cjs` and manifest retain the earlier original offline Chat extension probe. That route failed independently and is not the implemented carrier. See [historical probe](CHAT-PROBE.md).
+## State and lifecycle
+
+State lives in the extension's local global storage under `projects/<canonical-path-hash>/`: `runtime.sqlite3`, `rag/` caches and `plugins/`. No state or credentials are written into the bound folder. The Host advertises only that root; native filesystem, terminal and edit operations remain unsupported. Linked paths, hidden configuration, rules and generated directories are excluded from project evidence.
+
+One extension instance owns one active project Host. Starting another project stops only its previous owned Host. **FRAG: Stop Project Host** removes only its registered address; closing the owner window stops it. After an abrupt process crash, inspect the stale owned process/registration manually before restarting. A different project's database is never reused.
+
+Restart clears approvals. Reconnect reads snapshots without calling a model. Source/configuration changes require new preview; unknown outcomes require reconciliation and never resend. Legacy Pi reports stay readable/exportable but cannot resume. Native Stop waits for the governed boundary and cannot retract a dispatched provider request.
+
+The source standalone GUI remains available through `npm run dev` with direct backend Fake/Responses configuration. Legacy `FRAG_*_LLM_ADAPTER=pi` is rejected; remove those retired keys before starting that development route. `npm run agents` now prints this installed workflow and does not start a source-bound Host.
+
+## Evidence
+
+The compatibility baseline is **VS Code 1.140.0 / AHP 0.9.0**, with source/manifest checks for installed Copilot Chat **0.68.0**. [Plan D desktop evidence](NATIVE-AGENTS.md) is historical and uses Fake providers; it is not acceptance of the new model bridge. New synthetic tests cover selected-model stages, changed configuration, duplicate approvals, origin/auth boundaries and directory separation. Real-provider calls require their own human-reviewed approval.
+
+[Plan E delivery checks](PLAN-E-VERIFICATION.md) record installed-package, native desktop and Review evidence separately from real-provider/human acceptance.
+
+[Plan E scope](../../docs/plan-e.md) · [Review UI](../../src/agents/README.md) · [Host adapter](../../backend/frag_api/services/AGENT-HOST.md) · [Architecture](../../docs/architecture/vscode-migration/architecture.html). The original failed Chat probe remains [historical](CHAT-PROBE.md).

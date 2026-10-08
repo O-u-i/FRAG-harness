@@ -1,15 +1,5 @@
 import { z } from 'zod';
 
-function piDestination(endpoint: string): boolean {
-  try {
-    const url = new URL(endpoint);
-    return url.protocol === 'https:' && url.href === endpoint && url.pathname === '/v1/responses'
-      && !url.username && !url.password && !url.port && !url.search && !url.hash
-      && url.hostname.length <= 253
-      && url.hostname.split('.').every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label));
-  } catch { return false; }
-}
-
 export const qualityFactSchema = z.object({ status: z.enum(['known', 'unknown']), detail: z.string().nullable() }).strict()
   .refine((value) => (value.status === 'known') === Boolean(value.detail), 'Known metadata requires detail.');
 export const sourceAssessmentSchema = z.object({
@@ -34,9 +24,9 @@ export const taskContractSchema = z.object({
 }).strict().refine((value) => new Set(value.checklist.map((item) => item.id)).size === value.checklist.length,
   'Checklist identifiers must be unique.');
 export const preparedCallSchema = z.object({
-  schemaVersion: z.literal(1), purpose: z.enum(['context', 'inference', 'research']),
-  provider: z.enum(['fake', 'openai', 'ollama']), model: z.string(), endpoint: z.string(),
-  transport: z.enum(['fake', 'responses-v1', 'pi-responses-v1']), body: z.string(), binding: z.string(),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]), purpose: z.enum(['context', 'inference', 'research']),
+  provider: z.enum(['fake', 'openai', 'ollama', 'vscode']), model: z.string(), endpoint: z.string(),
+  transport: z.enum(['fake', 'responses-v1', 'pi-responses-v1', 'vscode-lm-v1']), body: z.string(), binding: z.string(),
   timeoutSeconds: z.number().positive().max(120), maxRetries: z.literal(0),
   estimatedInputTokens: z.number().int().positive(), inputBudget: z.number().int().positive(),
   reservedPercent: z.number().int().min(0).max(100), runTokenLimit: z.number().int().positive(),
@@ -49,40 +39,31 @@ export const preparedCallSchema = z.object({
   }
   try {
     const body = JSON.parse(value.body) as Record<string, unknown>;
-    const validInput = value.transport === 'pi-responses-v1'
-      ? Array.isArray(body.input) && body.input.length > 0 && body.stream === true
-      : typeof body.input === 'string';
-    if (body.model !== value.model || typeof body.instructions !== 'string' || !validInput
-        || typeof body.max_output_tokens !== 'number' || !Number.isInteger(body.max_output_tokens)
-        || body.max_output_tokens <= 0 || body.store !== false || !Array.isArray(body.tools)) {
-      ctx.addIssue({code: 'custom', path: ['body'], message: 'Prepared body does not match the request contract.'});
-    }
-    if (value.transport === 'pi-responses-v1') {
-      const binding = JSON.parse(value.binding) as Record<string, unknown>;
-      const adapter = binding.adapter as Record<string, unknown> | undefined;
-      if (value.provider !== 'openai' || !piDestination(value.endpoint)
-          || !/^(?:gpt-4\.1(?:-mini|-nano)?(?:-2025-04-14)?|gpt-6\.1-sol)$/.test(value.model)
-          || adapter?.name !== 'pi-openai-responses' || adapter.version !== '1.0.0'
-          || adapter.piCommit !== 'a13d35a742c6ef8462812a28fbe1d8c8b7431c32'
-          || adapter.protocolVersion !== 1 || adapter.wireVersion !== 1
-          || typeof adapter.selectionManifestHash !== 'string' || !/^[a-f0-9]{64}$/.test(adapter.selectionManifestHash)
-          || typeof adapter.hostAdapterHash !== 'string' || !/^[a-f0-9]{64}$/.test(adapter.hostAdapterHash)
-          || adapter.workerFiles === null || typeof adapter.workerFiles !== 'object'
-          || typeof binding.wireSchemaHash !== 'string' || binding.wireSchemaHash.length !== 64) {
-        ctx.addIssue({code: 'custom', path: ['binding'], message: 'Pi request must bind the reviewed adapter and destination.'});
+    const binding = JSON.parse(value.binding) as Record<string, unknown>;
+    if (value.transport === 'vscode-lm-v1') {
+      const native = z.object({
+        messages: z.tuple([z.object({ role: z.literal('user'), content: z.string() }).strict(),
+                          z.object({ role: z.literal('user'), content: z.string() }).strict()]),
+        options: z.object({ modelOptions: z.object({ max_tokens: z.number().int().positive().max(2000) }).strict() }).strict(),
+      }).strict();
+      if (!native.safeParse(body).success || value.schemaVersion !== 2 || value.provider !== 'vscode'
+          || binding.approvalBoundary !== 'language_model_api'
+          || !/^[a-f0-9]{64}$/.test(String(binding.modelConfigurationRevision))
+          || binding.providerHttpBody !== 'unknown' || binding.providerInternalRetries !== 'unknown') {
+        ctx.addIssue({code: 'custom', path: ['body'], message: 'Model API arguments and configuration must match.'});
       }
-      const sol = value.model === 'gpt-6.1-sol';
-      const reasoning = body.reasoning as Record<string, unknown> | undefined;
-      if (sol ? reasoning === null || typeof reasoning !== 'object' || Array.isArray(reasoning)
-          || Object.keys(reasoning).length !== 1 || reasoning.effort !== 'low'
-          || !Array.isArray(body.include) || body.include.length !== 1 || body.include[0] !== 'reasoning.encrypted_content'
-          || binding.nativeReplayVersion !== 2
-        : 'reasoning' in body || 'include' in body || 'nativeReplayVersion' in binding) {
-        ctx.addIssue({code: 'custom', path: ['body'], message: 'Pi model and replay profile must match the frozen request.'});
+    } else {
+      // A retired transport may be decoded for reports, never used to prepare or execute a new call.
+      const validInput = value.transport === 'pi-responses-v1' ? Array.isArray(body.input) : typeof body.input === 'string';
+      if (value.schemaVersion !== 1 || value.provider === 'vscode' || body.model !== value.model
+          || typeof body.instructions !== 'string' || !validInput || !Number.isInteger(body.max_output_tokens)
+          || Number(body.max_output_tokens) <= 0 || body.store !== false || !Array.isArray(body.tools)) {
+        ctx.addIssue({code: 'custom', path: ['body'], message: 'Prepared body does not match the request contract.'});
       }
     }
   } catch { /* Invalid JSON already reported. */ }
 });
+
 export const loopLimitsSchema = z.object({
   modelTurns: z.number().int().min(1).max(3), toolCalls: z.number().int().min(1).max(6),
   toolTimeoutSeconds: z.number().int().min(1).max(10), toolResultBytes: z.number().int().min(1).max(16384),

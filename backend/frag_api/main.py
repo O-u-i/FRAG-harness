@@ -44,7 +44,8 @@ from frag_api.services.runtime_policy import redact, configured_secrets
 from frag_api.services.runtime_service import RuntimeService
 from frag_api.services.runtime_registry import CLIRegistry, ToolRegistry
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+if os.environ.get("FRAG_HOST_INSTALLED") != "1":
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 
 def _plugin_ui(plugin):
@@ -66,11 +67,16 @@ def create_app(
     runtime_path: str | Path | None = None,
     agent_host_enabled: bool | None = None,
     review_origin: str = "http://127.0.0.1:8787",
+    workspace_root: Path | None = None,
+    model_bridge=None,
+    review_assets: Path | None = None,
+    review_help: Path | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         source_service = ContextSourceService(
-            context_source_root or Path(__file__).resolve().parents[2] / "local-sources"
+            context_source_root or Path(__file__).resolve().parents[2] / "local-sources",
+            project_files=workspace_root is not None,
         )
         app.state.context_source_service = source_service
         app.state.harness_service = harness_service or HarnessService(source_service, plugins=plugins)
@@ -99,10 +105,12 @@ def create_app(
             app.state.harness_service.cli_registry = CLIRegistry()
             app.state.harness_service.tool_registry = ToolRegistry()
             app.state.kb_tools = KBTools(app.state.runtime, app.state.harness_service, app.state.rag_service)
-            definition, execute = host_cli_binding()
+            definition, execute = host_cli_binding(review_origin)
             app.state.harness_service.cli_registry.register(definition, execute)
             app.state.research = ResearchFlow(app.state.runtime, app.state.harness_service, app.state.rag_service, app.state.kb_tools)
-            app.state.agent_host = AgentHost(app, review_origin)
+            app.state.agent_host = AgentHost(app, review_origin,
+                workspace=workspace_root.as_uri() if workspace_root else "file:///frag-workspace",
+                bridge=model_bridge)
             try:
                 yield
             finally:
@@ -114,12 +122,36 @@ def create_app(
                     service.flow.runtime = None
                 app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.9.0", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.10.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.agent_host_enabled = agent_host_enabled if agent_host_enabled is not None else os.environ.get("FRAG_AGENT_HOST_ENABLED") == "1"
+    app.state.project_name = workspace_root.name if workspace_root else "FRAG workspace"
+    app.state.review_assets = review_assets or Path(__file__).resolve().parents[2] / "dist"
+    app.state.review_help = review_help or Path(__file__).resolve().parents[2] / "src/agents/README.md"
     app.state.plugin_root = Path(plugin_root)
     app.state.plugin_hidden = set()
     app.state.plugin_management_lock = asyncio.Lock()
+
+    @app.middleware("http")
+    async def installed_boundary(request: Request, call_next):
+        if workspace_root is not None:
+            from frag_api.routers.agents import allowed
+            if not allowed(request):
+                return error_response(403, "LOCAL_ONLY", "This Host accepts loopback clients only.")
+            origin = request.headers.get("origin")
+            if origin and origin != review_origin:
+                return error_response(403, "ORIGIN_REJECTED", "Use this Host's review page.")
+            path = request.url.path
+            if model_bridge and request.method == "POST" and (
+                path in {"/api/harness/preview", "/api/harness/run", "/api/harness/inference/run",
+                         "/api/rag/preview", "/api/rag/run", "/api/rag/inference/run", "/api/runtime/research/preview"}
+                or path.endswith(("/research/preview", "/research/execute", "/resume/preview", "/reopen"))):
+                return error_response(409, "NATIVE_SESSION_REQUIRED", "Prepare and approve stages in the native FRAG session.")
+        response = await call_next(request)
+        if workspace_root is not None:
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
 
     @app.middleware("http")
     async def hide_deactivated_plugin(request: Request, call_next):
@@ -158,7 +190,7 @@ def create_app(
     app.include_router(memory_router)
     app.include_router(plugins_router)
     app.include_router(agents_router)
-    assets = Path(__file__).resolve().parents[2] / "dist/assets"
+    assets = app.state.review_assets / "assets"
     if app.state.agent_host_enabled and assets.is_dir():
         app.mount("/assets", StaticFiles(directory=assets), name="review-assets")
         if (assets.parent / "agents").is_dir():

@@ -294,19 +294,13 @@ def test_unexecuted_or_unknown_capture_never_infers_output_or_resends(tmp_path, 
     assert result.cases[0].trace["capture"]["modelOutput"] is None
 
 
-def research_capture(tmp_path, monkeypatch=None, profile="fake"):
+def research_capture(tmp_path):
     source = tmp_path / "selected-source"
     source.mkdir()
     (source / "evidence.md").write_text(NOTE, encoding="utf-8")
     model = MissingFake()
     with TestClient(app_for(tmp_path, source, model), raise_server_exceptions=False) as client:
         client.app.state.harness_service.research_provider = model
-        if profile == "pi-native-v1":
-            from test_pi_research import use_native
-            use_native(client, monkeypatch)
-        elif profile == "pi-sol-v2":
-            from test_pi_sol_research import use_sol
-            use_sol(client, monkeypatch)
         selected = selection(client)
         _, initial = research_start(client, selected)
         assert research_execute(client, selected, initial).status_code == 200
@@ -328,27 +322,20 @@ def test_completed_research_capture_reuses_recorded_policy_and_call_result_valid
     assert evaluate(tmp_path, saved, gold_for(saved)).status == "ERROR"
 
 
-@pytest.mark.parametrize("profile", ["fake", "pi-native-v1", "pi-sol-v2"])
-def test_captured_research_wire_preserves_actual_prior_results_and_rejects_removed_feedback(tmp_path, monkeypatch, profile):
-    saved = research_capture(tmp_path, monkeypatch, profile)
+def test_captured_research_wire_preserves_actual_prior_results_and_rejects_removed_feedback(tmp_path):
+    saved = research_capture(tmp_path)
     gold = gold_for(saved)
     result = evaluate(tmp_path, saved, gold)
     assert result.status == "PASS", result.model_dump_json(indent=2)
     assert result.trajectory_status == "PASS"
     second_call = [item["preparedCall"] for item in saved["requests"] if item["stage"] == "research"][1]
     body = json.loads(second_call["body"])
-    if profile == "fake":
-        payload = json.loads(body["input"])
-        assert payload["observations"]
-        payload["observations"] = []
-        payload["decisions"] = []
-        body["input"] = canonical_json(payload)
-    else:
-        assert any(item.get("type") == "function_call_output" for item in body["input"])
-        body["input"] = body["input"][:1]
+    payload = json.loads(body["input"])
+    assert payload["observations"]
+    payload["observations"] = []
+    payload["decisions"] = []
+    body["input"] = canonical_json(payload)
     rebind(second_call, body=body)
-    # Sol's terminal raw receipt contains no proposed call, so rehashing the request
-    # does not invalidate a host call ID; the wire-history check must reject it.
     assert evaluate(tmp_path, saved, gold).status == "ERROR"
 
 

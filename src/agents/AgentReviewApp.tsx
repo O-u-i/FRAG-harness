@@ -6,7 +6,6 @@ import { fetchAgentSessions, fetchAgentView } from '../api/agentClient';
 import { fetchHarnessConfig } from '../api/harnessClient';
 import { fetchRuns, fetchRunReport } from '../api/runtimeClient';
 import { MemoryPanel } from '../features/memory/MemoryPanel';
-import { PluginPanel } from '../features/plugins/PluginPanel';
 import { LineSidebar, GlassIcons, type ReviewPage } from './components/Navigation';
 import { ReviewWorkflow } from './components/ReviewWorkflow';
 import { ReviewReport } from './components/ReviewReport';
@@ -56,7 +55,7 @@ export default function AgentReviewApp() {
   }, []);
   useEffect(() => {
     let active = true;
-    document.title = 'FRAG Review · 1.9.0';
+    document.title = 'FRAG Review · 1.10.0';
     Promise.all([fetchAgentSessions(), fetchHarnessConfig()]).then(([items, routes]) => {
       if (active) { setSessions(items); setConfig(routes); }
     }).catch(() => { if (active) setError('Start the local FRAG Agents host to connect.'); });
@@ -87,14 +86,7 @@ export default function AgentReviewApp() {
   };
   const turn = view?.session.turns[view.session.turns.length - 1];
   return <div className="review-root">
-    <aside className="review-sidebar"><a className="review-brand" href="/review" aria-label="FRAG Review home"><span>F</span><strong>FRAG</strong></a>
-      <LineSidebar active={page} onSelect={setPage} />
-      <div className="review-customizations"><details open className="review-branches"><summary>Customizations</summary>
-        <GlassIcons active={page} onSelect={setPage} />
-      </details></div>
-      <footer><a href="/review/help" target="_blank" rel="noreferrer">Documentation</a><span>1.9.0</span></footer>
-    </aside>
-    <main className="review-main"><header className="review-header"><div><span className="review-connection" aria-label={view ? 'Connected' : 'Waiting for session'} data-online={!!view} /><strong>FRAG Review</strong></div>
+    <main className="review-main"><header className="review-header"><div><span className="review-connection" aria-label={view ? 'Connected' : 'Waiting for session'} data-online={!!view} /><strong>{view?.project?.name ?? 'FRAG Review'}</strong></div>
       <button type="button" className="review-session-button" onClick={() => chooseSession('')}>Sessions</button></header>
       <div className="review-content">
         {error && <p className="review-alert" role="alert">{error}</p>}
@@ -102,16 +94,18 @@ export default function AgentReviewApp() {
           <label className="review-field">Session<select value="" onChange={(e) => chooseSession(e.target.value)}><option value="">Choose a FRAG session</option>
             {sessions.map((item) => <option key={item.sessionId} value={item.sessionId}>{item.turns[item.turns.length - 1]?.text ?? 'New FRAG session'}</option>)}</select></label>
         </section>}
-        {view && page === 'workflow' && <ReviewWorkflow key={`${sessionId}:${turn?.id ?? 'draft'}`} view={view} config={config} onChange={updateView} />}
+        {view && page === 'workflow' && <ReviewWorkflow key={`${sessionId}:${turn?.id ?? 'draft'}`} view={view} config={view.config ?? config} onChange={updateView} />}
         {view && page === 'runs' && <Runs key={sessionId} sessionId={sessionId} />}
         {page === 'memory' && <><h2>Memory</h2><MemoryPanel /></>}
-        {page === 'plugins' && <><h2>Plugins</h2><PluginPanel /></>}
-        {page === 'models' && <section className="review-models"><h2>Model routes</h2>{(['context', 'inference'] as const).map((stage) =>
-          <article key={stage}><h3>{stage === 'context' ? 'Context' : 'Inference'}</h3><strong>{config?.[stage].model ?? 'Not configured'}</strong>
-            <p>{config?.[stage].provider} · {config?.[stage].ready ? 'Ready' : 'Setup needed'}</p></article>)}
-          <p className="review-meta">Configure routes on the backend. Each request needs its own review and approval.</p>
-        </section>}
+
       </div>
     </main>
+    <aside className="review-sidebar"><a className="review-brand" href="/review" aria-label="FRAG Review home"><span>F</span><strong>FRAG</strong></a>
+      <LineSidebar active={page} onSelect={setPage} />
+      <div className="review-customizations"><details open className="review-branches"><summary>Background</summary>
+        <GlassIcons active={page} onSelect={setPage} colorful={false} />
+      </details></div>
+      <footer><a href="/review/help" target="_blank" rel="noreferrer">Documentation</a><span>1.10.0</span></footer>
+    </aside>
   </div>;
 }

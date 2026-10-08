@@ -9,8 +9,7 @@ from frag_api.schemas.rag import RagContextCompression, RagGroundedAnswer
 from frag_api.schemas.research import ResearchDecision
 from frag_api.schemas.tools import ReadArguments, SearchArguments, ToolResult
 from frag_api.services.runtime_policy import HostPolicy, redact_value
-from frag_api.services.research_checkpoint import validate_decision
-from frag_api.services.research_native import prepare_native_wire, validate_attempt_native
+from frag_api.services.research_checkpoint import validate_decision, validate_attempt_record
 
 
 def validate_history(report, secrets, tools):
@@ -24,7 +23,7 @@ def validate_history(report, secrets, tools):
         if (stage is None or stage.output_digest != fingerprint(stage.output)
                 or report.context.model_dump(by_alias=True) != stage.output):
             raise RagFingerprintError()
-    calls, native_ids, native_items = {}, set(), set()
+    calls = {}
     for turn in report.research.turns:
         attempt = next((item for item in report.requests if item.id == turn.attempt_id), None)
         if attempt is None or attempt.stage != "research":
@@ -34,19 +33,7 @@ def validate_history(report, secrets, tools):
                     or turn.decision.model_dump(by_alias=True) != attempt.output):
                 raise RagFingerprintError()
             validate_decision(report, turn.decision, secrets, restoring=True)
-            replay = validate_attempt_native(attempt, turn.decision)
-            if replay:
-                if replay.version == 2:
-                    for item in replay.output_items:
-                        if item["id"] in native_items:
-                            raise RagFingerprintError()
-                        native_items.add(item["id"])
-                for native in replay.calls:
-                    if native.call_id in native_ids or (replay.version == 1 and native.item_id in native_items):
-                        raise RagFingerprintError()
-                    native_ids.add(native.call_id)
-                    if replay.version == 1:
-                        native_items.add(native.item_id)
+            validate_attempt_record(attempt, turn.decision)
             for call in turn.decision.tool_calls:
                 if call.call_id in calls:
                     raise RagFingerprintError()
@@ -169,8 +156,5 @@ def prepare_request(service, report, fresh, tools, definition, stage):
         base["contextFingerprint"] = context_call.prepared_call.fingerprint
     if memory := fresh.prepared_call.request_body_input().get("memory"):
         payload["memory"] = memory
-    wire = (prepare_native_wire(report, redact_value(payload, secrets), tools)
-            if stage == "research" and getattr(settings, "adapter", None) == "pi" else None)
     return prepare_call(settings=settings, purpose=stage, instructions=instructions,
-        payload=redact_value(payload, secrets), output_model=model, max_output_tokens=limit, binding=base,
-        wire_overrides=wire)
+        payload=redact_value(payload, secrets), output_model=model, max_output_tokens=limit, binding=base)

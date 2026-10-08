@@ -1,13 +1,13 @@
 {
   "name": "frag-harness",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "concurrently --kill-others --names client,backend \"npm:dev:client\" \"npm:dev:server\"",
     "dev:client": "vite",
     "dev:server": "node scripts/start-frag-backend.mjs",
-    "agents": "npm run build && node scripts/start-frag-agents.mjs",
+    "agents": "node scripts/start-frag-agents.mjs",
     "check:size": "node scripts/check-source-size.mjs",
     "check:boundaries": "node scripts/check-module-boundaries.mjs",
     "check:version": "node scripts/check-version-sync.mjs",
@@ -18,10 +18,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --dir src",
     "test:python": "uv run --offline --project backend --cache-dir .tmp/uv-cache pytest",
-    "check:pi": "node backend/pi-worker/verify-package.mjs",
-    "test:pi": "node --test backend/pi-worker/tests/*.test.mjs",
     "build": "npm run check:architecture && npm run typecheck && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:bridge": "node --test integrations/vscode/bridge/test/*.test.cjs",
+    "package:agents": "npm run build:agents && python -X utf8 scripts/package-agents.py",
+    "build:agents": "npm run check:architecture && npm run typecheck && vite build --mode agents --outDir .tmp/agents-dist"
   },
   "dependencies": {
     "react": "^19.0.0",

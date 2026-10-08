@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-ProviderKind = Literal["fake", "openai", "ollama"]
+ProviderKind = Literal["fake", "openai", "ollama", "vscode"]
 
 
 class ApiModel(BaseModel):

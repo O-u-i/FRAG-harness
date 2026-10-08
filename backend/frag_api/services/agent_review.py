@@ -1,5 +1,8 @@
 """Translate explicit review actions into existing governed flows, never Send approval."""
 from threading import RLock
+from contextlib import contextmanager
+from frag_api.providers.llm import LlmStageSettings, LlmSettings, provider_for
+from frag_api.errors import RagNotReadyError
 from frag_api.errors import RuntimeConflictError, RequestContractError
 from frag_api.schemas.agents import AgentPrepare, AgentExecute
 from frag_api.schemas.harness import HarnessRequest, HarnessRunRequest
@@ -15,6 +18,38 @@ class AgentReview:
         self.lock = RLock()
         self.pending = {}  # Process-only tokens: reconnect never recreates approval.
 
+    @contextmanager
+    def model_route(self, session_id):
+        if not self.bridge:
+            yield
+            return
+        carrier = self.current(session_id)
+        model_id = carrier.turns[-1].model_id if carrier.turns else carrier.model_id
+        model = self.bridge.describe(model_id)
+        if model is None:
+            raise RagNotReadyError()
+        stage = LlmStageSettings("vscode", model.id, self.bridge.address, self.bridge.key, 120,
+            configuration_revision=model.revision, reasoning_effort=model.effort,
+            max_input_tokens=model.max_input_tokens, model_name=model.name, model_vendor=model.vendor)
+        settings = LlmSettings(stage, stage, stage)
+        saved = []
+        # ponytail: one project Host serializes model stages; generic model-dispatch HTTP routes are disabled.
+        for service in (self.app.state.harness_service, self.app.state.rag_service):
+            saved.append((service, service.settings, service.flow.settings, service.context_provider, service.inference_provider, service.research_provider))
+            service.settings = service.flow.settings = settings
+            service.context_provider = service.inference_provider = service.research_provider = provider_for(stage)
+        try:
+            yield
+        finally:
+            for service, settings, flow_settings, context, inference, research in saved:
+                service.settings, service.flow.settings = settings, flow_settings
+                service.context_provider, service.inference_provider, service.research_provider = context, inference, research
+
+    def review_view(self, carrier, report, preview):
+        return {"session": carrier, "report": report, "preview": preview,
+                "project": {"name": self.project_name, "uri": self.workspace},
+                "config": self.app.state.harness_service.config()}
+
     def current(self, session_id):
         return self.runtime.repository.agent_session(session_id)
 
@@ -25,7 +60,7 @@ class AgentReview:
         return carrier, carrier.turns[-1]
 
     def prepare(self, session_id, request: AgentPrepare):
-        with self.lock:
+        with self.lock, self.model_route(session_id):
             carrier, turn = self.check(session_id, request.version, request.turn_id)
             if turn.state != "running":
                 raise RuntimeConflictError()
@@ -50,10 +85,10 @@ class AgentReview:
             carrier = self.runtime.repository.update_agent_session(session_id, bind)
             report = self.runtime.repository.get(preview.run_id)
             self.pending[session_id] = (carrier.version, turn.id, report.run.version, selected, preview)
-            return {"session": carrier, "report": report, "preview": preview}
+            return self.review_view(carrier, report, preview)
 
     def recover(self, session_id, version, turn_id):
-        with self.lock:
+        with self.lock, self.model_route(session_id):
             carrier, turn = self.check(session_id, version, turn_id)
             if not turn.run_id or turn.state != "running":
                 raise RuntimeConflictError()
@@ -71,10 +106,10 @@ class AgentReview:
                     contextFingerprint=fingerprint, preview=value.model_dump(by_alias=True))
             report = self.runtime.repository.get(turn.run_id)
             self.pending[session_id] = (carrier.version, turn.id, report.run.version, selected, preview)
-            return {"session": carrier, "report": report, "preview": preview}
+            return self.review_view(carrier, report, preview)
 
     def execute(self, session_id, request: AgentExecute):
-        with self.lock:
+        with self.lock, self.model_route(session_id):
             carrier, turn = self.check(session_id, request.version, request.turn_id)
             pending = self.pending.get(session_id)
             if not pending or turn.state != "running" or turn.run_id != request.run_id:
@@ -99,7 +134,7 @@ class AgentReview:
                 service.run_inference(InferenceRunRequest(contextFingerprint=preview.context_fingerprint,
                     inferenceFingerprint=fingerprint, approvalToken=request.approval_token, approved=True))
             # Expose a fresh approval for a following stage only on explicit recovery.
-            return {"session": self.current(session_id), "report": self.runtime.repository.get(turn.run_id), "preview": None}
+            return self.review_view(self.current(session_id), self.runtime.repository.get(turn.run_id), None)
 
     def cancel(self, session_id, turn_id):
         with self.lock:

@@ -45,6 +45,14 @@ for (const svgPath of expectedSvg) {
   }
   const htmlPath = svgPath.replace(/\.svg$/, '.html');
   const html = readFileSync(htmlPath, 'utf8');
+  if (svgPath.includes('vscode-migration')) {
+    const spec = JSON.parse(readFileSync(svgPath.replace(/\.svg$/, '.json'), 'utf8'));
+    for (const component of spec.components) {
+      if (![html, svg].every(content => content.includes(`data-node-id="${component.id}"`) && content.includes(component.label))) {
+        throw new Error(`Migration HTML/SVG must reflect the current component ${component.id}.`);
+      }
+    }
+  }
   if (!/<html\b[^>]*data-theme="light"[^>]*data-frag-archify-light="true"/.test(html) ||
       !html.includes('btn.disabled = true;') || !html.includes('btn.hidden = true;')) {
     throw new Error(`Architecture viewer must remain light-only: ${htmlPath}.`);

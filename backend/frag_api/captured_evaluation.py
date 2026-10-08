@@ -15,7 +15,6 @@ from frag_api.schemas.runtime import RunReport
 from frag_api.schemas.tools import ToolResult
 from frag_api.services.governed_context import CONTEXT_OUTPUT_LIMIT, INFERENCE_OUTPUT_LIMIT
 from frag_api.services.research_checkpoint import validate_decision
-from frag_api.services.research_native import native_history, projected_tools
 from frag_api.services.research_requests import validate_history
 
 STATUSES = ("PASS", "FAIL", "ERROR", "NOT_RUN", "UNDETERMINED")
@@ -84,25 +83,17 @@ def _research_wire(report, attempt, body, payload, binding, sources):
                 for key in source["evidenceIds"]]} for source in sources]
     if payload.get("manifest") != manifest:
         raise ValueError()
-    if call.transport == "pi-responses-v1":
-        registry = SimpleNamespace(catalog=lambda: definitions)
-        prefix = SimpleNamespace(research=SimpleNamespace(turns=turns), requests=report.requests, tool_calls=tools)
-        if (body.get("parallel_tool_calls") is not False or body.get("tool_choice") != "auto"
-                or body.get("tools") != projected_tools(SimpleNamespace(registry=registry))
-                or body["input"][1:] != native_history(prefix)):
-            raise ValueError()
-    else:
-        observations = [{"callId": item.call_id, "name": item.name, "status": item.status,
-                         "result": item.result.model_dump(by_alias=True) if item.result else None,
-                         "errorCode": item.error_code} for item in tools]
-        declared_tools = [{"name": item.name, "version": item.version, "readOnly": item.read_only,
-                           "inputSchema": strict_json(item.input_schema), "outputContract": "ToolResult"}
-                          for item in definitions]
-        if (payload.get("decisions") != decisions or payload.get("observations") != observations
-                or payload.get("tools") != declared_tools
-                or payload.get("toolResultSchema") != ToolResult.model_json_schema(by_alias=True)
-                or payload.get("outputSchema") != ResearchDecision.model_json_schema(by_alias=True)):
-            raise ValueError()
+    observations = [{"callId": item.call_id, "name": item.name, "status": item.status,
+                     "result": item.result.model_dump(by_alias=True) if item.result else None,
+                     "errorCode": item.error_code} for item in tools]
+    declared_tools = [{"name": item.name, "version": item.version, "readOnly": item.read_only,
+                       "inputSchema": strict_json(item.input_schema), "outputContract": "ToolResult"}
+                      for item in definitions]
+    if (payload.get("decisions") != decisions or payload.get("observations") != observations
+            or payload.get("tools") != declared_tools
+            or payload.get("toolResultSchema") != ToolResult.model_json_schema(by_alias=True)
+            or payload.get("outputSchema") != ResearchDecision.model_json_schema(by_alias=True)):
+        raise ValueError()
 
 
 def _integrity(report):
@@ -129,30 +120,38 @@ def _integrity(report):
     frozen_memory = None
     for attempt in report.requests:
         call = attempt.prepared_call
+        if call.transport == "pi-responses-v1":
+            raise ValueError("Retired transport is read-only history.")
         body, binding = strict_json(call.body), strict_json(call.binding)
+        native = call.transport == "vscode-lm-v1"
         limit = {"research": 800, "context": CONTEXT_OUTPUT_LIMIT, "inference": INFERENCE_OUTPUT_LIMIT}[call.purpose]
         if (call.purpose != attempt.stage
                 or call.fingerprint != fingerprint(call.model_dump(by_alias=True, exclude={"fingerprint"}))
-                or body.get("store") is not False or body.get("model") != call.model
+                or (not native and (body.get("store") is not False or body.get("model") != call.model))
                 or call.estimated_input_tokens != estimated_tokens(body)
                 or call.estimated_input_tokens > call.input_budget * (100 - call.reserved_percent) // 100
                 or binding.get("sources") != sources or call.run_token_limit != report.run_token_limit
-                or type(body.get("max_output_tokens")) is not int or not 0 < body["max_output_tokens"] <= limit
+                or type(call.output_limit) is not int or not 0 < call.output_limit <= limit
                 or binding.get("memoryVersions", []) != selected_memory
                 or (attempt.output is not None and attempt.output_digest != fingerprint(attempt.output))
                 or (attempt.output is None and attempt.output_digest is not None)
                 or (attempt.output is not None and attempt.status != "completed")):
             raise ValueError()
+        if native:
+            from frag_api.providers.llm import LlmStageSettings
+            from frag_api.providers.prepared import verify_prepared
+            verify_prepared(call, LlmStageSettings("vscode", call.model, None, None, call.timeout_seconds,
+                configuration_revision=binding.get("modelConfigurationRevision", ""),
+                reasoning_effort=binding.get("configuredEffort")))
         output_model_for(call)
-        raw_input = body["input"]
-        payload = strict_json(raw_input[0]["content"][0]["text"] if isinstance(raw_input, list) else raw_input)
+        payload = call.request_body_input()
         task = TaskContract.model_validate(binding["task"])
         memory = payload.get("memory", [])
         if (payload.get("task") != task.model_dump(mode="json", by_alias=True) or binding["task"] not in task_versions
                 or (attempt.status == "completed" and task.blocking_ids)
                 or [{"memoryId": item["memoryId"], "version": item["version"]} for item in memory] != selected_memory
                 or (frozen_memory is not None and memory != frozen_memory)
-                or ((call.transport != "pi-responses-v1" or call.purpose != "research") and body.get("tools") != [])):
+                or (not native and body.get("tools") != [])):
             raise ValueError()
         frozen_memory = memory
         if report.research:
@@ -192,7 +191,7 @@ def _integrity(report):
 
 
 def _stage_limit(report, stage, output):
-    return min(attempt.prepared_call.request_body()["max_output_tokens"] for attempt in report.requests
+    return min(attempt.prepared_call.output_limit for attempt in report.requests
                if attempt.stage == stage and attempt.status == "completed"
                and attempt.structural_validation == "PASS" and attempt.output == output.model_dump(by_alias=True))
 

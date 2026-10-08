@@ -1,11 +1,18 @@
 """Pure proposal checks and deterministic restoration of known research responses."""
 from pydantic import ValidationError
 from frag_api.errors import PolicyRejectedError, RagOutputError
-from frag_api.request_spec import estimated_tokens
+from frag_api.request_spec import estimated_tokens, fingerprint
 from frag_api.schemas.research import ResearchDecision
 from frag_api.schemas.tools import ReadArguments, SearchArguments
 from frag_api.services.runtime_policy import HostPolicy, redact_value
-from frag_api.services.research_native import validate_attempt_native
+
+def validate_attempt_record(attempt, decision):
+    if (attempt.prepared_call.transport == "pi-responses-v1"
+            or fingerprint(attempt.prepared_call.model_dump(by_alias=True, exclude={"fingerprint"})) != attempt.prepared_call.fingerprint
+            or attempt.native_replay is not None or attempt.native_replay_digest is not None):
+        raise RagOutputError()
+    return None
+
 
 
 def validate_decision(report, output, secrets=(), *, restoring=False):
@@ -45,7 +52,7 @@ def checkpoint_research(runtime, run_id, call_id, output):
     report = runtime.repository.get(run_id)
     decision = validate_decision(report, output, runtime.redaction_secrets)
     attempt = next(item for item in report.requests if item.id == call_id)
-    validate_attempt_native(attempt, decision)
+    validate_attempt_record(attempt, decision)
     def change(current):
         call = next(item for item in current.requests if item.id == call_id)
         turn = next(item for item in current.research.turns if item.attempt_id == call_id)

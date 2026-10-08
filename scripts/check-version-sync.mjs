@@ -33,6 +33,10 @@ const exactChecks = [
   ['backend package name', backendPackage.includes('name = "frag-harness-backend"')],
   ['backend health version', backendHealth.includes(`"serviceVersion": "${packageVersion}"`)],
   ['backend health identity', backendHealth.includes('"service": "frag-harness"')],
+  ['review HTML title', readFileSync('agents.html', 'utf8').includes(`FRAG Review · ${packageVersion}`)],
+  ['review title and footer', readFileSync('src/agents/AgentReviewApp.tsx', 'utf8').includes(`FRAG Review · ${packageVersion}`)],
+  ['VSIX version', JSON.parse(readFileSync('integrations/vscode/bridge/package.json', 'utf8')).version === packageVersion],
+  ['installed launcher version', readFileSync('integrations/vscode/bridge/host-launcher.cjs', 'utf8').includes(`serviceVersion === '${packageVersion}'`)],
   ['prepared request host version', governance.includes(`HOST_VERSION = "${packageVersion}"`)],
 ];
 const mismatched = exactChecks.filter(([, matches]) => !matches);

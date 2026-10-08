@@ -49,15 +49,26 @@ def _section(locator_id: str, kind: str, label: str, text: str) -> ExtractedSect
 
 
 class ContextSourceService:
-    def __init__(self, root: str | Path):
+    def __init__(self, root: str | Path, *, project_files: bool = False):
         self.root = Path(root).resolve()
+        self.project_files = project_files
 
     def list_files(self) -> list[LocalFileSource]:
         if not self.root.exists():
             return []
         sources: list[LocalFileSource] = []
-        for path in sorted(self.root.rglob("*"), key=lambda item: item.as_posix().lower()):
-            if not path.is_file() or path.name in {"README.md", ".gitkeep"}:
+        paths = self.root.rglob("*")
+        if self.project_files:
+            found = []
+            for directory, folders, files in os.walk(self.root, followlinks=False):
+                folders[:] = [name for name in folders if not name.startswith(".")
+                    and name not in {"node_modules", "dist", "venv"}
+                    and not Path(directory, name).is_symlink()
+                    and not self._is_reparse_point(Path(directory, name))]
+                found.extend(Path(directory, name) for name in files)
+            paths = iter(found)
+        for path in sorted(paths, key=lambda item: item.as_posix().lower()):
+            if not path.is_file() or (not self.project_files and path.name in {"README.md", ".gitkeep"}):
                 continue
             try:
                 resolved = self._resolve(path.relative_to(self.root).as_posix())
@@ -106,6 +117,9 @@ class ContextSourceService:
         raw = Path(relative_path)
         if raw.is_absolute() or raw.drive or raw.root or ".." in raw.parts or any(":" in part for part in raw.parts):
             raise ContextSourceError("Only relative paths inside local-sources are allowed.")
+        if self.project_files and (any(part.startswith(".") or part in {"node_modules", "dist", "venv"} for part in raw.parts)
+                or raw.name.lower() in {"agents.md", "agents.override.md", "chatlanguagemodels.json", "settings.json"}):
+            raise ContextSourceError("Private settings, rules and generated directories are excluded from project evidence.")
         candidate = self.root.joinpath(raw)
         current = candidate
         while current != self.root:

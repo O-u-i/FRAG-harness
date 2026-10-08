@@ -4,7 +4,7 @@ Research is an optional bounded evidence-collection runner registered beside the
 
 Research sends a selected source manifest, locator descriptions, tool input contracts and an output schema on its first model turn. It does not send the selected excerpt bodies until the model proposes a complete allowed call and the host executes a real tool. `kb.search` searches the selected snapshot with the native executor; `kb.read` starts the fixed isolated Python CLI carrier. This does not grant access to an unselected file, locator, source revision or Workspace.
 
-The host protocol is a structured `ResearchDecision`: either `continue` with complete `toolCalls`, or `finish` with observed `evidenceIds` and `missingInformation`. These are model proposals evaluated by host policy. The optional [Pi adapter](pi-adapter.md) normalizes completed native calls into this contract and replays the actual results; streaming fragments never execute. Fake/scripted acceptance validates the real host/tool path. Synthetic live GPT and human semantic review remain Phase 5 gates.
+The host protocol is a structured `ResearchDecision`: either `continue` with complete `toolCalls`, or `finish` with observed `evidenceIds` and `missingInformation`. These are model proposals evaluated by host policy. The VS Code bridge uses the same structured contract; streaming fragments never execute. Fake/scripted acceptance validates the real host/tool path. Synthetic live GPT and human semantic review remain Phase 5 gates.
 
 ## One approval, one model dispatch
 

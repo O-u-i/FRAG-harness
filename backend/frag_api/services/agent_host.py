@@ -1,9 +1,12 @@
 """Original, deliberately scoped AHP 0.9.0 facade over FRAG's durable runtime."""
 import base64
 import asyncio
+import os
+from urllib.parse import urlsplit, unquote
 from uuid import UUID
 from pydantic import ValidationError
-from frag_api.errors import RuntimeConflictError, RuntimeNotFoundError
+from frag_api.errors import RuntimeConflictError, RuntimeNotFoundError, RagNotReadyError, RagProviderError
+from frag_api.schemas.governance import HOST_VERSION
 from frag_api.schemas.agents import AgentSession, AgentTurn
 from frag_api.schemas.runtime import SessionRecord
 from frag_api.services.runtime_service import now, durable_value
@@ -39,25 +42,53 @@ def chat_uri(uri):
 
 
 class AgentHost(AgentReview):
-    def __init__(self, app, review_origin):
+    def __init__(self, app, review_origin, workspace=WORKSPACE, bridge=None):
         super().__init__(app)
         self.review_origin = review_origin
+        self.workspace, self.bridge = workspace, bridge
+        self.project_name = app.state.project_name
         self.seq = 0
         self.clients = set()
         self.client_ids = set()
 
-    def root(self):
+    def is_workspace(self, value):
+        """VS Code percent-encodes drive colons; compare only this already-bound root."""
+        if not isinstance(value, str):
+            return False
+        expected, received = urlsplit(self.workspace), urlsplit(value)
+        if (received.scheme != "file" or received.netloc != expected.netloc
+                or received.query or received.fragment):
+            return False
+        a, b = unquote(expected.path).rstrip("/"), unquote(received.path).rstrip("/")
+        return a.casefold() == b.casefold() if os.name == "nt" else a == b
+
+    def models(self):
+        if self.bridge:
+            try:
+                return [{"id": row.id, "provider": "frag", "name": row.name,
+                         "maxPromptTokens": row.max_input_tokens, "policyState": "enabled"}
+                        for row in self.bridge.models()]
+            except (RagNotReadyError, RagProviderError):
+                return []
         config = self.app.state.harness_service.config()
-        ready = config.context.ready and config.inference.ready
+        return [{"id": MODEL, "provider": "frag",
+                 "name": f"{config.context.model or 'Context setup needed'} / {config.inference.model or 'Inference setup needed'}",
+                 "maxContextWindow": 8192, "maxOutputTokens": 2000,
+                 "policyState": "enabled" if config.context.ready and config.inference.ready else "unconfigured"}]
+
+    def selected_model(self, selection, default=None):
+        if not isinstance(selection, dict) or set(selection) - {"id", "config"} or selection.get("config") not in (None, {}):
+            raise ProtocolError(-32602, "Use the saved VS Code model configuration; session overrides are unsupported.")
+        model_id = selection.get("id", default or (MODEL if not self.bridge else None))
+        if model_id not in {row["id"] for row in self.models()}:
+            raise ProtocolError(-32602, "Choose an available configured VS Code model.")
+        return model_id
+
+    def root(self):
         return {"agents": [{"provider": "frag", "displayName": "FRAG",
             "description": "Selected evidence with separate Context and Inference approvals",
-            "protectedResources": [], "customizations": [], "capabilities": {},
-            "models": [{"id": MODEL, "provider": "frag",
-                "name": f"{config.context.model or 'Context setup needed'} / {config.inference.model or 'Inference setup needed'}",
-                "maxContextWindow": 8192, "maxOutputTokens": 2000,
-                "policyState": "enabled" if ready else "unconfigured"}]}],
-            "activeSessions": len(self.runtime.repository.agent_sessions()), "terminals": [],
-            "config": EMPTY_CONFIG}
+            "protectedResources": [], "customizations": [], "capabilities": {}, "models": self.models()}],
+            "activeSessions": len(self.runtime.repository.agent_sessions()), "terminals": [], "config": EMPTY_CONFIG}
 
     def carrier_for(self, channel):
         if not isinstance(channel, str):
@@ -96,9 +127,14 @@ class AgentHost(AgentReview):
         return text
 
     def turn_state(self, carrier, turn):
+        parts = [{"kind": "markdown", "id": "frag-" + turn.id,
+                  "content": f"Task saved. Open [FRAG Review]({self.review_url(carrier)}) in the right-hand Browser tab."}]
+        if turn.run_id:
+            parts.append({"kind": "markdown", "id": "result-" + turn.id,
+                          "content": self.content(carrier, turn, include_link=False)})
         value = {"id": turn.id, "startedAt": turn.created_at,
-            "message": {"text": turn.text, "origin": {"kind": "user"}, "model": {"id": MODEL}},
-            "responseParts": [{"kind": "markdown", "id": "frag-" + turn.id, "content": self.content(carrier, turn)}]}
+            "message": {"text": turn.text, "origin": {"kind": "user"}, "model": {"id": turn.model_id or carrier.model_id or MODEL}},
+            "responseParts": parts}
         if turn.state != "running":
             value.update(state=turn.state, duration=0)
         return value
@@ -109,7 +145,7 @@ class AgentHost(AgentReview):
         title = turn.text[:80] if turn else session.title
         return {"provider": "frag", "resource": carrier.resource, "title": title,
             "status": 24 if turn and turn.state == "running" else 1,
-            "workingDirectories": [WORKSPACE], "defaultChat": chat_uri(carrier.resource),
+            "workingDirectories": [self.workspace], "defaultChat": chat_uri(carrier.resource),
             "createdAt": session.created_at, "modifiedAt": turn.created_at if turn else session.created_at}
 
     def snapshot(self, channel):
@@ -125,7 +161,7 @@ class AgentHost(AgentReview):
                 state.update(lifecycle="ready", activeClients=[], chats=[chat], config=EMPTY_CONFIG,
                     customizations=[], changesets=[])
             else:
-                state = {**chat, "workingDirectories": [WORKSPACE], "changesets": [],
+                state = {**chat, "workingDirectories": [self.workspace], "changesets": [],
                     "turns": [self.turn_state(carrier, t) for t in carrier.turns if t.state != "running"]}
                 if carrier.turns and carrier.turns[-1].state == "running":
                     state["activeTurn"] = self.turn_state(carrier, carrier.turns[-1])
@@ -148,21 +184,24 @@ class AgentHost(AgentReview):
                     client.queue.put_nowait({"jsonrpc": "2.0", "method": method, "params": params})
 
     async def create(self, params):
-        if (params.get("provider") != "frag" or params.get("workingDirectories") != [WORKSPACE]
-                or params.get("config") not in (None, {}) or params.get("model", {}).get("id", MODEL) != MODEL):
+        directories = params.get("workingDirectories")
+        if (params.get("provider") != "frag" or not isinstance(directories, list)
+                or len(directories) != 1 or not self.is_workspace(directories[0])
+                or params.get("config") not in (None, {})):
             raise ProtocolError()
+        model_id = self.selected_model(params.get("model", {}))
         uri = params["channel"]
         sid = session_id(uri)
         with self.lock:
             try:
                 old = self.current(sid)
-                if old.resource != uri:
+                if old.resource != uri or (old.model_id and old.model_id != model_id):
                     raise ProtocolError()
                 return
             except RuntimeNotFoundError:
                 pass
             self.runtime.repository.create_agent_session(SessionRecord(id=sid, title="FRAG evidence review", createdAt=now()),
-                AgentSession(sessionId=sid, resource=uri))
+                AgentSession(sessionId=sid, resource=uri, modelId=model_id))
         await self.publish("root/sessionAdded", {"channel": ROOT, "summary": self.summary(self.current(sid))})
 
     async def dispatch(self, client, params):
@@ -177,27 +216,28 @@ class AgentHost(AgentReview):
             message = action.get("message", {})
             text = message.get("text")
             turn_id = action.get("turnId")
+            model_id = self.selected_model(message.get("model", {}), carrier.model_id)
             if (not isinstance(text, str) or not 3 <= len(text.strip()) <= 500
                     or not isinstance(turn_id, str) or not 1 <= len(turn_id) <= 128
                     or message.get("origin", {}).get("kind") != "user" or message.get("attachments")
-                    or message.get("model", {}).get("id", MODEL) != MODEL):
+                    or not model_id):
                 raise ProtocolError(-32602, "Use 3–500 characters of task text; select evidence in FRAG Review.")
             safe = durable_value(text.strip(), self.runtime.redaction_secrets)
             with self.lock:
                 carrier = self.current(carrier.session_id)
                 duplicate = next((t for t in carrier.turns if t.id == turn_id), None)
                 if duplicate:
-                    if duplicate.text != safe:
+                    if duplicate.text != safe or (duplicate.model_id and duplicate.model_id != model_id):
                         raise ProtocolError()
                     return  # Durable replay is observation, never execution.
                 if len(carrier.turns) >= 200 or any(t.state == "running" for t in carrier.turns):
                     raise ProtocolError(-32000, "Finish or stop the current FRAG turn first.")
                 self.pending.pop(carrier.session_id, None)
                 def append(value):
-                    value.turns.append(AgentTurn(id=turn_id, text=safe, createdAt=now()))
+                    value.turns.append(AgentTurn(id=turn_id, text=safe, createdAt=now(), modelId=model_id))
                 carrier = self.runtime.repository.update_agent_session(carrier.session_id, append)
             accepted = {"type": kind, "turnId": turn_id, "startedAt": carrier.turns[-1].created_at,
-                "message": {"text": safe, "origin": {"kind": "user"}, "model": {"id": MODEL}}}
+                "message": {"text": safe, "origin": {"kind": "user"}, "model": {"id": model_id}}}
             await self.emit(channel, accepted, origin)
             await self.emit(channel, {"type": "chat/responsePart", "turnId": turn_id,
                 "part": {"kind": "markdown", "id": "frag-" + turn_id, "content": self.content(carrier, carrier.turns[-1])}})
@@ -262,7 +302,7 @@ class AgentConnection:
             self.client_id, self.initialized = client_id, True
             self.host.client_ids.add(client_id)
             return {"protocolVersion": "0.9.0", "serverSeq": self.host.seq,
-                "serverInfo": {"name": "FRAG", "version": "1.9.0"}, "defaultDirectory": WORKSPACE,
+                "serverInfo": {"name": "FRAG", "version": HOST_VERSION}, "defaultDirectory": self.host.workspace,
                 "snapshots": snapshots}
         if method == "reconnect":
             client_id = params.get("clientId")
@@ -307,12 +347,14 @@ class AgentConnection:
             return EMPTY_CONFIG
         if method == "sessionConfigCompletions":
             return {"items": []}
-        if method == "resourceResolve" and params.get("uri", "").rstrip("/") == WORKSPACE:
+        if method in ("resourceRead", "resourceResolve", "resourceList") and not isinstance(params.get("uri"), str):
+            raise ProtocolError()
+        if method == "resourceResolve" and self.host.is_workspace(params.get("uri")):
             return {"type": "directory"}
-        if method == "resourceList" and params.get("uri", "").rstrip("/") == WORKSPACE:
+        if method == "resourceList" and self.host.is_workspace(params.get("uri")):
             return {"entries": []}
         if method in ("resourceRead", "resourceResolve", "resourceList"):
-            raise ProtocolError(-32008, "Only the empty FRAG virtual workspace is exposed.")
+            raise ProtocolError(-32008, "Only the bound project root is advertised; select file content in FRAG Review.")
         if method == "ping":
             return {}
         raise ProtocolError(-32601, "FRAG does not provide terminals, file writes or native coding tools.")

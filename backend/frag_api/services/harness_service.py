@@ -50,9 +50,9 @@ class HarnessService:
 
     def config(self) -> HarnessConfig:
         return HarnessConfig(
-            context=StageConfig(provider=self.settings.context.provider, model=self.settings.context.model or None,
+            context=StageConfig(provider=self.settings.context.provider, model=self.settings.context.model_name or self.settings.context.model or None,
                                 ready=self.settings.context.ready),
-            inference=StageConfig(provider=self.settings.inference.provider, model=self.settings.inference.model or None,
+            inference=StageConfig(provider=self.settings.inference.provider, model=self.settings.inference.model_name or self.settings.inference.model or None,
                                   ready=self.settings.inference.ready),
         )
 

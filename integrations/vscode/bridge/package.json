@@ -1,0 +1,27 @@
+{
+  "name": "frag-bridge",
+  "displayName": "FRAG Local Host",
+  "description": "Bind a project to a local governed FRAG conversation and VS Code language models.",
+  "version": "1.10.0",
+  "publisher": "frag-local",
+  "private": true,
+  "engines": { "vscode": "^1.140.0" },
+  "main": "./extension.cjs",
+  "extensionKind": ["ui"],
+  "capabilities": { "untrustedWorkspaces": { "supported": false }, "virtualWorkspaces": false },
+  "contributes": {
+    "commands": [
+      { "command": "frag.configure", "title": "FRAG: Enable in Agents Window" },
+      { "command": "frag.start", "title": "FRAG: Start Project Host" },
+      { "command": "frag.stop", "title": "FRAG: Stop Project Host" },
+      { "command": "frag.review", "title": "FRAG: Open Review" }
+    ],
+    "configuration": {
+      "title": "FRAG",
+      "properties": {
+        "frag.hostInstallation": { "type": "string", "default": "", "scope": "application", "description": "Installed Host directory. Empty uses the standard local v1.10.0 installation." },
+        "frag.modelConfigFile": { "type": "string", "default": "", "scope": "application", "description": "Active profile chatLanguageModels.json. Empty uses the default Windows Code profile. Read locally for revision binding; never copied to FRAG." }
+      }
+    }
+  }
+}
