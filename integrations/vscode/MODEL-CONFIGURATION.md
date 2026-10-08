@@ -11,6 +11,20 @@ Plan E consumes the stable `vscode.lm` API. Configure providers in **Chat: Manag
 
 In VS Code 1.140.0 the extension's application/global storage identifies the same `User` resource root used by Agents. FRAG requires the explicit file to match that root and validates its canonical path before reading it. The dedicated instance isolates those shared resources from the user's normal instance. These checks do not inspect API key values or change VS Code's secret storage.
 
+## Why the supplier and Frag both appear
+
+The model manager lists registrations from multiple sources. Your `chatLanguageModels.json` provider object supplies the original registration, such as **MirrorCoding / GPT-6.1 Sol**. A running FRAG Host advertises a bridge registration with the same display name under **Frag**. The supplier entry uses its provider identity; the Frag entry uses a Host bridge ID. Both resolve through the same dedicated configuration, and no second `name: FRAG` provider object or key is required. A group name is not a permission grant to every Host.
+
+**FRAG: Stop Project Host** withdraws that Host's bridge entries while retaining the original provider configuration, credentials and project state. Restart can publish them again. The normal VS Code instance's `User/chatLanguageModels.json` is a separate file; equal provider names across the two instances do not make them shared. Neither a same-name pair nor a model-picker label proves a configuration conflict or successful generation.
+
+## v1.10.1 task binding
+
+This repair's native creation/Send/Stop path was tested on the locally installed VS Code **1.141.0** with a synthetic model and zero generation calls. The 1.140.0 API/configuration source review below remains its own pinned baseline; provider behavior on 1.141.0 still requires a fresh human-approved generation check. [Verification boundaries](PLAN-E-VERIFICATION.md).
+
+Native provisional session creation may omit the model before the composer submits a task. The repaired Host accepts an unbound session without a catalog default. Every native Send must explicitly select a model from the current bound bridge catalog; missing selection, an unavailable selected model and failed catalog retrieval have distinct errors. Send saves the task only, with zero model calls or automatic indexing. It does not fall back to the session's saved model, a unique catalog entry, another provider or another Profile. Replaying a saved turn cannot change its model.
+
+An empty `[]` catalog still permits installation/connection/Stop checks, but cannot accept a model-bound task. Configuration revision changes still invalidate previews and approvals. Install the matching v1.10.1 Host and VSIX into the existing dedicated-instance workflow to apply the repair; a source checkout edit does not update the installed v1.10.0 Host. See [upgrade steps](README.md#v1101-session-repair-and-upgrade).
+
 For a Custom Endpoint using Responses, configure the following in that provider object:
 
 | Location | Requirement |

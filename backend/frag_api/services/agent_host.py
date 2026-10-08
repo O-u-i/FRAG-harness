@@ -84,13 +84,15 @@ class AgentHost(AgentReview):
             root = parent
         return directories.get(normalize(unquote(received.path).rstrip("/")))
 
-    def models(self):
+    def models(self, *, strict=False):
         if self.bridge:
             try:
                 return [{"id": row.id, "provider": "frag", "name": row.name,
                          "maxPromptTokens": row.max_input_tokens, "policyState": "enabled"}
                         for row in self.bridge.models()]
-            except (RagNotReadyError, RagProviderError):
+            except (RagNotReadyError, RagProviderError) as error:
+                if strict:
+                    raise ProtocolError(-32000, "The configured VS Code model catalog is unavailable. Check the bridge and saved configuration.") from error
                 return []
         config = self.app.state.harness_service.config()
         return [{"id": MODEL, "provider": "frag",
@@ -98,12 +100,17 @@ class AgentHost(AgentReview):
                  "maxContextWindow": 8192, "maxOutputTokens": 2000,
                  "policyState": "enabled" if config.context.ready and config.inference.ready else "unconfigured"}]
 
-    def selected_model(self, selection, default=None):
+    def selected_model(self, selection, default=None, *, allow_unbound=False):
         if not isinstance(selection, dict) or set(selection) - {"id", "config"} or selection.get("config") not in (None, {}):
             raise ProtocolError(-32602, "Use the saved VS Code model configuration; session overrides are unsupported.")
-        model_id = selection.get("id", default or (MODEL if not self.bridge else None))
-        if model_id not in {row["id"] for row in self.models()}:
-            raise ProtocolError(-32602, "Choose an available configured VS Code model.")
+        # Native provisional creation can precede the composer's model selection.
+        if self.bridge and "id" not in selection and allow_unbound:
+            return None
+        model_id = selection.get("id", (default or MODEL) if not self.bridge else None)
+        if not isinstance(model_id, str) or not model_id:
+            raise ProtocolError(-32602, "Select a configured VS Code model before sending a task; no model ID was supplied.")
+        if model_id not in {row["id"] for row in self.models(strict=True)}:
+            raise ProtocolError(-32602, "The selected VS Code model is no longer available in the bound configuration. Refresh the model picker.")
         return model_id
 
     def root(self):
@@ -211,13 +218,13 @@ class AgentHost(AgentReview):
                 or len(directories) != 1 or not self.is_workspace(directories[0])
                 or params.get("config") not in (None, {})):
             raise ProtocolError()
-        model_id = self.selected_model(params.get("model", {}))
+        model_id = self.selected_model(params.get("model", {}), allow_unbound=True)
         uri = params["channel"]
         sid = session_id(uri)
         with self.lock:
             try:
                 old = self.current(sid)
-                if old.resource != uri or (old.model_id and old.model_id != model_id):
+                if old.resource != uri or (model_id and old.model_id and old.model_id != model_id):
                     raise ProtocolError()
                 return
             except RuntimeNotFoundError:
@@ -256,6 +263,7 @@ class AgentHost(AgentReview):
                     raise ProtocolError(-32000, "Finish or stop the current FRAG turn first.")
                 self.pending.pop(carrier.session_id, None)
                 def append(value):
+                    value.model_id = model_id
                     value.turns.append(AgentTurn(id=turn_id, text=safe, createdAt=now(), modelId=model_id))
                 carrier = self.runtime.repository.update_agent_session(carrier.session_id, append)
             accepted = {"type": kind, "turnId": turn_id, "startedAt": carrier.turns[-1].created_at,

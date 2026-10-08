@@ -51,7 +51,7 @@ def native(client, root):
     with client.websocket_connect("ws://127.0.0.1:8787/api/agents/ahp") as socket:
         initialize(socket)
         assert "error" not in rpc(socket, "createSession", {"channel": uri, "provider": "frag",
-            "workingDirectories": [root.as_uri()], "model": {"id": "synthetic-model"}})
+            "workingDirectories": [root.as_uri()]})
         from frag_api.services.agent_host import chat_uri
         channel = chat_uri(uri)
         rpc(socket, "subscribe", {"channel": channel})
@@ -67,6 +67,56 @@ def client_for(tmp_path, root, bridge):
         runtime_path=tmp_path / "state/runtime.sqlite3", rag_index_path=tmp_path / "state/rag.sqlite3",
         plugin_root=tmp_path / "state/plugins", agent_host_enabled=True)
     return TestClient(app, base_url="http://127.0.0.1:8787", client=("127.0.0.1", 59002), raise_server_exceptions=False)
+
+
+def test_provisional_session_requires_explicit_current_model_at_send(tmp_path, source_root, bridge, monkeypatch):
+    transport, model, calls = bridge
+    app_client = client_for(tmp_path, source_root, transport)
+    uri = "frag:/" + str(uuid4())
+    from frag_api.services.agent_host import chat_uri
+    from frag_api.errors import RagNotReadyError
+    sid, channel = uri[6:].replace("-", ""), chat_uri(uri)
+    with app_client as client, client.websocket_connect("ws://127.0.0.1:8787/api/agents/ahp") as socket:
+        initialize(socket)
+        create = {"channel": uri, "provider": "frag", "workingDirectories": [source_root.as_uri()]}
+        assert "error" not in rpc(socket, "createSession", create)
+        before = client.app.state.runtime.repository.agent_session(sid).model_dump(by_alias=True)
+        assert before["modelId"] is None and before["turns"] == []
+        assert view(client, sid)["session"] == before
+        assert client.post(f"/api/agents/sessions/{sid}/prepare", json={"version": before["version"],
+            "turnId": "synthetic-turn", "kind": "harness", "sourceRequest": {}}).status_code == 409
+        assert "error" not in rpc(socket, "createSession", create)  # Native provisional replay.
+        assert client.app.state.runtime.repository.agent_session(sid).model_dump(by_alias=True) == before
+        action = {"type": "chat/turnStarted", "turnId": "synthetic-turn", "message": {
+            "text": "Explain the synthetic finding", "origin": {"kind": "user"}}}
+
+        def send(selection):
+            action["message"]["model"] = selection
+            return rpc(socket, "dispatchAction", {"channel": channel, "clientSeq": 1, "action": action})
+
+        for invalid in ({}, {"id": "unknown"}, {"id": None}, {"id": []},
+                        {"id": model["id"], "config": {"reasoningEffort": "max"}}):
+            assert "error" in send(invalid)
+            assert client.app.state.runtime.repository.agent_session(sid).model_dump(by_alias=True) == before
+        assert "error" in rpc(socket, "createSession", {**create, "model": {"id": "unknown"}})
+        with monkeypatch.context() as patch:
+            def unavailable():
+                raise RagNotReadyError()
+            patch.setattr(transport, "models", unavailable)
+            error = send({"id": model["id"]})["error"]
+            assert "catalog" in error["message"]
+        assert "error" not in send({"id": model["id"]})
+        saved = client.app.state.runtime.repository.agent_session(sid).model_dump(by_alias=True)
+        assert saved["modelId"] == model["id"] == saved["turns"][0]["modelId"]
+        assert "error" not in send({"id": model["id"]})
+        assert client.app.state.runtime.repository.agent_session(sid).model_dump(by_alias=True) == saved  # Replay never changes a saved task.
+        assert "error" not in rpc(socket, "createSession", create)
+        assert "error" in send({})  # Never fall back to a saved model on native Send.
+        model["id"] = "replacement-model"
+        assert "error" in send({"id": "synthetic-model"})
+        assert "error" in send({"id": "replacement-model"})  # Same turn cannot switch models.
+        assert client.app.state.runtime.repository.agent_session(sid).model_dump(by_alias=True) == saved
+        assert calls == [] and client.get("/api/runtime/runs").json() == []
 
 
 @pytest.mark.parametrize("research", [False, True])

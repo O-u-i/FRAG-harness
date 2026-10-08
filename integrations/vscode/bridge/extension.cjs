@@ -88,7 +88,7 @@ async function start(context) {
     if (!chosen?.length) return;
     if (chosen[0].scheme !== 'file') fail('Choose a local Windows folder.');
     const settings = vscode.workspace.getConfiguration('frag');
-    const installation = settings.get('hostInstallation') || join(process.env.LOCALAPPDATA, 'FRAG', 'host', '1.10.0');
+    const installation = settings.get('hostInstallation') || join(process.env.LOCALAPPDATA, 'FRAG', 'host', '1.10.1');
     stage = 'dedicated model configuration';
     bridge = await startBridge(vscode, configFile);
     stage = 'installed Host startup';

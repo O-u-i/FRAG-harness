@@ -1,4 +1,28 @@
-# Plan E verification — v1.10.0
+# Plan E verification — v1.10.1
+
+## Native model binding repair — 2026-10-08
+
+Baseline HEAD: `d024f78`; tracked working tree and staging were clean. The maintainer explicitly authorized the repair, v1.10.1 synchronization and related README updates. Scope: FRAG_ONLY. No dependency was added or upgraded; the maintainer's model configuration and credentials, FC files and phase acceptance were not changed. No commit or push was made. Synthetic configuration was created only in an isolated test profile.
+
+The original failure was reproduced by synthetic AHP requests: native provisional `createSession` without `model` returned `Choose an available configured VS Code model.` The v1.10.1 Host accepts an unbound provisional session and validates an explicit current model on `chat/turnStarted`. Review can read that empty session, while preparing or executing a request requires a saved task. Missing selection, an unavailable model and catalog failure have separate errors; task persistence never dispatches a model. Explicit invalid creation models, effort overrides, stale approval bindings and model changes on a replayed turn remain rejected.
+
+| Verification | Executed result and limit |
+|---|---|
+| Backend | **453 passed, 2 skipped**; repository-local fresh pytest base directory, dotenv disabled, synthetic sources/providers. Skips require separately supplied FC protocol release artifacts. Includes fixed and Research generation after model-free provisional creation, two-stage approvals, changed configuration, rejected selections and idempotent replay. |
+| Frontend and bridge | **60 frontend / 19 bridge passed**. Existing exact-input, effort provenance, approval, origin/auth and lifecycle checks retained. |
+| Builds and versions | Standalone and Review production builds, TypeScript, source size, module boundaries, safety, versions and README/diagram checks passed. Default Host paths, launcher health checks, VSIX, public version surfaces and native diagram title use 1.10.1. |
+| Installed packages | Final Host ZIP initialized **55 unchanged locked production packages** in a new ignored test installation. Matching VSIX installed through the actual VS Code CLI into separate test user-data/extensions directories. Package payloads and installed bytes were compared; private rules, configuration, sources, tests and runtime data are excluded. The final installed backend independently passed unbound Review read, rejected preparation without a task, rejected Send without a model, and saved Send with an explicit model, with zero runs or generation calls. |
+| Native desktop | The actual installed desktop was **VS Code 1.141.0**, commit `2a59476c9bfcb90b3ddc372c36762471b7dfad1c`. The extension's real Start command bound the explicitly selected test folder; Remote/Folders/OK selected FRAG and the synthetic model. Actual WebSocket capture confirmed `createSession` omitted `model`; native Send supplied the advertised bridge ID and displayed **Task saved**. One saved task, zero runs and zero real-provider calls. No evidence was selected or sent to a provider. |
+| Visual | Installed Review at **570×900 and 960×900** showed the task and 1.10.1 title/footer, Archivo, no horizontal overflow, page errors, alerts or external requests. The unchanged native architecture diagram with its 1.10.1 title was inspected at 1440×1000. Native Task saved, Review and light diagram screenshots were inspected. |
+| Stop | Actual **FRAG: Stop Project Host** removed its owned registration, made health unreachable and retained the test provider configuration. The isolated test window was closed; test profiles/state/installations were retained without deletion. |
+
+This desktop check establishes provisional creation and native task persistence on 1.141.0, not real-provider authentication, generation, billing, saved effort execution or full upgrade compatibility. The original 1.140.0 model-API source review and historical receipts below retain their own versions and boundaries. The maintainer's ordinary and dedicated model files were not modified. Applying the repair to an existing user installation still requires matching 1.10.1 Host and VSIX packages, an updated `frag.hostInstallation` and an Agents reload.
+
+Private receipts and new packages: ignored `.tmp/v1101-repair-20261008-01/`. [Model identity and binding](MODEL-CONFIGURATION.md) explains the supplier/Frag double listing. No automatic deletion, provider replacement, fallback, retry or semantic acceptance was added.
+
+Proposed commit: `fix: bind native VS Code task models after provisional creation in v1.10.1`
+
+Cross-repo impact: **NONE**. Contract change: **ADDITIVE** acceptance of unbound provisional creation; explicit model selection remains required on native Send. Other repo status: **NOT_TOUCHED**. No FC compatible-version change is required.
 
 ## Installation and lifecycle repair — 2026-10-08
 

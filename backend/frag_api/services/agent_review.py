@@ -24,6 +24,9 @@ class AgentReview:
             yield
             return
         carrier = self.current(session_id)
+        if not carrier.turns and carrier.model_id is None:
+            yield  # An unbound provisional session is readable; mutations still require a saved turn.
+            return
         model_id = carrier.turns[-1].model_id if carrier.turns else carrier.model_id
         model = self.bridge.describe(model_id)
         if model is None:

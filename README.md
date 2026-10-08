@@ -1,6 +1,6 @@
-# FRAG-harness v1.10.0
+# FRAG-harness v1.10.1
 
-The maintainer reports real-model and manual integration verification complete for the existing runtime. The v1.10.0 VS Code bridge has its own verification boundary; prior acceptance does not certify a new provider route.
+The maintainer reports real-model and manual integration verification complete for the existing runtime. The v1.10.1 VS Code bridge has its own verification boundary; prior acceptance does not certify a new provider route.
 
 FRAG-harness is a local application for governed evidence retrieval, an optional bounded Research loop and two formal model stages. It starts with no Finance Core installation, account, token, or database. Research collects selected evidence through real read tools; the Context LLM compresses approved evidence and the Inference LLM produces a cited answer. Selection, redaction, token budgeting, approval, output validation, and citation checks are deterministic host code.
 
@@ -14,9 +14,13 @@ Open the right-hand **Browser** using **FRAG: Open Review**, paste the copied UR
 
 Models and credentials belong to VS Code's **Manage Language Models** in the dedicated instance. Set `frag.modelConfigFile` explicitly to that instance's `User/chatLanguageModels.json`; named editor profiles do not isolate Agents resources in the verified VS Code 1.140.0 route. The stable `vscode.lm` bridge uses the same native-selected model for every stage and inherits its saved default effort. It exposes no temporary effort override. Each stage previews exact **model API arguments** and requires separate one-use approval. Supplier HTTP fields, internal retries, billing and actual relay-side reasoning remain unknown. [Configuration and pinned API evidence](integrations/vscode/MODEL-CONFIGURATION.md).
 
+In v1.10.1, native provisional sessions can be created before a model is selected. Send requires an explicit model ID from the current bound catalog and saves the task with zero model calls or automatic indexing. Missing selection, an unavailable model and a failed catalog lookup have separate errors. The model management page can show the same model under its configured provider (for example MirrorCoding) and **Frag**: the latter is a Host-published bridge entry, not a second provider object or credential. Both resolve through the dedicated instance's bound configuration; the normal VS Code instance's file is separate. **FRAG: Stop Project Host** withdraws its bridge entries while retaining the provider configuration and saved project state.
+
+Upgrade the matching Host ZIP and VSIX together. Stop the old Host, install the v1.10.1 Host into a new directory, point `frag.hostInstallation` there, install the v1.10.1 VSIX into the same dedicated instance and reload Agents. Keep the existing dedicated user-data/extensions paths and `frag.modelConfigFile`; no model configuration or secret migration is needed. A source edit alone does not update an installed v1.10.0 Host.
+
 ### Windows setup: VS Code → Manage Language Models
 
-Verified desktop baseline: VS Code 1.140.0. Paths use environment variables and placeholders; credentials, personal folders and machine-specific identifiers are omitted.
+Original configuration baseline: VS Code 1.140.0. The v1.10.1 repair separately verified native creation, Send and Stop on installed VS Code 1.141.0 with a synthetic model and zero generation calls; [verification details](integrations/vscode/PLAN-E-VERIFICATION.md) separate these checks from real-provider acceptance. Paths use environment variables and placeholders; credentials, personal folders and machine-specific identifiers are omitted.
 
 1. **Open VS Code → Terminal → dedicated instance.** Separate user data and extensions; omit `--profile` because Agents shares Default resources.
 
@@ -32,7 +36,7 @@ Verified desktop baseline: VS Code 1.140.0. Paths use environment variables and 
 4. **Check prerequisites → PowerShell 7 x64, uv.** Windows PowerShell 5.1 is insufficient; verify approved versions before installing, retaining required notices.
 
    ```powershell
-   & 'C:\Program Files\PowerShell\7\pwsh.exe' --version
+   pwsh --version
    uv --version
    ```
 
@@ -40,7 +44,7 @@ Verified desktop baseline: VS Code 1.140.0. Paths use environment variables and 
 
    ```powershell
    $fragInstaller = '<absolute-extracted-bundle-path>\install-host.ps1'
-   & 'C:\Program Files\PowerShell\7\pwsh.exe' -File $fragInstaller -InstallPath "$env:LOCALAPPDATA\FRAG\host\1.10.0-fixed"
+   pwsh -File $fragInstaller -InstallPath "$env:LOCALAPPDATA\FRAG\host\1.10.1-fixed"
    ```
 
 6. **Agents → User Settings → frag.hostInstallation.** Enter the expanded absolute Host directory, without quotes; preserve the previous installation separately.
@@ -219,7 +223,7 @@ Disabling a package preserves its files and immediately hides its reader, routes
 
 ## Checks and boundaries
 
-The engineering version remains v1.10.0. The maintainer reports real-model and manual integration verification complete for existing FRAG functionality. This migration task did not repeat those checks or assess live FC. Private acceptance receipts, explicit phase acceptance and final versioned regression remain separate from a version change; this task does not close Phase 8 or release v2.0.0. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend constraints](docs/frontend-iteration.md) record the behavior retained by the standalone GUI and the new Browser review surface.
+The engineering version remains v1.10.1. The maintainer reports real-model and manual integration verification complete for existing FRAG functionality. This migration task did not repeat those checks or assess live FC. Private acceptance receipts, explicit phase acceptance and final versioned regression remain separate from a version change; this task does not close Phase 8 or release v2.0.0. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend constraints](docs/frontend-iteration.md) record the behavior retained by the standalone GUI and the new Browser review surface.
 
 ```mermaid
 flowchart TD

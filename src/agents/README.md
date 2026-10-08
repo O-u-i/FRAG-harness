@@ -1,4 +1,4 @@
-# FRAG Review
+# FRAG Review v1.10.1
 
 FRAG Review is the new right-hand page for VS Code Agents. The standalone FRAG GUI keeps its existing layout and fonts. Both entry points reuse the same backend services; the installed route stores its project sessions, runs and review records separately from development state.
 
@@ -9,6 +9,10 @@ The delivery target is desktop VS Code and its resizable Browser pane. Mobile la
 Install the matching Host ZIP and VSIX, enable the extension for the Agents window, reload, and run **FRAG: Start Project Host**. Choose a separate evidence folder. In **New / Ctrl+N**, use the folder-name button above the composer: **Remote → FRAG → Folders → your project**. Send a task, run **FRAG: Open Review**, and paste the copied URL into the native right-hand Browser address bar.
 
 [Installation and exact picker steps](../../integrations/vscode/README.md). The installed route needs no source checkout, backend `.env`, proposed extension API or VS Code modification. The advertised directory is the bound project; native file/edit/terminal operations remain unsupported.
+
+v1.10.1 permits an unbound native provisional session, but Send must explicitly select a currently available configured model before a task is saved. Send performs zero model calls; Review owns each later preview and approval. Missing selection, stale model IDs and catalog lookup failures have separate messages. Install matching v1.10.1 Host and VSIX packages to apply this repair; editing the checkout does not update an installed Host.
+
+The native model manager can show the same model under its supplier and **Frag**. Frag is the running Host's bridge entry over the dedicated instance's bound `chatLanguageModels.json`, not another provider configuration. Stopping the Host withdraws that entry; supplier credentials and saved project state remain. [Configuration and model identity](../../integrations/vscode/MODEL-CONFIGURATION.md).
 
 ## One shared workflow
 

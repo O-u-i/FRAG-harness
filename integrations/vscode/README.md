@@ -1,4 +1,4 @@
-# FRAG in VS Code Agents — Plan E / v1.10.0
+# FRAG in VS Code Agents — Plan E / v1.10.1
 
 FRAG is an installed selected-evidence conversation agent under **Remote**, with a right-hand **Browser** review page. Three directories stay separate: installed program, explicitly selected project folder, and project state. It does not modify the project with coding tools or implicitly use the FRAG development repository.
 
@@ -10,12 +10,12 @@ From the source checkout, build the two private local artifacts:
 npm.cmd run package:agents
 ```
 
-Extract `.tmp/packages/frag-host-1.10.0.zip` into a temporary bundle directory. With **PowerShell 7**, run that bundle's `install-host.ps1`. It copies only application/resources into `%LOCALAPPDATA%\FRAG\host\1.10.0` and initializes **Python 3.12** plus the unchanged locked backend dependencies using existing `uv`. Use `-InstallPath` for another new directory. An existing target is never overwritten. The ZIP excludes wheels, a Python runtime, development rules, `.env`, tests and private runtime/source data. Keep its distributed notices with the application.
+Extract `.tmp/packages/frag-host-1.10.1.zip` into a temporary bundle directory. With **PowerShell 7**, run that bundle's `install-host.ps1`. It copies only application/resources into `%LOCALAPPDATA%\FRAG\host\1.10.1` and initializes **Python 3.12** plus the unchanged locked backend dependencies using existing `uv`. Use `-InstallPath` for another new directory. An existing target is never overwritten. The ZIP excludes wheels, a Python runtime, development rules, `.env`, tests and private runtime/source data. Keep its distributed notices with the application.
 
 For an explicit new target:
 
 ```powershell
-pwsh -File ./bundle/install-host.ps1 -InstallPath "$env:LOCALAPPDATA/FRAG/host/1.10.0-local"
+pwsh -File ./bundle/install-host.ps1 -InstallPath "$env:LOCALAPPDATA/FRAG/host/1.10.1-local"
 ```
 
 The installer rejects unknown arguments and uses dependency copy mode across drives. If initialization fails, retain the directory for inspection and choose another new target; no recursive cleanup is performed.
@@ -29,7 +29,7 @@ Use new, dedicated user-data and extension directories. This creates FRAG-owned 
 ```powershell
 $fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG/vscode-v110'
 code --user-data-dir "$fragInstance/user-data" --extensions-dir "$fragInstance/extensions" --new-window
-code --user-data-dir "$fragInstance/user-data" --extensions-dir "$fragInstance/extensions" --install-extension ./frag-bridge-1.10.0.vsix
+code --user-data-dir "$fragInstance/user-data" --extensions-dir "$fragInstance/extensions" --install-extension ./frag-bridge-1.10.1.vsix
 ```
 
 Run installation from the directory containing the rebuilt VSIX. Do not add `--profile`: the isolated instance's initially empty Default resources are intentionally dedicated to FRAG. Alternatively, use **Extensions: Install from VSIX** in its ordinary editor window. Keep those same directory arguments on every subsequent launch. No Marketplace publication, configuration schema injection or VS Code installation edits are required.
@@ -61,9 +61,19 @@ The native conversation receives the same saved run's answer/status. Right-hand 
 
 ## Model configuration
 
+### v1.10.1 session repair and upgrade
+
+The current repair was desktop-tested on VS Code **1.141.0** for native provisional creation, explicit model selection, task persistence and owned Stop with a synthetic model and zero generation calls. The original **1.140.0** configuration/API review remains historical; this bounded check does not certify real-provider authentication, effort, generation or full upgrade compatibility. See [repair verification](PLAN-E-VERIFICATION.md).
+
+VS Code can create a provisional session without a model before the composer submits a task. The Host now accepts that unbound session without choosing a default. Send must supply an explicit ID from the current model catalog; it binds the saved task without a model call or automatic indexing. Missing selection, a model no longer in the bound catalog and catalog retrieval failure produce distinct errors. Invalid IDs and per-session effort overrides remain rejected; each generation still needs its own exact preview and one-use approval.
+
+For an installed v1.10.0 setup, run **FRAG: Stop Project Host**, install the new Host ZIP into a new v1.10.1 directory and update `frag.hostInstallation`. Install the matching v1.10.1 VSIX using the same dedicated user-data and extensions directories, then reload Agents. Retain `frag.modelConfigFile` and the provider's VS Code-managed credentials. Restart against the intended evidence folder and create a new native task. Do not overwrite or delete the old installation or saved state. A checkout-only repair cannot change an already installed Host.
+
 In the dedicated **Agents** window, use **Chat: Manage Language Models** and **Chat: Open Language Models (JSON)**. For the instance above the active resource is `$fragInstance/user-data/User/chatLanguageModels.json`. Set `frag.modelConfigFile` to that full absolute path; VS Code settings do not expand the PowerShell variable. An empty setting, another named Profile's file, a missing file or a linked file fails before startup. There is no `%APPDATA%` fallback. Preserve VS Code secret references and configure only this dedicated instance. FRAG does not read, copy or display API keys.
 
 Saving `[]` permits an installation/connection/Stop check with an empty model catalog. A real provider is not required for that check. Models not represented in the explicitly bound configuration are excluded. Research, Context and Inference use the same native-selected model and saved per-model default effort. See [configuration paths, verification steps and pinned API evidence](MODEL-CONFIGURATION.md).
+
+**Manage Language Models** lists both the configured supplier and the running Host's published models. A provider such as MirrorCoding and a **Frag** group can therefore show the same model name from the same dedicated configuration. The JSON does not need a second `name: FRAG` provider object. The groups represent separate registrations with different internal IDs, not separate keys or evidence permissions. Stopping the owned Host withdraws its Frag entries; the original provider remains configured. Do not delete the provider to address this normal double listing.
 
 The preview freezes the stable model API inputs. It does not certify final provider HTTP fields, hidden retries, usage, billing or relay execution. FRAG performs zero automatic retries; schema/citation checks do not establish semantic correctness.
 
