@@ -29,10 +29,16 @@ def main():
     parser.add_argument("--installation", type=Path, required=True)
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--bridge-url", required=True)
+    parser.add_argument("--preferences-path", type=Path)
     args = parser.parse_args()
     if not 1024 <= args.port <= 65535:
         parser.error("Use a nonprivileged loopback port.")
     root, state = checked_paths(args.workspace, args.state_dir, args.installation)
+    preferences = args.preferences_path or state / "review-preferences.sqlite3"
+    checked_paths(root, preferences.parent, args.installation)
+    if preferences.name != "review-preferences.sqlite3" or preferences.is_symlink() or (
+            preferences.exists() and getattr(preferences.stat(), "st_file_attributes", 0) & 0x400):
+        raise ValueError("Preferences must be an unlinked application preferences file.")
     # Set before importing main; installed Hosts never load a development .env.
     os.environ["FRAG_HOST_INSTALLED"] = "1"
     from frag_api.main import create_app
@@ -45,6 +51,7 @@ def main():
         rag_index_path=state / "rag/index.sqlite3", rag_source_root=resources / "demo/rag",
         rag_eval_path=resources / "demo/rag/eval-cases.json", plugin_root=state / "plugins",
         runtime_path=state / "runtime.sqlite3", agent_host_enabled=True,
+        review_preferences_path=preferences,
         review_assets=resources / "dist", review_help=resources / "review.md",
         review_origin=f"http://127.0.0.1:{args.port}")
     uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False, log_level="warning")

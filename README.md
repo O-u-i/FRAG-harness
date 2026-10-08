@@ -1,6 +1,6 @@
-# FRAG-harness v1.10.2
+# FRAG-harness v1.10.3
 
-The maintainer reports real-model and manual integration verification complete for the existing runtime. The v1.10.2 VS Code bridge has its own verification boundary; prior acceptance does not certify a new provider route.
+The maintainer reports real-model and manual integration verification complete for the existing runtime. The v1.10.3 VS Code bridge has its own verification boundary; prior acceptance does not certify a new provider route.
 
 FRAG-harness is a local application for governed evidence retrieval, an optional bounded Research loop and two formal model stages. It starts with no Finance Core installation, account, token, or database. Research collects selected evidence through real read tools; the Context LLM compresses approved evidence and the Inference LLM produces a cited answer. Selection, redaction, token budgeting, approval, output validation, and citation checks are deterministic host code.
 
@@ -12,15 +12,15 @@ The folder selected by **Start Project Host → Bind project** is the evidence W
 
 In the Agents window, click **New / Ctrl+N**, then the **folder-name button above the composer**: **Remote → FRAG · project ID → Folders → your project**. Choose a model and send a task. This is a selected-evidence conversation agent. It has no edit or terminal bridge; native coding and Git operations remain VS Code operations.
 
-Open the right-hand **Browser** using **FRAG: Open Review**, paste the copied URL, and select the native session. The new FRAG Review page combines Harness/RAG evidence and Context controls into **Evidence → Context → Inference → Review**. Right-hand navigation uses gray transparent Glass Icons, with Workspace, Runs and Memory; ordinary text uses **Archivo Variable 5.3.0**. The standalone GUI keeps its layout. [Review components](src/agents/README.md).
+Open the right-hand **Browser** using **FRAG: Open Review**, paste the copied URL, and select the native session. Save project evidence in **Settings**, then use **Context → Inference → Review**. A special run or conversation configuration adds **Evidence → Research (optional)** before Context. The right navigation has Workspace, Runs, Settings and expandable Memory, with an icon rail in narrow Browser panes. Step entries and read-only Back remain sticky; reports have a separate display area. Ordinary text uses **Archivo Variable 5.3.0**. The standalone GUI keeps its layout. [Review components](src/agents/README.md), [v1.10.3 verification and handoff](integrations/vscode/REVIEW-SETTINGS-VERIFICATION.md).
 
-Native Send completes with a saved-task receipt. Review separately displays **Waiting for evidence selection** or **Waiting for approval**, with zero model calls while waiting. Unsent text and Context descriptors stay in process memory only. Cancelled tasks explain how to restart; a new native task switches Review and invalidates the old approval. Length, attachment, message-format and turn-state failures have separate errors.
+Native Send completes with a saved-task receipt. Review separately displays **Choose task configuration** or **Waiting for approval**, with zero model calls while waiting. Unsent text and Context descriptors stay in process memory only. Cancelled tasks explain how to restart; a new native task switches Review and invalidates the old approval. Length, attachment, message-format and turn-state failures have separate errors.
 
 Models and credentials belong to VS Code's **Manage Language Models** in the dedicated instance. Set `frag.modelConfigFile` explicitly to that instance's `User/chatLanguageModels.json`; named editor profiles do not isolate Agents resources in the verified VS Code 1.140.0 route. The stable `vscode.lm` bridge uses the same native-selected model for every stage and inherits its saved default effort. It exposes no temporary effort override. Each stage previews exact **model API arguments** and requires separate one-use approval. Supplier HTTP fields, internal retries, billing and actual relay-side reasoning remain unknown. [Configuration and pinned API evidence](integrations/vscode/MODEL-CONFIGURATION.md).
 
-In v1.10.2, native provisional sessions can be created before a model is selected. Send requires an explicit model ID from the current bound catalog and saves the task with zero model calls or automatic indexing. Missing selection, an unavailable model and a failed catalog lookup have separate errors. The model management page can show the same model under its configured provider (for example MirrorCoding) and **Frag**: the latter is a Host-published bridge entry, not a second provider object or credential. Both resolve through the dedicated instance's bound configuration; the normal VS Code instance's file is separate. **FRAG: Stop Project Host** withdraws its bridge entries while retaining the provider configuration and saved project state.
+In v1.10.3, native provisional sessions can be created before a model is selected. Send requires an explicit model ID from the current bound catalog and saves the task with zero model calls or automatic indexing. Missing selection, an unavailable model and a failed catalog lookup have separate errors. The model management page can show the same model under its configured provider (for example MirrorCoding) and **Frag**: the latter is a Host-published bridge entry, not a second provider object or credential. Both resolve through the dedicated instance's bound configuration; the normal VS Code instance's file is separate. **FRAG: Stop Project Host** withdraws its bridge entries while retaining the provider configuration and saved project state.
 
-Upgrade the matching Host ZIP and VSIX together. Stop the old Host, install the v1.10.2 Host into a new directory, point `frag.hostInstallation` there, install the v1.10.2 VSIX into the same dedicated instance and reload Agents. Keep the existing dedicated user-data/extensions paths and `frag.modelConfigFile`; no model configuration or secret migration is needed. A source edit alone does not update an installed Host.
+Upgrade the matching Host ZIP and VSIX together. Stop the old Host, install the v1.10.3 Host into a new directory, point `frag.hostInstallation` there, install the v1.10.3 VSIX into the same dedicated instance and reload Agents. Keep the existing dedicated user-data/extensions paths and `frag.modelConfigFile`; no model configuration or secret migration is needed. A source edit alone does not update an installed Host.
 
 ### Windows setup: VS Code → Manage Language Models
 
@@ -37,20 +37,20 @@ Run each step in the location at the start of its flow; the text in parentheses 
 
 2. **In the dedicated ordinary editor window → Ctrl+Shift+P → Preferences: Open User Settings (JSON)** (verify the dedicated instance). Confirm `<dedicated-user-data>/User/settings.json`; recent folders or model names alone cannot establish isolation.
 
-3. **In the dedicated ordinary editor window → Ctrl+Shift+P → Extensions: Install from VSIX...** (install the matching v1.10.2 extension). Choose either method below. The VSIX installs the VS Code extension; the Host ZIP's `install-host.ps1` installs the separate Host program.
+3. **In the dedicated ordinary editor window → Ctrl+Shift+P → Extensions: Install from VSIX...** (install the matching v1.10.3 extension). Choose either method below. The VSIX installs the VS Code extension; the Host ZIP's `install-host.ps1` installs the separate Host program.
 
-   **Extensions UI:** in the dedicated instance's ordinary editor window, press `Ctrl+Shift+X` → Extensions view `...` menu → **Install from VSIX...** → choose `frag-bridge-1.10.2.vsix`. You can also run **Extensions: Install from VSIX...** from `Ctrl+Shift+P`. Use that ordinary window for extension installation and inspection; return to Agents afterward. [Official VSIX installation instructions](https://code.visualstudio.com/docs/configure/extensions/extension-marketplace#install-from-a-vsix).
+   **Extensions UI:** in the dedicated instance's ordinary editor window, press `Ctrl+Shift+X` → Extensions view `...` menu → **Install from VSIX...** → choose `frag-bridge-1.10.3.vsix`. You can also run **Extensions: Install from VSIX...** from `Ctrl+Shift+P`. Use that ordinary window for extension installation and inspection; return to Agents afterward. [Official VSIX installation instructions](https://code.visualstudio.com/docs/configure/extensions/extension-marketplace#install-from-a-vsix).
 
    **PowerShell alternative:** replace the package-directory placeholder with the actual absolute directory containing your matching VSIX. Keep the same dedicated directories from step 1.
 
    ```powershell
    $fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG\vscode-v110-human'
-   $fragVsix = '<absolute-package-directory>\frag-bridge-1.10.2.vsix'
+   $fragVsix = '<absolute-package-directory>\frag-bridge-1.10.3.vsix'
    code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --install-extension $fragVsix
    code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --list-extensions --show-versions | Select-String '^frag-local\.frag-bridge@'
    ```
 
-   Confirm `frag-local.frag-bridge@1.10.2`, then follow **In the dedicated ordinary editor window → Ctrl+Shift+P → Developer: Reload Window** (reload the extension). Reopen the command palette, run **FRAG: Enable in Agents Window**, then select **Open Agents** (enable the extension and switch windows). Switch to the **Agents** window before its setup and Start steps. Reload an already open Agents window too. The extension and Host must both be v1.10.2: a v1.10.0 extension rejects the v1.10.2 Host during its startup health check. Avoid stale packages sharing the same version.
+   Confirm `frag-local.frag-bridge@1.10.3`, then follow **In the dedicated ordinary editor window → Ctrl+Shift+P → Developer: Reload Window** (reload the extension). Reopen the command palette, run **FRAG: Enable in Agents Window**, then select **Open Agents** (enable the extension and switch windows). Switch to the **Agents** window before its setup and Start steps. Reload an already open Agents window too. The extension and Host must both be v1.10.3: a v1.10.0 extension rejects the v1.10.3 Host during its startup health check. Avoid stale packages sharing the same version.
 
 4. **In an external PowerShell terminal → `pwsh --version` → `uv --version`** (verify the installer prerequisites). Windows PowerShell 5.1 is insufficient; verify approved versions before installing, retaining required notices. The FRAG Remote Host does not provide a terminal.
 
@@ -63,7 +63,7 @@ Run each step in the location at the start of its flow; the text in parentheses 
 
    ```powershell
    $fragInstaller = '<absolute-extracted-bundle-path>\install-host.ps1'
-   pwsh -File $fragInstaller -InstallPath "$env:LOCALAPPDATA\FRAG\host\1.10.2-fixed"
+   pwsh -File $fragInstaller -InstallPath "$env:LOCALAPPDATA\FRAG\host\1.10.3-fixed"
    ```
 
 6. **In the Agents window → Ctrl+, → search `frag.hostInstallation`** (bind the initialized Host installation). Enter the expanded absolute Host directory in the setting's text field, without literal quote characters; preserve the previous installation separately.
@@ -255,7 +255,7 @@ Disabling a package preserves its files and immediately hides its reader, routes
 
 ## Checks and boundaries
 
-The engineering version remains v1.10.2. The maintainer reports real-model and manual integration verification complete for existing FRAG functionality. This migration task did not repeat those checks or assess live FC. Private acceptance receipts, explicit phase acceptance and final versioned regression remain separate from a version change; this task does not close Phase 8 or release v2.0.0. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend constraints](docs/frontend-iteration.md) record the behavior retained by the standalone GUI and the new Browser review surface.
+The engineering version remains v1.10.3. The maintainer reports real-model and manual integration verification complete for existing FRAG functionality. This migration task did not repeat those checks or assess live FC. Private acceptance receipts, explicit phase acceptance and final versioned regression remain separate from a version change; this task does not close Phase 8 or release v2.0.0. Follow the [manual acceptance guide](docs/manual-acceptance.md) and keep actual reports and Gold in ignored local storage. The [frontend constraints](docs/frontend-iteration.md) record the behavior retained by the standalone GUI and the new Browser review surface.
 
 ```mermaid
 flowchart TD

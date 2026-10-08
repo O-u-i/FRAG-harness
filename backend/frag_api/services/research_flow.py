@@ -56,13 +56,13 @@ class ResearchFlow:
     def close(self):
         self.approvals.clear()
 
-    def _dto(self, report, prepared, token):
+    def _dto(self, report, prepared, token, fresh):
         context = next((item.prepared_call.fingerprint for item in reversed(report.requests)
                         if item.stage == "context" and item.structural_validation == "PASS"), None)
         return ResearchPreview(runId=report.run.id, sessionId=report.run.session_id, stage=prepared.purpose,
             preparedCall=prepared, fingerprint=prepared.fingerprint, approvalToken=token,
             canApprove=token is not None, turn=max(1, len(report.research.turns)),
-            warnings=["Each model request requires a new exact approval.",
+            warnings=[*fresh.warnings, "Each model request requires a new exact approval.",
                       "Tool observations and valid citations do not establish factual support."],
             contextFingerprint=prepared.fingerprint if prepared.purpose == "context" else context)
 
@@ -85,7 +85,7 @@ class ResearchFlow:
         if fresh.can_approve:
             token = self.approvals.issue(prepared.fingerprint, (run_id, call_id, prepared))
             self.runtime.remember_approval(token)
-        return self._dto(self.runtime.repository.get(run_id), prepared, token)
+        return self._dto(self.runtime.repository.get(run_id), prepared, token, fresh)
 
     def validate_source(self, report, source):
         return revalidate(self.runtime, report, source, self.services[report.run.kind], self.tools, self.definition)
@@ -133,7 +133,7 @@ class ResearchFlow:
             raise
         token = self.approvals.issue(prepared.fingerprint, (run_id, call_id, prepared))
         self.runtime.remember_approval(token)
-        return self._dto(self.runtime.repository.get(run_id), prepared, token)
+        return self._dto(self.runtime.repository.get(run_id), prepared, token, fresh)
 
     def execute(self, run_id, source, approved_fingerprint, token):
         with tracing_context(enabled=False):

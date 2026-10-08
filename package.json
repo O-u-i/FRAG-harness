@@ -1,6 +1,6 @@
 {
   "name": "frag-harness",
-  "version": "1.10.2",
+  "version": "1.10.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -27,6 +27,7 @@
     "build:agents": "npm run check:architecture && npm run typecheck && vite build --mode agents --outDir .tmp/agents-dist"
   },
   "dependencies": {
+    "motion": "12.23.21",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^4.4.3"
@@ -40,5 +41,11 @@
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "framer-motion": "12.23.21",
+    "motion-dom": "12.23.21",
+    "tslib": "2.8.1",
+    "motion-utils": "12.23.6"
   }
 }

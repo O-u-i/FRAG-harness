@@ -6,30 +6,40 @@ import type { RagDatasetRequest, RagSearchResponse, RagEvaluationReport } from '
 import { fetchLocalFileSources, inspectLocalFile } from '../../api/contextSourceClient';
 import { fetchPlugins, fetchPluginScopes } from '../../api/pluginClient';
 import { rebuildRagIndex, searchRag, evaluateRag } from '../../api/ragClient';
+import type { EvidenceSettings } from '../../../shared/contracts/reviewSettings';
+import GlideSelect from './reactbits/GlideSelect';
 
 type FileSelection = HarnessRequest['fileSelections'][number];
 export type EvidenceSelection = { mode: 'files' | 'retrieval' | 'plugin'; ready: boolean;
   file?: FileSelection; plugin?: HarnessRequest['pluginSelection']; dataset?: RagDatasetRequest; topK: number };
-export function EvidencePicker({ goal, busy, onChange }: {
-  goal: string; busy: boolean; onChange: (value: EvidenceSelection) => void;
+export function EvidencePicker({ goal, busy, onChange, initial, initialTopK = 3 }: {
+  goal: string; busy: boolean; onChange: (value: EvidenceSelection) => void; initial?: EvidenceSettings; initialTopK?: number;
 }) {
-  const [mode, setMode] = useState<EvidenceSelection['mode']>('files');
+  const [mode, setMode] = useState<EvidenceSelection['mode']>(initial?.mode ?? 'files');
   const [files, setFiles] = useState<LocalFileSource[]>([]);
   const [plugins, setPlugins] = useState<PluginCatalog['plugins']>([]);
-  const [path, setPath] = useState('');
+  const [path, setPath] = useState(initial?.file?.relativePath ?? '');
   const [inspect, setInspect] = useState<LocalFileInspectResponse>();
-  const [locators, setLocators] = useState<string[]>([]);
-  const [plugin, setPlugin] = useState('');
+  const [locators, setLocators] = useState<string[]>(initial?.file?.locatorIds ?? []);
+  const [plugin, setPlugin] = useState(initial?.plugin?.pluginId ?? '');
   const [scopes, setScopes] = useState<PluginScopes>();
-  const [scope, setScope] = useState('');
-  const [records, setRecords] = useState<string[]>([]);
-  const [demo, setDemo] = useState(false);
-  const [topK, setTopK] = useState(3);
+  const [scope, setScope] = useState(initial?.plugin?.scopeId ?? initial?.plugin?.workspaceId ?? '');
+  const [records, setRecords] = useState<string[]>(initial?.plugin?.recordIds ?? []);
+  const [demo, setDemo] = useState(initial?.synthetic ?? false);
+  const [topK, setTopK] = useState(initialTopK);
   const [search, setSearch] = useState<RagSearchResponse>();
   const [evaluation, setEvaluation] = useState<RagEvaluationReport>();
   const [operation, setOperation] = useState('');
   const [error, setError] = useState('');
   const epoch = useRef(0);
+  const initialFile = useRef(initial?.file);
+  useEffect(() => {
+    let active = true;
+    const version = epoch.current;
+    if (initialFile.current) inspectLocalFile(initialFile.current.relativePath).then((value) => { if (active && version === epoch.current) setInspect(value); })
+      .catch(() => { if (active && version === epoch.current) setError('Saved source is unavailable. Choose it again; preparation will revalidate it.'); });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     let active = true;
     Promise.all([fetchLocalFileSources(), fetchPlugins()]).then(([f, p]) => {
@@ -73,32 +83,32 @@ export function EvidencePicker({ goal, busy, onChange }: {
   };
   const disabled = busy || !!operation;
   return <section className="review-evidence">
-    <label className="review-field">Evidence source<select value={mode} disabled={disabled} onChange={(event) => {
-      clear(); setMode(event.target.value as EvidenceSelection['mode']); setRecords([]);
-    }}><option value="files">Selected files</option><option value="retrieval">RAG retrieval</option><option value="plugin">Plugin evidence</option></select></label>
+    <div className="review-field">Evidence source<GlideSelect ariaLabel="Evidence source" size="lg" value={mode} disabled={disabled}
+      options={[{value:'files',label:'Selected files'},{value:'retrieval',label:'RAG retrieval'},{value:'plugin',label:'Plugin evidence'}]}
+      onChange={(value) => { clear(); setMode(value as EvidenceSelection['mode']); setRecords([]); }} /></div>
     {mode === 'retrieval' && <div className="review-row">
       <label className="review-check"><input type="checkbox" checked={demo} disabled={disabled} onChange={(e) => { clear(); setDemo(e.target.checked); }} />Synthetic demo</label>
-      <label className="review-field">Results<select value={topK} disabled={disabled} onChange={(e) => { clear(); setTopK(Number(e.target.value)); }}>{[1, 3, 5, 10].map((k) => <option key={k}>{k}</option>)}</select></label>
+      <div className="review-field">Results<GlideSelect ariaLabel="Results" value={String(topK)} disabled={disabled} options={['1','3','5','10']}
+        onChange={(value) => { clear(); setTopK(Number(value)); }} /></div>
     </div>}
     {mode !== 'plugin' && !(mode === 'retrieval' && demo) && <>
-      <label className="review-field">File<select value={path} disabled={disabled} onChange={(e) => void chooseFile(e.target.value)}>
-        <option value="">Choose a file</option>{files.map((item) => <option key={item.relativePath}>{item.relativePath}</option>)}
-      </select></label>
+      <div className="review-field">File<GlideSelect ariaLabel="File" size="lg" value={path} disabled={disabled} placeholder="Choose a file"
+        options={files.map((item) => item.relativePath)} onChange={(value) => void chooseFile(value)} /></div>
       {inspect && <fieldset className="review-locators" disabled={disabled}><legend>Sections</legend>{inspect.locators.map((item) =>
         <label key={item.id}><input type="checkbox" checked={locators.includes(item.id)} disabled={disabled || (!locators.includes(item.id) && locators.length >= 20)}
           onChange={(e) => { clear(); setLocators((values) => e.target.checked ? [...values, item.id] : values.filter((id) => id !== item.id)); }} />
           <span>{item.label}<small>{item.excerpt}</small></span></label>)}</fieldset>}
     </>}
     {mode === 'plugin' && <>
-      <label className="review-field">Plugin<select value={plugin} disabled={disabled} onChange={(e) => { clear(); setPlugin(e.target.value); setScope(''); setRecords([]); }}>
-        <option value="">Choose a plugin</option>{plugins.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>
-      <label className="review-field">Scope<select value={scope} disabled={disabled} onChange={(e) => { clear(); setScope(e.target.value); setRecords([]); }}>
-        <option value="">Choose a scope</option>{scopes?.scopes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+      <div className="review-field">Plugin<GlideSelect ariaLabel="Plugin" size="lg" value={plugin} disabled={disabled} placeholder="Choose a plugin"
+        options={plugins.map((item) => ({ value:item.id,label:item.name }))} onChange={(value) => { clear(); setPlugin(value); setScope(''); setRecords([]); }} /></div>
+      <div className="review-field">Scope<GlideSelect ariaLabel="Scope" size="lg" value={scope} disabled={disabled} placeholder="Choose a scope"
+        options={scopes?.scopes.map((item) => ({value:item.id,label:item.label})) ?? []} onChange={(value) => { clear(); setScope(value); setRecords([]); }} /></div>
       {scope && <fieldset className="review-locators"><legend>Records</legend>{scopes?.scopes.find((item) => item.id === scope)?.records.map((item) =>
         <label key={item.id}><input type="checkbox" checked={records.includes(item.id)} disabled={disabled || (!records.includes(item.id) && records.length >= 10)}
           onChange={(e) => { clear(); setRecords((values) => e.target.checked ? [...values, item.id] : values.filter((id) => id !== item.id)); }} /><span>{item.label}</span></label>)}</fieldset>}
     </>}
-    {mode === 'retrieval' && <div className="review-actions">{(['build', 'search', 'evaluate'] as const).map((action) =>
+    {mode === 'retrieval' && <div className="review-actions">{(goal ? ['build', 'search', 'evaluate'] as const : ['build'] as const).map((action) =>
       <button type="button" key={action} disabled={disabled || (!demo && !file)} onClick={() => void retrieve(action)}>
         {action === 'build' ? 'Build selected index' : action === 'search' ? 'Search' : 'Evaluate retrieval'}</button>)}</div>}
     {operation && <p role="status">{operation === 'inspect' ? 'Reading selected file…' : 'Processing retrieval…'}</p>}

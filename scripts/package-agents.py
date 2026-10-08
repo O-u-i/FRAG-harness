@@ -48,6 +48,21 @@ def build():
             version = json.loads((package / "package.json").read_text())["version"]
             put(archive, package / "LICENSE", f"resources/licenses/{name}-LICENSE.txt")
             notices.append(f"{name} {version}: MIT; original license in {name}-LICENSE.txt")
+        locked = json.loads((ROOT / "package-lock.json").read_text())["packages"]
+        expected = {"motion":"12.23.21", "framer-motion":"12.23.21", "motion-dom":"12.23.21", "motion-utils":"12.23.6", "tslib":"2.8.1"}
+        for name, version in expected.items():
+            copies = [(path, item) for path, item in locked.items() if path.endswith("node_modules/" + name)]
+            if not copies or any(item["version"] != version for _, item in copies):
+                raise ValueError(f"Unapproved animation dependency version: {name}")
+            license_name = "LICENSE.txt" if name == "tslib" else "LICENSE.md"
+            for path, _ in copies:
+                installed = ROOT / path
+                if json.loads((installed / "package.json").read_text())["version"] != version:
+                    raise ValueError(f"Installed dependency differs from its approved lock: {name}")
+                if (installed / license_name).read_bytes() != (ROOT / "public/agents" / f"{name}-{license_name}").read_bytes():
+                    raise ValueError(f"Original dependency license changed: {name}")
+            put(archive, ROOT / "public/agents" / f"{name}-{license_name}", f"resources/licenses/{name}-{license_name}")
+            notices.append(f"{name} {version}: {'0BSD' if name == 'tslib' else 'MIT'}; original license in {name}-{license_name}")
         notices.extend(["Archivo Variable 5.3.0: OFL-1.1; resources/dist/agents/fonts/ARCHIVO-OFL.txt",
                         "User-supplied React Bits references: resources/dist/agents/REACT-BITS-LICENSE.md",
                         "Backend wheels and Python/uv are not bundled. Install locked dependencies separately."])
@@ -68,6 +83,7 @@ def build():
                 "artifactWrittenAt": datetime.fromtimestamp(file.stat().st_mtime, timezone.utc).isoformat()}
                for file in (host, vsix)]
     (OUT / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    (OUT / f"receipt-{VERSION}.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(json.dumps(receipt, indent=2))
 
 

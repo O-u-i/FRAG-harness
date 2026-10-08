@@ -2,7 +2,7 @@
   "name": "frag-bridge",
   "displayName": "FRAG Local Host",
   "description": "Bind a project to a local governed FRAG conversation and VS Code language models.",
-  "version": "1.10.2",
+  "version": "1.10.3",
   "publisher": "frag-local",
   "private": true,
   "engines": { "vscode": "^1.140.0" },
@@ -19,7 +19,7 @@
     "configuration": {
       "title": "FRAG",
       "properties": {
-        "frag.hostInstallation": { "type": "string", "default": "", "scope": "application", "description": "Installed Host directory. Empty uses the standard local v1.10.2 installation." },
+        "frag.hostInstallation": { "type": "string", "default": "", "scope": "application", "description": "Installed Host directory. Empty uses the standard local v1.10.3 installation." },
         "frag.modelConfigFile": { "type": "string", "default": "", "scope": "application", "description": "Required explicit path to the dedicated Agents instance's User/chatLanguageModels.json. VS Code 1.140.0 Agents shares that instance's Default resources; named editor profiles are not used. No implicit fallback or key copying." }
       }
     }

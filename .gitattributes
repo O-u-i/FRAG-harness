@@ -5,3 +5,10 @@ src/assets/fonts/OFL-Public-Sans.txt -whitespace
 
 # Keep the original KB plugin source bytes aligned with its pinned archive.
 plugins/kb/** text eol=lf
+
+# Preserve the approved dependency license bytes checked by Host packaging.
+public/agents/motion-LICENSE.md -text
+public/agents/framer-motion-LICENSE.md -text
+public/agents/motion-dom-LICENSE.md -text
+public/agents/motion-utils-LICENSE.md -text
+public/agents/tslib-LICENSE.txt -text

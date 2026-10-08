@@ -88,7 +88,15 @@ class RevisionRecord(RevisionRequest):
     review_status: Literal["pending", "accepted", "rejected", "paused"] = Field(default="pending", alias="reviewStatus")
 
 
+class RunConfiguration(ApiModel):
+    application_revision: int = Field(alias="applicationRevision", ge=0, strict=True)
+    project_revision: int = Field(alias="projectRevision", ge=0, strict=True)
+    conversation_revision: int = Field(alias="conversationRevision", ge=0, strict=True)
+    origin: Literal["run", "conversation", "defaults"]
+
+
 class RunReport(ApiModel):
+    configuration: RunConfiguration | None = None
     research: ResearchState | None = None
     tool_calls: list[ToolCallRecord] = Field(default_factory=list, alias="toolCalls")
     snapshot_digest: str | None = Field(default=None, alias="snapshotDigest", min_length=64, max_length=64)

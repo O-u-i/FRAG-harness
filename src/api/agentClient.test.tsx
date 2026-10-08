@@ -4,6 +4,7 @@ import { agentViewSchema, type AgentView } from '../../shared/contracts/agents';
 import { executionBody } from './agentClient';
 import { preparedFixture, reviewTask } from './governanceFixtures';
 import { ReviewWorkflow } from '../agents/components/ReviewWorkflow';
+import { settingsFixture } from '../agents/testSettingsFixture';
 
 function fixture(): AgentView {
   const sessionId = 'a'.repeat(32), runId = 'synthetic-run', time = '2026-10-07T00:00:00Z';
@@ -13,7 +14,8 @@ function fixture(): AgentView {
     preparedCall: preparedFixture('context'), sourceBindings: [], task: reviewTask, canApprove: true, runId, sessionId };
   return agentViewSchema.parse({ session: { sessionId, resource: 'frag:/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', version: 2,
     turns: [{ id: 'native-turn', text: preview.goal, createdAt: time, state: 'running', runId }] },
-    report: { schemaVersion: 1, session: { id: sessionId, title: 'Synthetic', createdAt: time },
+    report: { schemaVersion: 1, configuration: { applicationRevision: 0, projectRevision: 1, conversationRevision: 0, origin: 'defaults' },
+      session: { id: sessionId, title: 'Synthetic', createdAt: time },
       run: { id: runId, sessionId, parentRunId: null, kind: 'harness', status: 'ready_context', version: 1, createdAt: time, updatedAt: time, activeCallId: null },
       selection: { goal: preview.goal, sourceBindings: [], candidateEvidence: [], task: reviewTask, input: {} },
       requests: [], context: null, modelOutput: null, reviews: [], revisions: [], consumedTokens: 0, runTokenLimit: 30000,
@@ -34,7 +36,7 @@ describe('native review control boundaries', () => {
     const markup = renderToStaticMarkup(<ReviewWorkflow view={value} config={{
       context: { provider: 'fake', model: 'synthetic-context', ready: true },
       inference: { provider: 'fake', model: 'synthetic-inference', ready: true },
-    }} onChange={() => undefined} />);
+    }} onChange={() => undefined} settings={settingsFixture} onSettings={() => undefined} openSettings={() => undefined} visible />);
     expect(markup).toContain('Complete request JSON');
     expect(markup).toContain(value.preview!.preview.preparedCall.endpoint);
     expect(markup).toContain('I reviewed this exact request');

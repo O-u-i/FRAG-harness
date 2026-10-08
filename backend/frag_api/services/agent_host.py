@@ -143,7 +143,7 @@ class AgentHost(AgentReview):
         if turn.state == "cancelled":
             return f"Task cancelled. Previous approvals are invalid. Send a new task in this native conversation, then select evidence in [FRAG Review]({self.review_url(carrier)})."
         text = (f"Task saved. Continue in [FRAG Review]({self.review_url(carrier)})." if turn.run_id else
-                f"Task saved. Waiting for evidence selection in [FRAG Review]({self.review_url(carrier)}). The native reply is complete; no model request has been sent. Open Review in the right-hand Browser tab.") if include_link else ""
+                f"Task saved. Waiting for task configuration in [FRAG Review]({self.review_url(carrier)}). The native reply is complete; no model request has been sent. Open Review in the right-hand Browser tab.") if include_link else ""
         if not turn.run_id:
             return text
         report = self.runtime.repository.get(turn.run_id)

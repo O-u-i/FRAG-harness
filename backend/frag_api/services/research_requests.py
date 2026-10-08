@@ -106,6 +106,8 @@ def revalidate(runtime, report, source, service, tools, definition):
             or configuration_hash(service, fresh, tools, definition) != report.research.configuration_hash):
         raise RagFingerprintError()
     HostPolicy.require_task(report.reviews[-1].checklist if report.reviews else report.selection.task)
+    if not fresh.candidate_evidence:
+        raise PolicyRejectedError()
     return fresh
 
 

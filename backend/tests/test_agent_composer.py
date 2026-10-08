@@ -70,7 +70,7 @@ def test_native_receipt_ends_before_review_and_cancelled_task_can_restart(tmp_pa
                 "clientSeq": 1, "action": {"type": "chat/turnStarted", "turnId": "original", "message": task()}}})
             actions = [socket.receive_json()["params"]["action"] for _ in range(4)]
             assert [a["type"] for a in actions] == ["chat/turnStarted", "chat/responsePart", "chat/turnComplete", "chat/activityChanged"]
-            assert "Waiting for evidence selection" in actions[1]["part"]["content"]
+            assert "Waiting for task configuration" in actions[1]["part"]["content"]
             assert "activity" not in actions[-1] and provider.calls == []
             prepared = prepare(client, sid, selection(client))
             check = {"version": prepared["session"]["version"], "turnId": "original"}

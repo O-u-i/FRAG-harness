@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { RunReport } from '../../../shared/contracts/runtime';
 import type { PreparedCall } from '../../../shared/contracts/governance';
 import { reviewRun, saveRevision } from '../../api/runtimeClient';
@@ -19,8 +19,13 @@ export function RequestPreview({ call }: { call: PreparedCall }) {
   </section>;
 }
 
-export function ReviewReport({ report, onChange }: { report: RunReport; onChange: (value: RunReport) => void }) {
-  const [tab, setTab] = useState('output');
+export function ReviewReport({ report, onChange, tab: controlledTab, onTabChange, readOnly = false }: {
+  report: RunReport; onChange: (value: RunReport) => void; tab?: string; onTabChange?: (tab: string) => void; readOnly?: boolean;
+}) {
+  const [innerTab, setInnerTab] = useState('output');
+  const tab = controlledTab ?? innerTab;
+  const id = useId();
+  const setTab = (value: string) => { setInnerTab(value); onTabChange?.(value); };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const active = useRef(true), actionActive = useRef(false);
@@ -35,8 +40,8 @@ export function ReviewReport({ report, onChange }: { report: RunReport; onChange
   };
   return <section className="review-report">
     <div className="review-tabs" role="tablist" aria-label="Run report">
-      {['output', 'requests', 'sources', 'review'].map((name) => <button type="button" role="tab" id={`report-tab-${name}`} key={name}
-        aria-selected={tab === name} tabIndex={tab === name ? 0 : -1} aria-controls="review-report-content" onClick={() => setTab(name)}
+      {['output', 'requests', 'sources', 'review'].map((name) => <button type="button" role="tab" id={`${id}-tab-${name}`} key={name}
+        aria-selected={tab === name} tabIndex={tab === name ? 0 : -1} aria-controls={`${id}-content`} onClick={() => setTab(name)}
         onKeyDown={(event) => {
           const tabs = ['output', 'requests', 'sources', 'review'];
           const index = tabs.indexOf(name);
@@ -44,10 +49,10 @@ export function ReviewReport({ report, onChange }: { report: RunReport; onChange
             : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
           if (next < 0) return;
           event.preventDefault(); setTab(tabs[next]);
-          document.getElementById(`report-tab-${tabs[next]}`)?.focus();
+          document.getElementById(`${id}-tab-${tabs[next]}`)?.focus();
         }}>{name[0].toUpperCase() + name.slice(1)}</button>)}
     </div>
-    <div id="review-report-content" role="tabpanel" aria-labelledby={`report-tab-${tab}`}>
+    <div id={`${id}-content`} role="tabpanel" aria-labelledby={`${id}-tab-${tab}`}>
       {error && <p className="review-alert" role="alert">{error}</p>}
       {tab === 'output' && <>
         <div className="review-verdicts"><span>Structure <strong>{report.structuralValidation}</strong></span><span>Human review <strong>{report.semanticReview}</strong></span></div>
@@ -64,12 +69,13 @@ export function ReviewReport({ report, onChange }: { report: RunReport; onChange
       </>}
       {tab === 'sources' && <>
         {report.selection.candidateEvidence.map((item) => <details key={item.evidenceId}><summary>{item.locatorLabel}</summary><pre>{item.text}</pre></details>)}
-        <details><summary>Source revisions &amp; assessments</summary><pre>{JSON.stringify(report.selection.sourceBindings, null, 2)}</pre></details>
+        <details><summary>Source revisions and assessments</summary><pre>{JSON.stringify(report.selection.sourceBindings, null, 2)}</pre></details>
+        {report.configuration && <details><summary>Configuration revisions</summary><pre>{JSON.stringify(report.configuration, null, 2)}</pre></details>}
         <details><summary>Limitations</summary>{report.limitations.map((item) => <p key={item}>{item}</p>)}</details>
       </>}
-      {tab === 'review' && <RunReviewPanel key={report.run.id} report={report} busy={busy}
+      {tab === 'review' && (readOnly ? <><p className="review-meta">Read-only saved review. No actions or requests are replayed.</p><pre>{JSON.stringify(report.reviews, null, 2)}</pre></> : <RunReviewPanel key={report.run.id} report={report} busy={busy}
         onReview={(value) => void act(() => reviewRun(report.run.id, value))}
-        onRevision={(value) => void act(() => saveRevision(report.run.id, value))} />}
+        onRevision={(value) => void act(() => saveRevision(report.run.id, value))} />)}
     </div>
     <footer className="review-report-footer"><span>Run {report.run.id.slice(0, 8)} · v{report.run.version}</span>
       <a href={`/api/runtime/runs/${encodeURIComponent(report.run.id)}/report.json`} target="_blank" rel="noreferrer">JSON</a>

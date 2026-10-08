@@ -36,6 +36,8 @@ export const revisionRecordSchema = revisionRequestSchema.extend({
   contentDigest: z.string().length(64).nullable().optional(),
 }).strict();
 export const runReportSchema = z.object({
+  configuration: z.object({ applicationRevision: z.number().int().nonnegative(), projectRevision: z.number().int().nonnegative(),
+    conversationRevision: z.number().int().nonnegative(), origin: z.enum(['run', 'conversation', 'defaults']) }).strict().nullable().optional(),
   research: researchStateSchema.nullable().default(null),
   toolCalls: z.array(z.object({
     callId: z.string(), name: z.string(), toolVersion: z.string(), carrier: z.enum(['native', 'cli']),

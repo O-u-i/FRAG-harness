@@ -31,6 +31,9 @@ from frag_api.routers.tools import router as tools_router
 from frag_api.routers.research import router as research_router
 from frag_api.routers.memory import router as memory_router
 from frag_api.routers.agents import router as agents_router
+from frag_api.routers.review_settings import router as review_settings_router
+from frag_api.repositories.review_settings import ReviewSettingsRepository
+from frag_api.services.review_settings import ReviewSettings
 from frag_api.services.agent_host import AgentHost
 from frag_api.services.memory_service import MemoryService
 from frag_api.services.kb_tools import KBTools
@@ -71,6 +74,7 @@ def create_app(
     model_bridge=None,
     review_assets: Path | None = None,
     review_help: Path | None = None,
+    review_preferences_path: Path | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -111,6 +115,9 @@ def create_app(
             app.state.agent_host = AgentHost(app, review_origin,
                 workspace=workspace_root.as_uri() if workspace_root else "file:///frag-workspace",
                 bridge=model_bridge)
+            app.state.review_settings = ReviewSettings(app.state.agent_host,
+                ReviewSettingsRepository(review_preferences_path or path.parent / "review-preferences.sqlite3"),
+                ReviewSettingsRepository(path))
             try:
                 yield
             finally:
@@ -123,7 +130,7 @@ def create_app(
                     service.flow.runtime = None
                 app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.10.2", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.10.3", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.agent_host_enabled = agent_host_enabled if agent_host_enabled is not None else os.environ.get("FRAG_AGENT_HOST_ENABLED") == "1"
     app.state.project_name = workspace_root.name if workspace_root else "FRAG workspace"
@@ -191,6 +198,7 @@ def create_app(
     app.include_router(memory_router)
     app.include_router(plugins_router)
     app.include_router(agents_router)
+    app.include_router(review_settings_router)
     assets = app.state.review_assets / "assets"
     if app.state.agent_host_enabled and assets.is_dir():
         app.mount("/assets", StaticFiles(directory=assets), name="review-assets")

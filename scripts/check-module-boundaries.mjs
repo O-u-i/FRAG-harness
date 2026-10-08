@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 
-const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.py']);
+const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.jsx', '.py']);
 const IGNORED_PARTS = new Set(['node_modules', '.venv', '__pycache__', 'dist', '.tmp']);
 
 function collectFiles(directory) {

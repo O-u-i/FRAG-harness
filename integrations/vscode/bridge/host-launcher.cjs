@@ -44,13 +44,14 @@ async function launchHost(installation, folder, storage, bridge) {
   const project = realpathSync(folder), id = projectIdentity(project);
   const python = join(installation, 'backend', '.venv', 'Scripts', 'python.exe');
   if (!existsSync(python) || !existsSync(join(installation, 'resources', 'dist', 'index.html'))) {
-    throw new Error('Install and initialize the v1.10.2 Host bundle before starting.');
+    throw new Error('Install and initialize the v1.10.3 Host bundle before starting.');
   }
   const state = join(storage, 'projects', id);
   mkdirSync(state, { recursive: true });
   const port = await unusedPort();
   const child = spawn(python, ['-X', 'utf8', '-m', 'frag_api.host', '--installation', installation,
-    '--workspace', project, '--state-dir', state, '--port', String(port), '--bridge-url', bridge.address], {
+    '--workspace', project, '--state-dir', state, '--port', String(port), '--bridge-url', bridge.address,
+    '--preferences-path', join(storage, 'review-preferences.sqlite3')], {
     cwd: installation, env: hostEnvironment(installation, bridge.key), windowsHide: true, stdio: 'ignore',
   });
   let failed = false;
@@ -65,7 +66,7 @@ async function launchHost(installation, folder, storage, bridge) {
       try {
         const response = await fetch(origin + '/api/health', { signal: AbortSignal.timeout(400), redirect: 'error' });
         const value = await response.json();
-        if (response.ok && value.service === 'frag-harness' && value.serviceVersion === '1.10.2') {
+        if (response.ok && value.service === 'frag-harness' && value.serviceVersion === '1.10.3') {
           return owned;
         }
       } catch { /* A bound process may still be starting. Poll health only; never poll a model call. */ }

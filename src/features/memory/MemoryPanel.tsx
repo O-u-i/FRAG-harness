@@ -6,7 +6,8 @@ import {
 } from '../../api/memoryClient';
 import './memory.css';
 
-export function MemoryPanel() {
+export function MemoryPanel({ section, onSectionChange }: { section?: 'candidates' | 'reviewed' | 'history';
+  onSectionChange?: (section: 'candidates' | 'reviewed' | 'history') => void } = {}) {
   const [records, setRecords] = useState<MemoryRecord[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [versions, setVersions] = useState<MemoryRecord[]>([]);
@@ -20,6 +21,7 @@ export function MemoryPanel() {
   const listEpoch = useRef(0);
   const historyEpoch = useRef(0);
   const selected = records.find((item) => item.id === selectedId);
+  const shown = records.filter((item) => !section || section === 'history' || item.status === (section === 'candidates' ? 'candidate' : 'active'));
   useEffect(() => {
     alive.current = true;
     const current = ++listEpoch.current;
@@ -38,12 +40,13 @@ export function MemoryPanel() {
     try {
       const updated = await operation();
       const latest = await fetchMemories();
-      if (alive.current) { setRecords(latest); if (!Array.isArray(updated)) setSelectedId(updated.id); setMessage(success); }
+      if (alive.current) { setRecords(latest); if (!Array.isArray(updated)) { setSelectedId(updated.id);
+        onSectionChange?.(updated.status === 'active' ? 'reviewed' : updated.status === 'candidate' ? 'candidates' : 'history'); } setMessage(success); }
     } catch (caught) { if (alive.current) setMessage(caught instanceof Error ? caught.message : 'Memory operation failed.'); }
     finally { if (alive.current) setBusy(false); }
   };
   return <div className="memory-layout">
-    <section className="card"><div className="section-heading"><span className="eyebrow">Human curated</span><h2>Candidate memories</h2>
+    <section className="card">{(!section || section === 'candidates') && <><div className="section-heading"><span className="eyebrow">Human curated</span><h2>Candidate memories</h2>
       <p>Derive a candidate from a saved model output or human revision. It remains unusable until you edit, review and promote it.</p></div>
       <label className="field">Provenance Run ID<input value={runId} maxLength={64} disabled={busy} onChange={(event) => setRunId(event.target.value)} /></label>
       <label className="field">Human revision ID (optional)<input value={revisionId} maxLength={64} disabled={busy} onChange={(event) => setRevisionId(event.target.value)} /></label>
@@ -53,11 +56,11 @@ export function MemoryPanel() {
         Explicitly mark as general experience across sources and Workspaces</label>
       <button type="button" className="button primary" disabled={busy || !runId.trim()} onClick={() => void action(() => createMemoryCandidate({
         runId: runId.trim(), revisionId: revisionId.trim() || undefined, text: candidateText.trim() || undefined, general: generalCandidate,
-      }), 'Candidate saved. Review its text and scope before promotion.')}>Create candidate</button>
+      }), 'Candidate saved. Review its text and scope before promotion.')}>Create candidate</button></>}
       <div className="section-heading memory-heading"><h2>Latest records</h2><p>All versions remain in local history. A new version invalidates requests using an earlier version.</p></div>
       <button type="button" className="button" disabled={busy} onClick={() => void action(fetchMemories, 'Memory history refreshed.')}>Refresh memories</button>
-      {!records.length && <p className="empty-state">No saved memories yet.</p>}
-      <div className="runtime-run-list">{records.map((item) => <button key={item.id} type="button" disabled={busy}
+      {!shown.length && <p className="empty-state">{section ? 'No saved memories in this view.' : 'No saved memories yet.'}</p>}
+      <div className="runtime-run-list">{shown.map((item) => <button key={item.id} type="button" disabled={busy}
         className={`runtime-run-option ${selectedId === item.id ? 'selected' : ''}`} onClick={() => {
           if (selectedId !== item.id) { historyEpoch.current += 1; setVersions([]); setSelectedId(item.id); }
           setMessage('');
@@ -68,7 +71,11 @@ export function MemoryPanel() {
     <div className="runtime-detail">
       {message && <p className="alert" role="status">{message}</p>}
       {busy && <p className="muted" role="status">Saving memory…</p>}
-      {selected ? <MemoryEditor key={`${selected.id}-${selected.version}`} record={selected} records={records} versions={versions} busy={busy} action={action} />
+      {selected && shown.some((item) => item.id === selected.id) ? section === 'history' ? <section className="card"><h2>Version history · read only</h2>
+        <p>Includes retired records. History never promotes or changes a memory.</p><pre className="runtime-data">{JSON.stringify({ scope:selected.scope, provenanceRunId:selected.provenanceRunId },null,2)}</pre>
+        {versions.map((item) => <article key={item.version} className="runtime-revision"><strong>v{item.version} · {item.status}</strong><p>{item.text}</p>
+          <p className="muted">{item.reviewNote ?? 'Not reviewed'} · {item.createdAt}</p></article>)}</section>
+        : <MemoryEditor key={`${selected.id}-${selected.version}`} record={selected} records={records} versions={versions} busy={busy} action={action} />
         : <section className="card"><p className="empty-state">Choose a record to inspect scope, review, version, retire or resolve a known conflict.</p></section>}
     </div>
   </div>;
