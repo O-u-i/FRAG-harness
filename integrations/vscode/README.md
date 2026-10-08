@@ -27,12 +27,18 @@ A named editor Profile alone does **not** isolate Agents in VS Code 1.140.0, com
 Use new, dedicated user-data and extension directories. This creates FRAG-owned resources without changing your normal instance or copying its models, secrets or extensions:
 
 ```powershell
-$fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG/vscode-v110'
-code --user-data-dir "$fragInstance/user-data" --extensions-dir "$fragInstance/extensions" --new-window
-code --user-data-dir "$fragInstance/user-data" --extensions-dir "$fragInstance/extensions" --install-extension ./frag-bridge-1.10.1.vsix
+$fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG\vscode-v110-human'
+code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --new-window
+$fragVsix = '<absolute-package-directory>\frag-bridge-1.10.1.vsix'
+code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --install-extension $fragVsix
+code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --list-extensions --show-versions | Select-String '^frag-local\.frag-bridge@'
 ```
 
-Run installation from the directory containing the rebuilt VSIX. Do not add `--profile`: the isolated instance's initially empty Default resources are intentionally dedicated to FRAG. Alternatively, use **Extensions: Install from VSIX** in its ordinary editor window. Keep those same directory arguments on every subsequent launch. No Marketplace publication, configuration schema injection or VS Code installation edits are required.
+Replace the package-directory placeholder with the actual absolute directory containing the matching VSIX. If you already have a dedicated instance, retain its existing directories. Confirm `frag-local.frag-bridge@1.10.1` in the version listing. Do not add `--profile`: the isolated instance's Default resources are intentionally dedicated to FRAG.
+
+Alternatively, in that instance's **ordinary editor window**, press `Ctrl+Shift+X` → Extensions view `...` menu → **Install from VSIX...** → select `frag-bridge-1.10.1.vsix`. The command palette (`Ctrl+Shift+P`) also offers **Extensions: Install from VSIX...**. Inspect **FRAG Local Host** there and confirm version **1.10.1**. Both installation methods install the extension into the chosen instance; the Host ZIP's `install-host.ps1` installs the separate backend program. [Official VSIX installation instructions](https://code.visualstudio.com/docs/configure/extensions/extension-marketplace#install-from-a-vsix).
+
+Keep those same directory arguments on every subsequent launch. No Marketplace publication, configuration schema injection or VS Code installation edits are required. Before Start, the extension and Host must both be **1.10.1**; an old **1.10.0** extension rejects the new Host's health version even when `frag.hostInstallation` points to the new directory.
 
 In that ordinary isolated window, reload after installation and run **FRAG: Enable in Agents Window**. It preserves other `extensions.supportAgentsWindow` entries and opts in `frag-local.frag-bridge`. Select **Open Agents** to use VS Code's native same-instance window command. Alternatively:
 

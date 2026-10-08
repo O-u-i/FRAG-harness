@@ -31,7 +31,20 @@ Original configuration baseline: VS Code 1.140.0. The v1.10.1 repair separately 
 
 2. **Verify instance → Open User Settings (JSON).** Confirm `<dedicated-user-data>/User/settings.json`; recent folders or model names alone cannot establish isolation.
 
-3. **Install matching repaired VSIX → Reload Window → FRAG: Enable in Agents Window → Open Agents.** Avoid stale packages sharing the same version.
+3. **Install the matching v1.10.1 VSIX into the dedicated instance.** Choose either method. The VSIX installs the VS Code extension; the Host ZIP's `install-host.ps1` installs the separate Host program.
+
+   **Extensions UI:** in the dedicated instance's ordinary editor window, press `Ctrl+Shift+X` → Extensions view `...` menu → **Install from VSIX...** → choose `frag-bridge-1.10.1.vsix`. You can also run **Extensions: Install from VSIX...** from `Ctrl+Shift+P`. Use that ordinary window for extension installation and inspection; return to Agents afterward. [Official VSIX installation instructions](https://code.visualstudio.com/docs/configure/extensions/extension-marketplace#install-from-a-vsix).
+
+   **PowerShell alternative:** replace the package-directory placeholder with the actual absolute directory containing your matching VSIX. Keep the same dedicated directories from step 1.
+
+   ```powershell
+   $fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG\vscode-v110-human'
+   $fragVsix = '<absolute-package-directory>\frag-bridge-1.10.1.vsix'
+   code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --install-extension $fragVsix
+   code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --list-extensions --show-versions | Select-String '^frag-local\.frag-bridge@'
+   ```
+
+   Confirm `frag-local.frag-bridge@1.10.1`, then run **Developer: Reload Window → FRAG: Enable in Agents Window → Open Agents**. Reload an already open Agents window too. The extension and Host must both be v1.10.1: a v1.10.0 extension rejects the v1.10.1 Host during its startup health check. Avoid stale packages sharing the same version.
 
 4. **Check prerequisites → PowerShell 7 x64, uv.** Windows PowerShell 5.1 is insufficient; verify approved versions before installing, retaining required notices.
 

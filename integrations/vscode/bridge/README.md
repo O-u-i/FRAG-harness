@@ -2,8 +2,8 @@
 
 Private local VSIX for the native VS Code Agents window. Install the matching Host bundle first; this extension does not download or bundle a model runtime.
 
-1. Install the VSIX with **Extensions: Install from VSIX**.
-2. Run **FRAG: Enable in Agents Window** in regular VS Code, then reload the Agents window.
+1. In the dedicated instance's ordinary editor window, open Extensions (`Ctrl+Shift+X`) → `...` → **Install from VSIX...** and choose `frag-bridge-1.10.1.vsix`. The command palette also offers **Extensions: Install from VSIX...**. Confirm **FRAG Local Host 1.10.1** in the extension details.
+2. Run **Developer: Reload Window**, then **FRAG: Enable in Agents Window** in that ordinary isolated window, and reload the Agents window.
 3. Run **FRAG: Start Project Host**, explicitly choose your evidence project folder.
 4. In Agents, click **New / Ctrl+N**, then the folder-name button above the composer: **Remote → FRAG · project ID → Folders → your project**. Select a model and send your task.
 5. Run **FRAG: Open Review**. Paste the copied URL into the right-hand Browser address bar and choose your FRAG session. Select excerpts and approve each stage separately.
@@ -11,6 +11,17 @@ Private local VSIX for the native VS Code Agents window. Install the matching Ho
 FRAG is a selected-evidence conversation agent. It has no native edit, terminal, coding-tool, MCP, Skills or Hooks bridge. Native Customizations remains VS Code's surface; it does not automatically grant FRAG those capabilities.
 
 Use a dedicated VS Code 1.140.0 Windows instance with separate `--user-data-dir` and `--extensions-dir` directories. Its internal Agents Profile shares that instance's Default settings/models/extensions; `--agents --profile FRAG` does not select a named editor Profile. Install this VSIX into the dedicated instance without `--profile`, enable it from the ordinary isolated window, then reload Agents. The native **Open Agents** action preserves the instance. **Extensions: Show Installed Extensions** is unavailable in Agents; use the isolated ordinary window or CLI. See the source checkout's `integrations/vscode/README.md` for complete installation commands.
+
+The PowerShell alternative below targets the same dedicated instance. Replace the package-directory placeholder with the actual absolute VSIX directory; retain your existing dedicated directories on upgrade.
+
+```powershell
+$fragInstance = Join-Path $env:LOCALAPPDATA 'FRAG\vscode-v110-human'
+$fragVsix = '<absolute-package-directory>\frag-bridge-1.10.1.vsix'
+code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --install-extension $fragVsix
+code --user-data-dir "$fragInstance\user-data" --extensions-dir "$fragInstance\extensions" --list-extensions --show-versions | Select-String '^frag-local\.frag-bridge@'
+```
+
+Expect `frag-local.frag-bridge@1.10.1`, then reload the ordinary and Agents windows. Installing the VSIX and running the Host ZIP installer are separate operations. Both components must be **1.10.1** before Start; a **1.10.0** extension rejects the new Host's health version. See [VS Code's VSIX installation instructions](https://code.visualstudio.com/docs/configure/extensions/extension-marketplace#install-from-a-vsix).
 
 Model setup belongs to **Chat: Manage Language Models** in that dedicated Agents window. **Chat: Open Language Models (JSON)** opens `<dedicated-user-data>/User/chatLanguageModels.json`. Set `frag.modelConfigFile` explicitly to that absolute path. Empty, missing, linked or different Profile paths fail before any process starts. No default-profile configuration is guessed or copied. Save `[]` explicitly for a model-free installation check; it exposes no models. FRAG reads the bound file locally only to bind changes and report saved `settings[modelId].reasoningEffort`; raw keys and URLs are never copied to Host storage. There is no FRAG effort override picker. Unbound models are excluded; ambiguous registrations fail closed.
 
