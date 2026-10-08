@@ -16,6 +16,12 @@ Install the matching Host ZIP and VSIX, enable the extension for the Agents wind
 4. Leave **Select a native session** empty and open **Settings** in the right navigation (Settings icon in a narrow pane). Save application preferences and explicit project evidence. Model readiness is Not checked until a native task has a saved model selection. No New, conversation selection or Send is required here.
 5. Create a conversation only when ready for a task, or run **FRAG: Stop Project Host** after configuration only. Start may enumerate configured models but does not generate a model response. Opening Review and saving Settings do not run model stages or automatically build an index.
 
+### Find the current address and unblock Browser
+
+The installed Host uses a dynamic port, not a fixed README port. In the dedicated **Agents** window, run `Ctrl+Shift+P` → **FRAG: Open Review** to copy the current complete URL, then paste it into the Browser address bar. Its format is `http://127.0.0.1:<current-port>/review`; `<current-port>` is a placeholder, not text to enter. Read the actual port from the freshly pasted URL. Repeat Open Review after a Host restart; Browser history and old session links can point to a stopped Host. If the command says **Run FRAG: Start Project Host first**, start and bind the intended project, then retry.
+
+If Browser shows **Paused due to Notification / Dismiss the notification to continue using the browser**, dismiss the VS Code notification using its close button (including **FRAG Review URL copied...**). Keep the current URL and press `Ctrl+R` in Browser if the page does not resume. This pause is not evidence of a port error or a session requirement. The current copied-URL notification says to select a FRAG session, but that selection is needed only for task review: leave it empty and open **Settings** for advance configuration.
+
 The native Files view is not FRAG Review. FRAG deliberately rejects terminals/native coding tools; a terminal-unavailable notification is not a Review opening failure. Use Open Review rather than Run Task or a terminal.
 
 ### Enter a task when ready

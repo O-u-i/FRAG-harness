@@ -20,6 +20,12 @@ Once the matching Host/VSIX and dedicated-instance settings are ready, you can o
 4. Review initially shows **Select a native session**. Leave that selection empty and click **Settings** in the right navigation; in a narrow pane, use the Settings icon. Save application preferences and explicit project evidence there before creating a conversation. Model readiness is **Not checked** until a native task supplies its saved model selection.
 5. Create/select a native session only when you are ready to send a task and enter Context. The conversation steps below are not prerequisites for opening Settings. Use **FRAG: Stop Project Host** when finished with configuration only.
 
+### Find the current address and unblock Browser
+
+The installed Host uses a dynamic port, not a fixed README port. In the dedicated **Agents** window, run `Ctrl+Shift+P` → **FRAG: Open Review** to copy the current complete URL, then paste it into the Browser address bar. Its format is `http://127.0.0.1:<current-port>/review`; `<current-port>` is a placeholder, not text to enter. Read the actual port from the freshly pasted URL. Repeat Open Review after a Host restart; Browser history and old session links can point to a stopped Host. If the command says **Run FRAG: Start Project Host first**, start and bind the intended project, then retry.
+
+If Browser shows **Paused due to Notification / Dismiss the notification to continue using the browser**, dismiss the VS Code notification using its close button (including **FRAG Review URL copied...**). Keep the current URL and press `Ctrl+R` in Browser if the page does not resume. This pause is not evidence of a port error or a session requirement. The current copied-URL notification says to select a FRAG session, but that selection is needed only for task review: leave it empty and open **Settings** for advance configuration.
+
 Starting the Host may enumerate the configured model catalog, but it does not generate a model response. Opening Review and saving Settings do not execute Research, Context or Inference, and do not build an index automatically. **Files** is the native file view, not FRAG Review. A terminal-unavailable notification means FRAG deliberately rejects native terminal/coding operations; use **Open Review**, not Run Task or a terminal, to enter the application.
 
 ### Start a native conversation when ready

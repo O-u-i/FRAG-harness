@@ -80,6 +80,12 @@ After installation/configuration, use the dedicated **Agents** welcome screen; d
 4. On **Select a native session**, leave the selection empty and open **Settings** from the right navigation (Settings icon in narrow panes). Save application preferences and explicit project sources. No New/Remote conversation selection/Send is needed for this configuration route. Model readiness is Not checked until a native task has a saved model selection.
 5. Start a native conversation using the next section only when ready for a task. For configuration only, finish with **FRAG: Stop Project Host**.
 
+### Find the current address and unblock Browser
+
+The installed Host uses a dynamic port, not a fixed README port. In the dedicated **Agents** window, run `Ctrl+Shift+P` → **FRAG: Open Review** to copy the current complete URL, then paste it into the Browser address bar. Its format is `http://127.0.0.1:<current-port>/review`; `<current-port>` is a placeholder, not text to enter. Read the actual port from the freshly pasted URL. Repeat Open Review after a Host restart; Browser history and old session links can point to a stopped Host. If the command says **Run FRAG: Start Project Host first**, start and bind the intended project, then retry.
+
+If Browser shows **Paused due to Notification / Dismiss the notification to continue using the browser**, dismiss the VS Code notification using its close button (including **FRAG Review URL copied...**). Keep the current URL and press `Ctrl+R` in Browser if the page does not resume. This pause is not evidence of a port error or a session requirement. The current copied-URL notification says to select a FRAG session, but that selection is needed only for task review: leave it empty and open **Settings** for advance configuration.
+
 Start can enumerate configured models, but neither Start nor opening Review generates a model response. Saving Settings does not automatically index evidence or run Research/Context/Inference. A terminal-unavailable notification is the deliberate native coding-tool boundary, not an instruction to open FRAG through a terminal. Files is not the Review page.
 
 ## Start a conversation in a separate test project
