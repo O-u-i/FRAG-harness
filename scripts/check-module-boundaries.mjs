@@ -1,97 +1,21 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { extname, join, relative } from 'node:path';
-
-const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.jsx', '.py']);
-const IGNORED_PARTS = new Set(['node_modules', '.venv', '__pycache__', 'dist', '.tmp']);
-
-function collectFiles(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) {
-      return IGNORED_PARTS.has(entry.name) ? [] : collectFiles(path);
-    }
-    return SOURCE_EXTENSIONS.has(extname(entry.name)) ? [path] : [];
-  });
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+const files = directory => readdirSync(directory,{withFileTypes:true}).flatMap(entry => entry.isDirectory() ? files(join(directory,entry.name)) : [join(directory,entry.name)]);
+const violations=[];
+for(const file of files('backend/frag_api').filter(p=>p.endsWith('.py'))) {
+ const text=readFileSync(file,'utf8');
+ if(/^(?:from|import)\s+(?:openai|langgraph|langchain|frag_api\.(?:providers|routers|schemas\.(?:harness|research|runtime|agents)|services\.(?:research|agent_host|harness|governed)))(?:\b|\.)/m.test(text)) violations.push(file+': retired runtime import');
+ if(/^(?:from|import)\s+(?:finance_core|sfos_api)\b/m.test(text)) violations.push(file+': financial ownership violation');
 }
-
-const violations = [];
-const frontendFiles = [...collectFiles('src'), ...collectFiles('shared')];
-
-for (const path of frontendFiles) {
-  const normalized = relative(process.cwd(), path).replaceAll('\\', '/');
-  const source = readFileSync(path, 'utf8');
-  const imports = [...source.matchAll(/(?:import|export)\s+(?:[^'\"]+\s+from\s+)?['\"]([^'\"]+)['\"]/g)]
-    .map((match) => match[1]);
-
-  if (normalized.startsWith('src/domain/')) {
-    for (const imported of imports) {
-      if (
-        imported === 'react' ||
-        imported.includes('/pages/') ||
-        imported.includes('/hooks/') ||
-        imported.includes('/api/') ||
-        imported.includes('/components/')
-      ) {
-        violations.push(`${normalized}: domain must not import ${imported}`);
-      }
-    }
-  }
-
-  if (normalized.startsWith('src/api/') && !normalized.endsWith('.test.ts') && !normalized.endsWith('.test.tsx')) {
-    for (const imported of imports) {
-      if (imported.includes('/pages/') || imported.includes('/hooks/') || imported.includes('/components/')) {
-        violations.push(`${normalized}: api client must not import ${imported}`);
-      }
-    }
-  }
-
-  if (normalized.startsWith('src/pages/')) {
-    for (const imported of imports) {
-      if (imported.includes('/api/') || imported.includes('/hooks/') || imported.includes('/features/')) {
-        violations.push(`${normalized}: page composition must not import ${imported}`);
-      }
-    }
-  }
-
-  if (source.includes('OPENAI_API_KEY') || source.includes('VITE_OPENAI')) {
-    violations.push(`${normalized}: OpenAI credentials must remain in the backend provider layer`);
-  }
+const extension=readFileSync('integrations/vscode/bridge/extension.cjs','utf8');
+if(/sendRequest|registerChatParticipant|modelConfigFile|chat\.remoteAgentHosts|workbench\.action\.chat\.open|chat\/turnComplete|toolInvocationToken/.test(extension)) violations.push('Extension contains retired chat/model ownership');
+for(const file of files('src').filter(p=>/\.(tsx?|jsx?)$/.test(p))) {
+ if(!file.includes('management')&&!file.endsWith('vite-env.d.ts')) violations.push(file+': obsolete frontend');
+ if(/\bfetch\(|XMLHttpRequest|FRAG_EXTENSION_TOKEN|FINANCE_CORE_PLUGIN_READ_TOKEN|sendRequest|chat\.open/.test(readFileSync(file,'utf8'))) violations.push(file+': Webview crosses extension/credential boundary');
 }
-
-for (const path of collectFiles('backend/frag_api')) {
-  const normalized = relative(process.cwd(), path).replaceAll('\\', '/');
-  const source = readFileSync(path, 'utf8');
-  if (/(?:^|\n)\s*(?:from|import)\s+(?:sfos_api|finance_core|frag_api\.clients\.)/m.test(source)) {
-    violations.push(`${normalized}: core cannot import former finance runtime modules`);
-  }
-  const pythonImports = [...source.matchAll(/^(?:from|import)\s+(frag_api\.[A-Za-z0-9_.]+)/gm)]
-    .map((match) => match[1]);
-  if (/^(?:from|import) openai\b/m.test(source) && !normalized.startsWith('backend/frag_api/providers/')) {
-    violations.push(`${normalized}: OpenAI SDK imports are restricted to backend/frag_api/providers`);
-  }
-
-  const forbidden = normalized.startsWith('backend/frag_api/schemas/')
-    ? ['routers', 'services', 'providers', 'repositories', 'db']
-    : normalized.startsWith('backend/frag_api/providers/')
-      ? ['routers', 'services', 'repositories', 'db']
-      : normalized.startsWith('backend/frag_api/repositories/')
-        ? ['routers', 'services', 'providers']
-        : normalized.startsWith('backend/frag_api/services/')
-          ? ['routers']
-          : normalized.startsWith('backend/frag_api/routers/')
-            ? ['repositories', 'providers']
-            : [];
-  for (const imported of pythonImports) {
-    if (forbidden.some((layer) => imported.startsWith(`frag_api.${layer}`))) {
-      violations.push(`${normalized}: layer must not import ${imported}`);
-    }
-  }
-}
-
-if (violations.length > 0) {
-  console.error('Module-boundary check failed:');
-  violations.forEach((violation) => console.error(`- ${violation}`));
-  process.exit(1);
-}
-
-console.log('Module-boundary check passed.');
+for(const name of ['langgraph','openai']) if(readFileSync('backend/pyproject.toml','utf8').includes('"'+name)) violations.push('Retired dependency: '+name);
+const manifest=JSON.parse(readFileSync('integrations/vscode/bridge/package.json','utf8'));
+if(JSON.stringify(manifest.contributes.languageModelTools.map(t=>t.name).sort()) !== JSON.stringify(['frag_fc_read','frag_read','frag_search'])) violations.push('Native tool surface drift');
+for(const path of ['backend/frag_api/plugin_host.py','integrations/vscode/bridge/model-bridge.cjs','agents.html','plugins/kb/adapter.py']) if(existsSync(path)) violations.push('Retired executable still exists: '+path);
+if(violations.length) throw new Error(violations.join('\n'));
+console.log('Native ownership, source authority, no credential Webview and retired-path boundaries passed.');

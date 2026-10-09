@@ -16,7 +16,6 @@ from pypdf import PdfReader
 
 from frag_api.schemas.context_source import (
     ExtractedSection,
-    LocalFileInspectResponse,
     LocalFileSource,
     ParsedLocalFile,
     SourceLocator,
@@ -49,41 +48,9 @@ def _section(locator_id: str, kind: str, label: str, text: str) -> ExtractedSect
 
 
 class ContextSourceService:
-    def __init__(self, root: str | Path, *, project_files: bool = False):
+    def __init__(self, root: str | Path, *, project_files: bool = True):
         self.root = Path(root).resolve()
         self.project_files = project_files
-
-    def list_files(self) -> list[LocalFileSource]:
-        if not self.root.exists():
-            return []
-        sources: list[LocalFileSource] = []
-        paths = self.root.rglob("*")
-        if self.project_files:
-            found = []
-            for directory, folders, files in os.walk(self.root, followlinks=False):
-                folders[:] = [name for name in folders if not name.startswith(".")
-                    and name not in {"node_modules", "dist", "venv"}
-                    and not Path(directory, name).is_symlink()
-                    and not self._is_reparse_point(Path(directory, name))]
-                found.extend(Path(directory, name) for name in files)
-            paths = iter(found)
-        for path in sorted(paths, key=lambda item: item.as_posix().lower()):
-            if not path.is_file() or (not self.project_files and path.name in {"README.md", ".gitkeep"}):
-                continue
-            try:
-                resolved = self._resolve(path.relative_to(self.root).as_posix())
-                sources.append(self._metadata(resolved))
-            except (ContextSourceError, OSError):
-                continue
-        return sources
-
-    def inspect(self, relative_path: str) -> LocalFileInspectResponse:
-        parsed = self.parse(relative_path)
-        return LocalFileInspectResponse(
-            source=parsed.source,
-            locators=[section.locator for section in parsed.sections],
-            warnings=parsed.warnings,
-        )
 
     def parse(self, relative_path: str) -> ParsedLocalFile:
         metadata, data = self.read_snapshot(relative_path)
@@ -91,12 +58,12 @@ class ContextSourceService:
         sections, warnings = parser(data)
         sections = [item for item in sections if item.text]
         if len(sections) > MAX_LOCATORS:
-            raise ContextSourceError("Document has too many selectable locators for direct Context.")
+            raise ContextSourceError("Document has too many sections for bounded indexing.")
         if not sections:
             raise ContextSourceError("No machine-readable text was found. OCR is not supported.")
         total = sum(len(item.text) for item in sections)
         if total > MAX_EXTRACTED_CHARS:
-            raise ContextSourceError("Extracted text exceeds the direct-context limit.")
+            raise ContextSourceError("Extracted text exceeds the extraction limit.")
         return ParsedLocalFile(source=metadata, sections=sections, warnings=warnings)
 
     def read_snapshot(self, relative_path: str) -> tuple[LocalFileSource, bytes]:
@@ -116,7 +83,7 @@ class ContextSourceService:
     def _resolve(self, relative_path: str) -> Path:
         raw = Path(relative_path)
         if raw.is_absolute() or raw.drive or raw.root or ".." in raw.parts or any(":" in part for part in raw.parts):
-            raise ContextSourceError("Only relative paths inside local-sources are allowed.")
+            raise ContextSourceError("Only relative paths inside the approved root are allowed.")
         if self.project_files and (any(part.startswith(".") or part in {"node_modules", "dist", "venv"} for part in raw.parts)
                 or raw.name.lower() in {"agents.md", "agents.override.md", "chatlanguagemodels.json", "settings.json"}):
             raise ContextSourceError("Private settings, rules and generated directories are excluded from project evidence.")
@@ -124,17 +91,17 @@ class ContextSourceService:
         current = candidate
         while current != self.root:
             if current.is_symlink() or self._is_reparse_point(current):
-                raise ContextSourceError("Links are not allowed in local-sources.")
+                raise ContextSourceError("Links are not allowed in the approved root.")
             current = current.parent
         resolved = candidate.resolve(strict=True)
         try:
             resolved.relative_to(self.root)
         except ValueError as error:
-            raise ContextSourceError("Source path escapes local-sources.") from error
+            raise ContextSourceError("Source path escapes the approved root.") from error
         current = resolved
         while current != self.root:
             if current.is_symlink() or os.path.islink(current) or self._is_reparse_point(current):
-                raise ContextSourceError("Links are not allowed in local-sources.")
+                raise ContextSourceError("Links are not allowed in the approved root.")
             current = current.parent
         if not resolved.is_file():
             raise ContextSourceError("Source must be a regular file.")
@@ -200,7 +167,7 @@ class ContextSourceService:
         if reader.is_encrypted:
             raise ContextSourceError("Encrypted PDF files are not supported.")
         if len(reader.pages) > 100:
-            raise ContextSourceError("PDF exceeds the 100-page direct-context limit.")
+            raise ContextSourceError("PDF exceeds the 100-page extraction limit.")
         sections = []
         for index, page in enumerate(reader.pages):
             contents = page.get_contents()
@@ -227,7 +194,7 @@ class ContextSourceService:
         sections = []
         try:
             if len(workbook.worksheets) > 10:
-                raise ContextSourceError("Workbook exceeds the 10-sheet direct-context limit.")
+                raise ContextSourceError("Workbook exceeds the 10-sheet extraction limit.")
             for sheet in workbook.worksheets:
                 rows = [["" if value is None else str(value) for value in row] for row in sheet.iter_rows(values_only=True)]
                 sections.extend(self._row_sections(rows, sheet.title, prefix=f"sheet-{len(sections) + 1}"))
@@ -238,9 +205,9 @@ class ContextSourceService:
     @staticmethod
     def _row_sections(rows: list[list[str]], label: str, prefix: str = "rows") -> list[ExtractedSection]:
         if len(rows) > 2_000:
-            raise ContextSourceError(f"{label} exceeds the 2,000-row direct-context limit.")
+            raise ContextSourceError(f"{label} exceeds the 2,000-row extraction limit.")
         if any(len(row) > 50 for row in rows):
-            raise ContextSourceError(f"{label} exceeds the 50-column direct-context limit.")
+            raise ContextSourceError(f"{label} exceeds the 50-column extraction limit.")
         if any(len(str(cell)) > 500 for row in rows for cell in row):
             raise ContextSourceError(f"{label} contains a cell longer than 500 characters.")
         sections = []

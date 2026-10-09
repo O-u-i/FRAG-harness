@@ -1,0 +1,35 @@
+:root { font-family:var(--vscode-font-family,system-ui); color:var(--vscode-foreground,#ddd); background:var(--vscode-editor-background,#181818); color-scheme:dark light; }
+* { box-sizing:border-box; }
+body { margin:0; }
+main { max-width:960px; margin:auto; padding:24px; }
+header,.row,nav { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+header { justify-content:space-between; }
+h1 { margin:8px 0 20px; font-size:28px; } h1 span,small { opacity:.65; font-size:13px; }
+h2 { margin-top:28px; } p { line-height:1.6; }
+button,input,textarea,select { font:inherit; color:inherit; }
+button { cursor:pointer; background:var(--vscode-button-secondaryBackground,#333); border:1px solid var(--vscode-widget-border,#555); padding:8px 12px; border-radius:3px; }
+button[aria-current] { background:var(--vscode-button-background,#0068ac); color:var(--vscode-button-foreground,#fff); }
+button:disabled { opacity:.45; cursor:not-allowed; }
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible { outline:2px solid var(--vscode-focusBorder,#409cff); outline-offset:2px; }
+label { display:block; margin:16px 0; }
+input:not([type=checkbox]),textarea,select { width:100%; display:block; margin-top:6px; padding:9px; background:var(--vscode-input-background,#252525); border:1px solid var(--vscode-input-border,#555); }
+textarea { min-height:100px; resize:vertical; }
+.check { display:flex; align-items:flex-start; gap:8px; }
+fieldset { border:1px solid var(--vscode-widget-border,#555); margin:20px 0; }
+.notice { border-left:3px solid var(--vscode-focusBorder,#409cff); padding-left:16px; }
+.error { color:var(--vscode-errorForeground,#ff8989); }
+details { border-top:1px solid var(--vscode-widget-border,#555); margin-top:18px; padding:14px 0; }
+summary { cursor:pointer; overflow-wrap:anywhere; }
+.run-heading { line-height:1.6; }
+.run-context,.run-id { display:block; line-height:1.6; font-size:12px; }
+.run-id { opacity:.7; }
+pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:var(--vscode-editor-font-family,monospace); line-height:1.5; font-size:12px; }
+.run-details h3 { margin:24px 0 8px; font-size:14px; }
+.run-details p,.run-details li,.selected-run { overflow-wrap:anywhere; }
+.evidence-list { padding-left:24px; }
+.evidence-list>li { margin:18px 0; }
+.evidence-list p { margin:6px 0; }
+.evidence-preview { white-space:pre-wrap; }
+.evidence-list details { margin-top:8px; padding:8px 0; }
+.advanced { border:1px solid var(--vscode-widget-border,#555); padding:12px; }
+.selected-run { border-left:3px solid var(--vscode-focusBorder,#409cff); padding-left:12px; }

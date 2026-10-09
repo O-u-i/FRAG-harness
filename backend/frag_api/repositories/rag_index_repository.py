@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -82,10 +83,11 @@ class RagIndexRepository:
 
     def rebuild(
         self,
-        document: IndexDocument,
+        documents: list[IndexDocument],
         chunks: list[IndexChunk],
         parents: list[IndexParent],
         index_revision: str,
+        manifest: dict,
     ) -> IndexSnapshot:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         connection = self._connect()
@@ -103,18 +105,13 @@ class RagIndexRepository:
             connection.execute("DELETE FROM rag_chunks")
             connection.execute("DELETE FROM rag_parents")
             connection.execute("DELETE FROM rag_documents")
-            connection.execute(
+            connection.executemany(
                 """
                 INSERT INTO rag_documents
                   (document_id, dataset_id, source_id, source_hash, chunk_strategy_version)
                 VALUES (?, ?, ?, ?, 'markdown-hierarchy-v2')
                 """,
-                (
-                    document.document_id,
-                    document.dataset_id,
-                    document.source_id,
-                    document.source_hash,
-                ),
+                [(document.document_id, document.dataset_id, document.source_id, document.source_hash) for document in documents],
             )
             connection.executemany(
                 """INSERT INTO rag_parents
@@ -153,8 +150,9 @@ class RagIndexRepository:
                 "INSERT OR REPLACE INTO rag_meta (key, value) VALUES (?, ?)",
                 [
                     ("schema_version", "2"),
-                    ("source_hash", document.source_hash),
+                    ("source_hash", index_revision),
                     ("index_revision", index_revision),
+                    ("manifest", json.dumps(manifest, ensure_ascii=False)),
                 ],
             )
             connection.commit()
@@ -164,9 +162,6 @@ class RagIndexRepository:
         finally:
             connection.close()
         return self.snapshot()
-
-    def search(self, match_expression: str, top_k: int) -> list[SearchRow]:
-        return self.search_snapshot(match_expression, top_k)[1]
 
     def search_snapshot(self, match_expression: str, top_k: int) -> tuple[IndexSnapshot, list[SearchRow], dict[str, IndexParent]]:
         """Revision, hits and selected parents share one SQLite read transaction."""
@@ -182,7 +177,7 @@ class RagIndexRepository:
                     FROM rag_chunks_fts
                     JOIN rag_chunks AS c ON c.chunk_id = rag_chunks_fts.chunk_id
                     WHERE rag_chunks_fts MATCH ?
-                    ORDER BY bm25_score ASC, c.ordinal ASC
+                    ORDER BY bm25_score ASC, c.document_id ASC, c.ordinal ASC
                     LIMIT ?
                     """,
                     (match_expression, top_k),
@@ -210,25 +205,6 @@ class RagIndexRepository:
             source_hash=metadata.get("source_hash"), index_revision=metadata.get("index_revision"),
             schema_version=metadata.get("schema_version"),
         )
-
-    def stale_residual_count(self, expected_chunks: list[IndexChunk]) -> int:
-        """Count stored chunks or FTS rows that do not match the current source build."""
-        expected = {(chunk.chunk_id, chunk.text_hash) for chunk in expected_chunks}
-        expected_fts = {chunk.chunk_id: chunk.search_text for chunk in expected_chunks}
-        try:
-            with self._connect() as connection:
-                stored = {
-                    (row["chunk_id"], row["content_hash"])
-                    for row in connection.execute(
-                        "SELECT chunk_id, content_hash FROM rag_chunks"
-                    )
-                }
-                fts_rows = list(connection.execute("SELECT chunk_id, content FROM rag_chunks_fts"))
-            fts_residuals = sum(expected_fts.get(row["chunk_id"]) != row["content"] for row in fts_rows)
-            fts_residuals += len(expected_fts) - len(fts_rows)
-            return len(stored - expected) + max(0, fts_residuals)
-        except sqlite3.Error as error:
-            raise RagIndexBuildError() from error
 
     @staticmethod
     def _has_schema(connection: sqlite3.Connection) -> bool:

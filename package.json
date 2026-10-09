@@ -1,51 +1,34 @@
 {
   "name": "frag-harness",
-  "version": "1.10.4",
+  "version": "1.11.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently --kill-others --names client,backend \"npm:dev:client\" \"npm:dev:server\"",
-    "dev:client": "vite",
-    "dev:server": "node scripts/start-frag-backend.mjs",
-    "agents": "node scripts/start-frag-agents.mjs",
-    "check:size": "node scripts/check-source-size.mjs",
-    "check:boundaries": "node scripts/check-module-boundaries.mjs",
-    "check:version": "node scripts/check-version-sync.mjs",
-    "check:safety": "node scripts/check-repository-safety.mjs",
-    "tmp:check": "pwsh -NoProfile -File scripts/maintain-tmp.ps1",
-    "tmp:clean": "pwsh -NoProfile -File scripts/maintain-tmp.ps1 -Apply",
-    "check:architecture": "npm run check:size && npm run check:boundaries && npm run check:safety && npm run check:version && npm run check:diagrams",
-    "check:diagrams": "node scripts/check-readme-diagrams.mjs",
-    "check:mermaid": "npm run check:diagrams",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --dir src",
+    "test": "vitest run --dir src/management",
     "test:python": "pwsh -NoProfile -File scripts/test-backend.ps1",
-    "build": "npm run check:architecture && npm run typecheck && vite build",
-    "preview": "vite preview",
     "test:bridge": "node --test integrations/vscode/bridge/test/*.test.cjs",
-    "package:agents": "npm run build:agents && python -X utf8 scripts/package-agents.py",
-    "build:agents": "npm run check:architecture && npm run typecheck && vite build --mode agents --outDir .tmp/agents-dist"
+    "check:version": "node scripts/check-version-sync.mjs",
+    "check:boundaries": "node scripts/check-module-boundaries.mjs",
+    "check:safety": "node scripts/check-repository-safety.mjs",
+    "check:diagrams": "node scripts/check-readme-diagrams.mjs",
+    "check:architecture": "npm run check:boundaries && npm run check:safety && npm run check:version && npm run check:diagrams",
+    "build": "npm run check:architecture && npm run typecheck && vite build",
+    "package:agents": "npm run build && python -X utf8 scripts/package-agents.py",
+    "tmp:check": "pwsh -NoProfile -File scripts/maintain-tmp.ps1",
+    "tmp:clean": "pwsh -NoProfile -File scripts/maintain-tmp.ps1 -Apply"
   },
   "dependencies": {
-    "motion": "12.23.21",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "zod": "^4.4.3"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
-    "concurrently": "^10.0.4",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vitest": "^4.1.10"
-  },
-  "overrides": {
-    "framer-motion": "12.23.21",
-    "motion-dom": "12.23.21",
-    "tslib": "2.8.1",
-    "motion-utils": "12.23.6"
   }
 }

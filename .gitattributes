@@ -1,14 +1,8 @@
-# Preserve upstream whitespace in bundled font licenses.
-src/assets/fonts/OFL-Libre-Bodoni.txt -whitespace
-src/assets/fonts/OFL-Public-Sans.txt -whitespace
-
-
-# Keep the original KB plugin source bytes aligned with its pinned archive.
-plugins/kb/** text eol=lf
-
-# Preserve the approved dependency license bytes checked by Host packaging.
-public/agents/motion-LICENSE.md -text
-public/agents/framer-motion-LICENSE.md -text
-public/agents/motion-dom-LICENSE.md -text
-public/agents/motion-utils-LICENSE.md -text
-public/agents/tslib-LICENSE.txt -text
+# Preserve original approved Archify notice and frozen diagram bytes.
+docs/architecture/ARCHIFY-LICENSE.txt -text
+docs/architecture/native-tools/*.json -text
+docs/architecture/native-tools/*.html -text
+docs/architecture/native-tools/*.svg -text
+# Locks use stable line endings for reproducible version checks.
+backend/uv.lock text eol=lf
+package-lock.json text eol=lf

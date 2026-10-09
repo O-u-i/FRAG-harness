@@ -32,22 +32,6 @@ class SourceLocator(ApiModel):
     excerpt: str
 
 
-class LocalFileInspectRequest(ApiModel):
-    relative_path: str = Field(alias="relativePath", min_length=1, max_length=500)
-
-
-class LocalFileInspectResponse(ApiModel):
-    source: LocalFileSource
-    locators: list[SourceLocator]
-    warnings: list[str]
-
-
-class FileSourceSelection(ApiModel):
-    relative_path: str = Field(alias="relativePath", min_length=1, max_length=500)
-    locator_ids: list[str] = Field(alias="locatorIds", min_length=1, max_length=20)
-    relevance_reason: str = Field(alias="relevanceReason", min_length=3, max_length=500)
-
-
 class ExtractedSection(ApiModel):
     locator: SourceLocator
     text: str

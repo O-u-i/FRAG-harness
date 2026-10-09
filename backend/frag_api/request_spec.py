@@ -12,11 +12,6 @@ def fingerprint(value: object) -> str:
     return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
 
 
-def estimated_tokens(value: object) -> int:
-    # Includes the complete JSON request; an estimate, not a model tokenizer count.
-    return max(1, (len(canonical_json(value).encode("utf-8")) + 2) // 3)
-
-
 def strict_json(value: str | bytes | bytearray):
     """Reject ambiguous objects and nonfinite numbers at JSON input boundaries."""
     def pairs(items):

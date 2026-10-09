@@ -4,12 +4,10 @@ import re
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from pydantic import ValidationError
-
 from frag_api.errors import PolicyRejectedError, RuntimeConflictError, RuntimeNotFoundError
 from frag_api.request_spec import canonical_json, fingerprint
 from frag_api.schemas.governance import SourceBinding
-from frag_api.schemas.memory import MemoryRecord, MemorySelection
+from frag_api.schemas.memory import MemoryRecord
 from frag_api.services.runtime_policy import redact
 
 
@@ -47,11 +45,27 @@ class MemoryService:
         return value
 
     @staticmethod
-    def _latest(db, memory_id):
-        row = db.execute("SELECT record FROM memory_versions WHERE id=? ORDER BY version DESC LIMIT 1", (memory_id,)).fetchone()
-        if row is None:
+    def _content(record):
+        return (record.text, record.general, tuple(sorted(canonical_json(item.model_dump(by_alias=True)) for item in record.scope)))
+
+    @classmethod
+    def _history(cls, db, memory_id):
+        rows = db.execute("SELECT record FROM memory_versions WHERE id=? ORDER BY version", (memory_id,)).fetchall()
+        if not rows:
             raise RuntimeNotFoundError()
-        return MemoryRecord.model_validate_json(row[0])
+        history, previous, content_version = [], None, 0
+        for row in rows:
+            record = MemoryRecord.model_validate_json(row[0])
+            content = cls._content(record)
+            content_version += content != previous
+            previous = content
+            # Derive old content versions without rewriting immutable audit rows or pins.
+            history.append(record.model_copy(update={"content_version": content_version}))
+        return history
+
+    @classmethod
+    def _latest(cls, db, memory_id):
+        return cls._history(db, memory_id)[-1]
 
     @staticmethod
     def _eligible(record, sources):
@@ -61,80 +75,65 @@ class MemoryService:
 
     @staticmethod
     def sources(report):
-        if not report.requests:
-            raise RuntimeConflictError()
-        if report.snapshot_digest and report.snapshot_digest != fingerprint(report.selection.model_dump(by_alias=True)):
-            raise RuntimeConflictError()
-        try:
-            sources = tuple(SourceBinding.model_validate(item) for item in report.requests[0].prepared_call.request_binding()["sources"])
-        except (KeyError, TypeError, ValidationError) as error:
-            raise RuntimeConflictError() from error
-        if not sources or sources != report.selection.source_bindings:
+        sources = tuple(report.source_bindings)
+        if report.status != "completed" or not sources or not report.pack:
             raise RuntimeConflictError()
         return sources
 
     def _append(self, db, record, **changes):
         value = MemoryRecord.model_validate({**record.model_dump(by_alias=True), **changes,
             "version":record.version + 1, "createdAt":datetime.now(timezone.utc).isoformat()})
+        value = value.model_copy(update={"content_version": record.content_version + (self._content(value) != self._content(record))})
         self._insert(db, value)
         return value
 
     @staticmethod
     def _insert(db, record):
-        row = db.execute("INSERT INTO memory_versions VALUES (?,?,?)", (record.id, record.version, record.model_dump_json(by_alias=True)))
+        # Content version is derived from history; keep the stored audit schema unchanged.
+        row = db.execute("INSERT INTO memory_versions VALUES (?,?,?)", (record.id, record.version, record.model_dump_json(by_alias=True, exclude={"content_version"})))
         db.execute("INSERT INTO memory_fts(rowid,tokens) VALUES (?,?)", (row.lastrowid, " ".join(search_terms(record.text))))
 
     def records(self):
         with self.repository.connection() as db:
-            rows = db.execute("SELECT record FROM memory_versions m WHERE version=(SELECT MAX(version) FROM memory_versions WHERE id=m.id) ORDER BY rowid DESC").fetchall()
-        return [MemoryRecord.model_validate_json(row[0]) for row in rows]
+            rows = db.execute("SELECT id FROM memory_versions m WHERE version=(SELECT MAX(version) FROM memory_versions WHERE id=m.id) ORDER BY rowid DESC").fetchall()
+            return [self._latest(db, row[0]) for row in rows]
 
     def versions(self, memory_id):
         with self.repository.connection() as db:
-            self._latest(db, memory_id)
-            rows = db.execute("SELECT record FROM memory_versions WHERE id=? ORDER BY version", (memory_id,)).fetchall()
-        return [MemoryRecord.model_validate_json(row[0]) for row in rows]
+            return self._history(db, memory_id)
 
     def candidate(self, request):
         report = self.repository.get(request.run_id)
         sources = self.sources(report)
-        output = report.model_output
-        if output is None:
-            raise RuntimeConflictError()
-        if request.revision_id:
-            revision = next((item for item in report.revisions if item.id == request.revision_id), None)
-            if revision is None:
-                raise RuntimeNotFoundError()
-            if revision.content_digest and revision.content_digest != fingerprint(revision.result.model_dump(by_alias=True)):
-                raise RuntimeConflictError()
-            output = revision.result
-        if request.revision_id is None:
-            completed = [item for item in report.requests if item.stage == "inference" and item.status == "completed"]
-            if completed and completed[-1].output_digest:
-                saved = completed[-1]
-                if (saved.output_digest != fingerprint(saved.output)
-                        or fingerprint(output.model_dump(by_alias=True)) != saved.output_digest):
-                    raise RuntimeConflictError()
         record = MemoryRecord(id=uuid4().hex, version=1, status="candidate",
-            text=self._clean(request.text if request.text is not None else output.answer),
+            text=self._clean(request.text),
             scope=list(dict.fromkeys(s.identity for s in sources)), general=request.general, conflicts=[],
-            provenanceRunId=report.run.id, provenanceRevisionId=request.revision_id,
+            provenanceRunId=report.id,
             createdAt=datetime.now(timezone.utc).isoformat())
         with self.repository.connection() as db:
             self._insert(db, record)
         return record
 
+    def require_native(self, db, record):
+        if not db.execute("SELECT 1 FROM tool_runs WHERE id=?", (record.provenance_run_id,)).fetchone():
+            raise PolicyRejectedError()
+
     def revise(self, memory_id, request):
         with self.repository.connection() as db:
             saved = self._latest(db, memory_id)
+            self.require_native(db, saved)
             if saved.version != request.version:
                 raise RuntimeConflictError()
-            return self._append(db, saved, status="candidate", text=self._clean(request.text),
-                general=saved.general if request.general is None else request.general, reviewNote=None)
+            text = self._clean(request.text)
+            general = saved.general if request.general is None else request.general
+            if (text, general) == (saved.text, saved.general):
+                return saved
+            return self._append(db, saved, status="candidate", text=text, general=general, reviewNote=None)
 
     def promote(self, memory_id, request):
         with self.repository.connection() as db:
             saved = self._latest(db, memory_id)
+            self.require_native(db, saved)
             if saved.version != request.version or saved.status != "candidate" or saved.conflicts or request.reviewed is not True:
                 raise RuntimeConflictError()
             return self._append(db, saved, status="active", reviewNote=self._clean(request.note))
@@ -142,6 +141,7 @@ class MemoryService:
     def retire(self, memory_id, request):
         with self.repository.connection() as db:
             saved = self._latest(db, memory_id)
+            self.require_native(db, saved)
             if saved.version != request.version or saved.status == "retired":
                 raise RuntimeConflictError()
             return self._append(db, saved, status="retired")
@@ -151,6 +151,8 @@ class MemoryService:
             records = [self._latest(db, item) for item in request.memory_ids]
             if resolve and {item.memory_id:item.version for item in request.versions} != {item.id:item.version for item in records}:
                 raise RuntimeConflictError()
+            for record in records:
+                self.require_native(db, record)
             result = []
             for saved, other in ((records[0], records[1]), (records[1], records[0])):
                 if resolve:
@@ -180,7 +182,7 @@ class MemoryService:
             rows = db.execute("""SELECT m.record FROM memory_fts JOIN memory_versions m ON m.rowid=memory_fts.rowid
                 WHERE memory_fts MATCH ? AND (m.id || ':' || m.version) IN (SELECT value FROM json_each(?))
                 ORDER BY bm25(memory_fts), m.rowid DESC LIMIT 3""", (expression, json.dumps(sorted(eligible)))).fetchall()
-        return [MemoryRecord.model_validate_json(row[0]) for row in rows]
+            return [self._latest(db, MemoryRecord.model_validate_json(row[0]).id) for row in rows]
 
     def select(self, selections, sources, *, db=None):
         if len(selections) > 3 or len({item.memory_id for item in selections}) != len(selections):
@@ -191,16 +193,5 @@ class MemoryService:
         records = [self._latest(db, selection.memory_id) for selection in selections]
         if any(saved.version != choice.version or not self._eligible(saved, sources) for saved, choice in zip(records, selections)):
             raise PolicyRejectedError()
-        return [{"memoryId":item.id, "version":item.version, "text":self._clean(item.text),
+        return [{"memoryId":item.id, "version":item.version, "contentVersion":item.content_version, "text":self._clean(item.text),
                  "general":item.general, "scope":[scope.model_dump(by_alias=True) for scope in item.scope]} for item in records]
-
-    def validate_bindings(self, binding, *, db=None):
-        try:
-            references = binding.get("memoryVersions", [])
-            if not isinstance(references, list):
-                raise PolicyRejectedError()
-            selections = [MemorySelection.model_validate(item) for item in references]
-            sources = tuple(SourceBinding.model_validate(item) for item in binding["sources"])
-            self.select(selections, sources, db=db)
-        except (KeyError, TypeError, ValidationError, RuntimeNotFoundError) as error:
-            raise PolicyRejectedError() from error

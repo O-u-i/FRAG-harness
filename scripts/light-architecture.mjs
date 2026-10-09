@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-const diagrams = ['harness/dataflow', 'harness/lifecycle', 'rag-lab/dataflow',
-  'rag-lab/lifecycle', 'research/workflow', 'memory/workflow', 'plugins/workflow'];
+const diagrams = ['native-tools/workflow'];
 const marker = 'data-frag-archify-light="true"';
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -95,16 +94,12 @@ function checkSvg(text) {
 
 const args = process.argv.slice(2);
 const checkOnly = args.includes('--check');
-const selection = args.filter((argument) => argument !== '--check');
-assert(selection.length === 0 || (selection.length === 2 && selection[0] === '--diagram' &&
-  selection[1] === 'vscode-migration/architecture'), 'Use --check and optionally --diagram vscode-migration/architecture.');
-const migrationOnly = selection.length > 0;
-const selectedDiagrams = migrationOnly ? ['vscode-migration/architecture'] : diagrams;
-const receiptPath = migrationOnly ? '.local-plan-e/diagrams/light-output-transform.json'
-  : '.local-plan-b/phase-8/diagrams/light-output-transform.json';
+assert(args.every(arg=>arg==='--check'), 'Use --check or no arguments.');
+const selectedDiagrams = diagrams;
+const receiptPath = '.local-plan-e/native-tools/diagram-light-transform.json';
 let priorReceipt = null;
 try { priorReceipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch {}
-const artifacts = selectedDiagrams.flatMap((diagram) => ['html', 'svg'].map((extension) => {
+const artifacts = selectedDiagrams.flatMap((diagram) => ['html', 'svg'].filter(extension => extension === 'html' || existsSync(`docs/architecture/${diagram}.svg`)).map((extension) => {
   const path = `docs/architecture/${diagram}.${extension}`;
   const original = readFileSync(path, 'utf8');
   const output = checkOnly ? original : extension === 'html' ? lightHtml(original) : lightSvg(original);
@@ -129,4 +124,4 @@ if (!checkOnly) {
     }),
   }, null, 2) + '\n');
 }
-console.log(`Architecture light-only ${checkOnly ? 'check' : 'transformation'} passed: ${selectedDiagrams.length} HTML viewers and ${selectedDiagrams.length} SVGs.`);
+console.log(`Architecture light-only ${checkOnly ? 'check' : 'transformation'} passed: ${artifacts.filter(a=>a.path.endsWith('.html')).length} HTML viewers and ${artifacts.filter(a=>a.path.endsWith('.svg')).length} SVGs.`);

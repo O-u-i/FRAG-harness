@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from frag_api.schemas.common import ApiModel
+from frag_api.schemas.context_source import ApiModel
 from frag_api.schemas.governance import SourceIdentity
 
 
@@ -15,6 +15,7 @@ class MemorySelection(ApiModel):
 class MemoryRecord(ApiModel):
     id: str
     version: int = Field(ge=1)
+    content_version: int = Field(default=1, alias="contentVersion", ge=1, strict=True)
     status: Literal["candidate", "active", "retired"]
     text: str = Field(min_length=1, max_length=4000)
     scope: list[SourceIdentity]
@@ -28,8 +29,7 @@ class MemoryRecord(ApiModel):
 
 class MemoryCandidateRequest(ApiModel):
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
-    revision_id: str | None = Field(default=None, alias="revisionId", min_length=1, max_length=64)
-    text: str | None = Field(default=None, min_length=1, max_length=4000)
+    text: str = Field(min_length=1, max_length=4000)
     general: bool = Field(default=False, strict=True)
 
 

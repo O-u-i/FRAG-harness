@@ -1,0 +1,204 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "FRAG 1.11.0 \u00b7 Native Evidence Tools",
+    "locale": "en",
+    "animation": "none",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "native",
+      "label": "VS Code Local Agent \u00b7 model and chat ownership"
+    },
+    {
+      "id": "evidence",
+      "label": "FRAG \u00b7 deterministic read-only evidence"
+    },
+    {
+      "id": "human",
+      "label": "Human management \u00b7 not a second chat"
+    }
+  ],
+  "mainPath": [
+    "chat",
+    "agent",
+    "permission",
+    "read",
+    "pack",
+    "continue",
+    "answer"
+  ],
+  "nodes": [
+    {
+      "id": "chat",
+      "lane": "native",
+      "col": 0,
+      "type": "frontend",
+      "label": "Native Chat",
+      "sublabel": "Human request",
+      "width": 132
+    },
+    {
+      "id": "agent",
+      "lane": "native",
+      "col": 1,
+      "type": "backend",
+      "label": "Local Agent",
+      "sublabel": "Choose tools on demand",
+      "width": 132
+    },
+    {
+      "id": "permission",
+      "lane": "native",
+      "col": 2,
+      "type": "security",
+      "label": "Tool Permission",
+      "sublabel": "VS Code policy",
+      "width": 132
+    },
+    {
+      "id": "continue",
+      "lane": "native",
+      "col": 4,
+      "type": "backend",
+      "label": "Continue Research",
+      "sublabel": "Native tool loop",
+      "width": 132
+    },
+    {
+      "id": "answer",
+      "lane": "native",
+      "col": 5,
+      "type": "frontend",
+      "label": "Final Answer",
+      "sublabel": "Native model inference",
+      "width": 132
+    },
+    {
+      "id": "read",
+      "lane": "evidence",
+      "col": 2,
+      "type": "backend",
+      "label": "Scoped Evidence",
+      "sublabel": "FTS5 / pinned FC reader",
+      "width": 132
+    },
+    {
+      "id": "pack",
+      "lane": "evidence",
+      "col": 3,
+      "type": "security",
+      "label": "Context Pack",
+      "sublabel": "Redact, bind, budget",
+      "width": 132
+    },
+    {
+      "id": "runs",
+      "lane": "evidence",
+      "col": 4,
+      "type": "database",
+      "label": "Tool Runs",
+      "sublabel": "Exact result + revisions",
+      "width": 132
+    },
+    {
+      "id": "settings",
+      "lane": "human",
+      "col": 1,
+      "type": "security",
+      "label": "Source Settings",
+      "sublabel": "Approve + manual index",
+      "width": 132
+    },
+    {
+      "id": "memory",
+      "lane": "human",
+      "col": 3,
+      "type": "database",
+      "label": "Reviewed Memory",
+      "sublabel": "Human-pinned versions",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "from": "chat",
+      "to": "agent"
+    },
+    {
+      "from": "agent",
+      "to": "permission"
+    },
+    {
+      "from": "permission",
+      "to": "read"
+    },
+    {
+      "from": "read",
+      "to": "pack"
+    },
+    {
+      "from": "pack",
+      "to": "continue",
+      "role": "return",
+      "label": "tool result"
+    },
+    {
+      "from": "continue",
+      "to": "answer"
+    },
+    {
+      "from": "continue",
+      "to": "permission",
+      "role": "return",
+      "variant": "dashed",
+      "label": "more evidence"
+    },
+    {
+      "from": "pack",
+      "to": "runs",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "from": "settings",
+      "to": "read",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "from": "memory",
+      "to": "pack",
+      "variant": "dashed",
+      "role": "branch"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Native ownership",
+      "items": [
+        "No Send interception or composer replacement",
+        "No FRAG model stages, loop or checkpointer"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Evidence boundary",
+      "items": [
+        "16 KiB pack; native token budget when supplied",
+        "Stale sources or Memory versions reject delivery"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Honest records",
+      "items": [
+        "Runs do not capture or validate the final answer",
+        "Legacy records remain read-only; no replay"
+      ]
+    }
+  ]
+}

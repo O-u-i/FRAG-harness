@@ -60,14 +60,15 @@ def test_snapshot_formats_parse_memory_streams(source_root):
 
 
 def test_source_root_identity_cannot_be_reused_for_another_root(source_root, tmp_path):
-    from frag_api.schemas.harness import HarnessRequest
-    from frag_api.services.harness_service import HarnessService
+    from frag_api.schemas.native import SourceProfile
+    from frag_api.services.source_index import SourceIndex
     other = tmp_path / "other"
     other.mkdir()
     (other / "evidence.md").write_bytes((source_root / "evidence.md").read_bytes())
-    body = HarnessRequest(goal="Explain the finding", fileSelections=[{"relativePath": "evidence.md",
-                          "locatorIds": ["section-1"], "relevanceReason": "Selected for review"}])
-    first = HarnessService(ContextSourceService(source_root)).preview(body)
-    second = HarnessService(ContextSourceService(other)).preview(body)
-    assert first.source_bindings[0].revision == second.source_bindings[0].revision
-    assert first.context_fingerprint != second.context_fingerprint
+    first = SourceIndex(SourceProfile(id="kb",root=str(source_root),approved=True),tmp_path/"indexes")
+    second = SourceIndex(SourceProfile(id="kb",root=str(other),approved=True),tmp_path/"indexes")
+    a = first.scope_bindings(first.manifest())[0]
+    b = second.scope_bindings(second.manifest())[0]
+    assert a.revision == b.revision
+    assert a.identity != b.identity
+    assert first.repository.path != second.repository.path

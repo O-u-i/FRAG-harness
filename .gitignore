@@ -56,7 +56,6 @@ vite-dev.err.log
 *openai-key*
 *OpenAI-Key*
 *token*
-!src/styles/tokens.css
 *password*
 *credential*
 *credentials*
@@ -113,12 +112,6 @@ APIKey*
 *.tiff
 *.heic
 *.svg
-!docs/architecture/harness/*.svg
-!docs/architecture/rag-lab/*.svg
-!docs/architecture/research/workflow.svg
-!docs/architecture/memory/workflow.svg
-!docs/architecture/plugins/workflow.svg
-!docs/architecture/vscode-migration/architecture.svg
 *.zip
 *.7z
 *.rar
@@ -140,4 +133,4 @@ local-sources/**
 !README.md
 
 # Original versioned KB plugin release artifact (three files, no private data).
-!docs/release/kb-frag-plugin-v1.0.0.zip
+!docs/architecture/native-tools/*.svg

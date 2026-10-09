@@ -1,99 +1,59 @@
-"""Build private local Host/VSIX packages from explicit application file allowlists."""
+"""Build private matching native evidence backend/VSIX packages, no legacy assets."""
 from hashlib import sha256
 from datetime import datetime, timezone
 from pathlib import Path
 import json
+import re
 import zipfile
+ROOT=Path(__file__).resolve().parent.parent
+VERSION=json.loads((ROOT/'package.json').read_text())['version']
+OUT=ROOT/'.tmp/packages'
+VIEW=ROOT/'.tmp/agents-dist'
+BACKEND=['__init__.py','__main__.py','host.py','main.py','fc_reader.py','errors.py','request_spec.py','schemas/__init__.py','schemas/context_source.py','schemas/governance.py','schemas/memory.py','schemas/plugin.py','schemas/native.py','services/__init__.py','services/context_source_service.py','services/rag_markdown.py','services/memory_service.py','services/runtime_policy.py','services/source_index.py','services/evidence_tools.py','repositories/__init__.py','repositories/rag_index_repository.py','repositories/tool_store.py']
 
-ROOT = Path(__file__).resolve().parent.parent
-VERSION = json.loads((ROOT / "package.json").read_text())["version"]
-OUT = ROOT / ".tmp/packages"
-REVIEW = ROOT / ".tmp/agents-dist"
-
-
-def put(archive, source, destination):
+def put(archive,source,destination):
     if not source.is_file() or source.is_symlink():
-        raise ValueError(f"Missing or linked package input: {source.relative_to(ROOT)}")
-    archive.writestr(destination, source.read_bytes())
-
+        raise ValueError('Missing or linked package input: '+str(source.relative_to(ROOT)))
+    archive.writestr(destination,source.read_bytes())
 
 def build():
-    OUT.mkdir(parents=True, exist_ok=True)
-    if not (REVIEW / "agents.html").is_file():
-        raise ValueError("Build the review frontend before packaging.")
-    host = OUT / f"frag-host-{VERSION}.zip"
-    with zipfile.ZipFile(host, "w", zipfile.ZIP_DEFLATED) as archive:
-        for file in sorted((ROOT / "backend/frag_api").rglob("*.py")):
-            put(archive, file, file.relative_to(ROOT).as_posix())
-        for name in ("pyproject.toml", "uv.lock"):
-            put(archive, ROOT / "backend" / name, "backend/" + name)
-        for file in sorted(REVIEW.rglob("*")):
-            if file.is_file():
-                # Vite production output only; source maps and arbitrary public inputs are excluded.
-                relative = file.relative_to(REVIEW)
-                if relative.as_posix() == "agents.html":
-                    put(archive, file, "resources/dist/index.html")
-                elif relative.parts[0] in {"assets", "agents"}:
-                    if file.suffix != ".map":
-                        if "PublicSans" in file.name or "LibreBodoni" in file.name:
-                            raise ValueError("Standalone fonts must not enter the review package.")
-                        put(archive, file, "resources/dist/" + relative.as_posix())
-        for name in ("synthetic-risk-review.md", "eval-cases.json"):
-            put(archive, ROOT / "shared/demo/rag" / name, "resources/demo/rag/" + name)
-        put(archive, ROOT / "src/agents/README.md", "resources/review.md")
-        put(archive, ROOT / "integrations/vscode/README.md", "resources/install.md")
-        put(archive, ROOT / "integrations/vscode/install-host.ps1", "install-host.ps1")
-        notices = []
-        for name in ("react", "react-dom", "scheduler", "zod"):
-            package = ROOT / "node_modules" / name
-            version = json.loads((package / "package.json").read_text())["version"]
-            put(archive, package / "LICENSE", f"resources/licenses/{name}-LICENSE.txt")
-            notices.append(f"{name} {version}: MIT; original license in {name}-LICENSE.txt")
-        locked = json.loads((ROOT / "package-lock.json").read_text())["packages"]
-        expected = {"motion":"12.23.21", "framer-motion":"12.23.21", "motion-dom":"12.23.21", "motion-utils":"12.23.6", "tslib":"2.8.1"}
-        for name, version in expected.items():
-            copies = [(path, item) for path, item in locked.items() if path.endswith("node_modules/" + name)]
-            if not copies or any(item["version"] != version for _, item in copies):
-                raise ValueError(f"Unapproved animation dependency version: {name}")
-            license_name = "LICENSE.txt" if name == "tslib" else "LICENSE.md"
-            for path, _ in copies:
-                installed = ROOT / path
-                if json.loads((installed / "package.json").read_text())["version"] != version:
-                    raise ValueError(f"Installed dependency differs from its approved lock: {name}")
-                if (installed / license_name).read_bytes() != (ROOT / "public/agents" / f"{name}-{license_name}").read_bytes():
-                    raise ValueError(f"Original dependency license changed: {name}")
-            put(archive, ROOT / "public/agents" / f"{name}-{license_name}", f"resources/licenses/{name}-{license_name}")
-            notices.append(f"{name} {version}: {'0BSD' if name == 'tslib' else 'MIT'}; original license in {name}-{license_name}")
-        notices.extend(["Archivo Variable 5.3.0: OFL-1.1; resources/dist/agents/fonts/ARCHIVO-OFL.txt",
-                        "User-supplied React Bits references: resources/dist/agents/REACT-BITS-LICENSE.md",
-                        "Backend wheels and Python/uv are not bundled. Install locked dependencies separately."])
-        archive.writestr("resources/licenses/THIRD_PARTY_NOTICES.txt", "\n".join(notices) + "\n")
-    bridge = ROOT / "integrations/vscode/bridge"
-    manifest = json.loads((bridge / "package.json").read_text())
-    if manifest["version"] != VERSION:
-        raise ValueError("VSIX version must match Host version.")
-    vsix = OUT / f"frag-bridge-{VERSION}.vsix"
-    with zipfile.ZipFile(vsix, "w", zipfile.ZIP_DEFLATED) as archive:
-        for name in ("package.json", "extension.cjs", "host-launcher.cjs", "model-bridge.cjs", "README.md"):
-            put(archive, bridge / name, "extension/" + name)
-        archive.writestr("[Content_Types].xml", '''<?xml version="1.0" encoding="UTF-8"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="json" ContentType="application/json"/><Default Extension="cjs" ContentType="application/javascript"/><Default Extension="md" ContentType="text/markdown"/><Default Extension="vsixmanifest" ContentType="text/xml"/></Types>''')
-        archive.writestr("extension.vsixmanifest", f'''<?xml version="1.0" encoding="UTF-8"?>
-<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011"><Metadata><Identity Language="en-US" Id="frag-bridge" Version="{VERSION}" Publisher="frag-local"/><DisplayName>FRAG Local Host</DisplayName><Description xml:space="preserve">Governed project conversation and VS Code model bridge.</Description><Properties><Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.140.0"/><Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="ui"/></Properties></Metadata><Installation><InstallationTarget Id="Microsoft.VisualStudio.Code"/></Installation><Dependencies/><Assets><Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true"/><Asset Type="Microsoft.VisualStudio.Services.Content.Details" Path="extension/README.md" Addressable="true"/></Assets></PackageManifest>''')
-    receipt = [{"file": file.name, "bytes": file.stat().st_size, "sha256": sha256(file.read_bytes()).hexdigest(),
-                "artifactWrittenAt": datetime.fromtimestamp(file.stat().st_mtime, timezone.utc).isoformat()}
-               for file in (host, vsix)]
-    (OUT / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
-    (OUT / f"receipt-{VERSION}.json").write_text(json.dumps(receipt, indent=2) + "\n")
-    print(json.dumps(receipt, indent=2))
+    OUT.mkdir(parents=True,exist_ok=True)
+    if not (VIEW/'index.html').is_file():raise ValueError('Build the management Webview first.')
+    manifest=json.loads((ROOT/'integrations/vscode/bridge/package.json').read_text())
+    if manifest['version']!=VERSION:raise ValueError('Backend and VSIX must match exactly.')
+    host=OUT/f'frag-host-{VERSION}.zip'
+    with zipfile.ZipFile(host,'w',zipfile.ZIP_DEFLATED) as archive:
+        for name in BACKEND:put(archive,ROOT/'backend/frag_api'/name,'backend/frag_api/'+name)
+        for name in ['pyproject.toml','uv.lock']:put(archive,ROOT/'backend'/name,'backend/'+name)
+        # Only assets referenced by this build's entrypoint; stale fixed-cache output is never bundled.
+        html=(VIEW/'index.html').read_text()
+        assets=re.findall(r'(?:src|href)="\./(assets/[^"?#]+)"',html)
+        if len(assets)!=2 or any('..' in Path(name).parts for name in assets):raise ValueError('Unexpected Webview entry assets.')
+        put(archive,VIEW/'index.html','resources/dist/index.html')
+        for name in assets:put(archive,VIEW/name,'resources/dist/'+name)
+        put(archive,ROOT/'integrations/vscode/README.md','resources/install.md')
+        put(archive,ROOT/'integrations/vscode/install-host.ps1','install-host.ps1')
+        notices=[]
+        locked=json.loads((ROOT/'package-lock.json').read_text())['packages']
+        for name in ['react','react-dom','scheduler']:
+            package=ROOT/'node_modules'/name
+            version=json.loads((package/'package.json').read_text())['version']
+            if locked['node_modules/'+name]['version']!=version:raise ValueError('Installed dependency differs from lock.')
+            put(archive,package/'LICENSE',f'resources/licenses/{name}-LICENSE.txt')
+            notices.append(f'{name} {version}: MIT; original license in {name}-LICENSE.txt')
+        notices.append('Backend wheels and Python/uv are not bundled; install locked dependencies separately.')
+        archive.writestr('resources/licenses/THIRD_PARTY_NOTICES.txt','\n'.join(notices)+'\n')
+    bridge=ROOT/'integrations/vscode/bridge'
+    vsix=OUT/f'frag-bridge-{VERSION}.vsix'
+    with zipfile.ZipFile(vsix,'w',zipfile.ZIP_DEFLATED) as archive:
+        for name in ['package.json','extension.cjs','host-launcher.cjs','tool-result.cjs','README.md']:put(archive,bridge/name,'extension/'+name)
+        archive.writestr('[Content_Types].xml','''<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="json" ContentType="application/json"/><Default Extension="cjs" ContentType="application/javascript"/><Default Extension="md" ContentType="text/markdown"/><Default Extension="vsixmanifest" ContentType="text/xml"/></Types>''')
+        archive.writestr('extension.vsixmanifest',f'''<?xml version="1.0" encoding="UTF-8"?><PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011"><Metadata><Identity Language="en-US" Id="frag-bridge" Version="{VERSION}" Publisher="frag-local"/><DisplayName>FRAG Evidence Tools</DisplayName><Description xml:space="preserve">Read-only evidence tools for the native Local Agent.</Description><Properties><Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.140.0"/><Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="ui"/></Properties></Metadata><Installation><InstallationTarget Id="Microsoft.VisualStudio.Code"/></Installation><Dependencies/><Assets><Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true"/><Asset Type="Microsoft.VisualStudio.Services.Content.Details" Path="extension/README.md" Addressable="true"/></Assets></PackageManifest>''')
+    receipt=[{'file':p.name,'bytes':p.stat().st_size,'sha256':sha256(p.read_bytes()).hexdigest(),'artifactWrittenAt':datetime.fromtimestamp(p.stat().st_mtime,timezone.utc).isoformat()} for p in [host,vsix]]
+    (OUT/f'receipt-{VERSION}.json').write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps(receipt,indent=2))
 
-
-if __name__ == "__main__":
+if __name__=='__main__':
     import argparse
-
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, default=OUT)
-    OUT = parser.parse_args().output_dir.resolve()
-    if not OUT.is_relative_to((ROOT / ".tmp").resolve()):
-        raise ValueError("Package output must stay inside the ignored repository .tmp directory.")
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output-dir',type=Path,default=OUT);OUT=parser.parse_args().output_dir.resolve()
+    if not OUT.is_relative_to((ROOT/'.tmp').resolve()):raise ValueError('Packages must stay under ignored .tmp.')
     build()

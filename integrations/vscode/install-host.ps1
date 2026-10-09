@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$InstallPath = (Join-Path $env:LOCALAPPDATA 'FRAG\host\1.10.4'))
+param([string]$InstallPath = (Join-Path $env:LOCALAPPDATA 'FRAG\host\1.11.0'))
 $ErrorActionPreference = 'Stop'
 $bundleRoot = [IO.Path]::GetFullPath($PSScriptRoot)
 $hostTarget = [IO.Path]::GetFullPath($InstallPath)
@@ -24,4 +24,4 @@ foreach ($file in Get-ChildItem -LiteralPath $bundleRoot -File -Recurse) {
 & uv sync --frozen --no-dev --no-install-project --link-mode copy --python 3.12 --project (Join-Path $hostTarget 'backend')
 if ($LASTEXITCODE -ne 0) { throw 'Locked environment initialization failed. Installation was retained for inspection.' }
 Write-Output "Host installed: $hostTarget"
-Write-Output 'Install the matching FRAG VSIX, then run FRAG: Enable in Agents Window and FRAG: Start Project Host.'
+Write-Output 'Install the matching FRAG VSIX, then run FRAG: Open Settings in the main VS Code window. Native chat/model configuration stays in VS Code.'
