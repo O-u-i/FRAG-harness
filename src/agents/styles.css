@@ -1,6 +1,7 @@
 @import './fonts.css';
 
 html:has(.review-root) { background: #181818; color-scheme: dark; }
+html:has(.review-root),body:has(.review-root) { height: 100%; overflow: hidden; }
 body:has(.review-root) { margin: 0; }
 .review-root * { box-sizing: border-box; min-width: 0; }
 
@@ -21,6 +22,7 @@ body:has(.review-root) { margin: 0; }
   display: grid;
   grid-template-columns: minmax(0, 1fr) 146px;
   height: 100dvh;
+  overflow: hidden;
   background: var(--review-bg);
   color: var(--review-text);
   font-family: var(--font-ui);
@@ -48,7 +50,7 @@ body:has(.review-root) { margin: 0; }
 .review-brand strong { font-size: 16px; font-weight: 550; letter-spacing: .06em; }
 .review-sidebar footer { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--review-border); font-size: 11px; color: var(--review-muted); }
 .review-sidebar footer a { text-decoration: none; }
-.review-main { min-width: 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
+.review-main { min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
 .review-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 65px; padding: 12px 24px; border-bottom: 1px solid var(--review-border); }
 .review-header>div { display: flex; align-items: center; gap: 9px; }
 .review-header strong { font-size: 14px; font-weight: 500; }
@@ -118,16 +120,6 @@ body:has(.review-root) { margin: 0; }
 .review-root .task-checklist { padding: 12px; border-color: var(--review-border); }
 .review-root .checklist-controls { gap: 10px; }
 .review-root .checklist-controls label { font-size: 12px; }
-@media (max-width: 700px) {
-  .review-root { grid-template-columns: minmax(0,1fr) 108px; }
-  .review-sidebar { padding: 22px 10px 16px; }
-  .review-brand { gap: 7px; }
-  .review-brand strong { font-size: 13px; }
-  .review-brand span { width: 25px; height: 29px; font-size: 21px; }
-  .review-header { padding: 12px 15px; }
-  .review-content { padding: 23px 15px 45px; }
-  .review-task h2 { font-size: 20px; }
-}
 @media (prefers-reduced-motion: reduce) {
   .review-root * { animation: none !important; transition: none !important; }
 }

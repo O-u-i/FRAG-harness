@@ -14,26 +14,34 @@ import { ReviewReport } from './components/ReviewReport';
 import './styles.css';
 import './navigation.css';
 
-function Runs({ sessionId }: { sessionId: string }) {
+export function Runs({ view, openWorkspace }: { view: AgentView; openWorkspace: () => void }) {
+  const { sessionId } = view.session, turn = view.session.turns.at(-1);
   const [runs, setRuns] = useState<RunRecord[]>([]), [id, setId] = useState('');
   const [report, setReport] = useState<RunReport>(), [error, setError] = useState('');
   const epoch = useRef(0);
   useEffect(() => {
     let active = true;
-    fetchRuns(sessionId).then((items) => { if (active) { setRuns(items); setId(items[0]?.id ?? ''); } })
+    fetchRuns(sessionId).then((items) => { if (active) { setRuns(items); setId((current) => items.some((item) => item.id === current) ? current : items[0]?.id ?? ''); } })
       .catch(() => { if (active) setError('Run history could not be loaded.'); });
-    return () => { active = false; epoch.current += 1; };
-  }, [sessionId]);
+    return () => { active = false; };
+  }, [sessionId, view.session.version, view.report?.run.version]);
   useEffect(() => {
     const version = ++epoch.current;
     setReport(undefined); setError('');
     if (id) fetchRunReport(id).then((value) => { if (version === epoch.current) setReport(value); })
       .catch(() => { if (version === epoch.current) setError('This run could not be loaded.'); });
     return () => { epoch.current += 1; };
-  }, [id]);
-  return <><h2>Runs</h2><label className="review-field">Saved run<select value={id} onChange={(e) => setId(e.target.value)}>
+  }, [id, view.report?.run.version]);
+  return <><h2>Runs</h2>
+  {turn && !turn.runId && <section className="review-task"><h3>Current native task</h3><p>{turn.text}</p>
+    <p role="status">{turn.state === 'cancelled' ? 'Task cancelled before a Run was created.' : 'Waiting for task configuration. No Run has been created.'}</p>
+    <p className="review-meta">Native Send saves a task, not an execution. A Run appears after a successful exact preview; preparation does not call a model.</p>
+    <button type="button" onClick={openWorkspace}>{turn.state === 'cancelled' ? 'View task in Workspace' : 'Configure in Workspace'}</button>
+  </section>}
+  <label className="review-field">Saved run<select value={id} disabled={!runs.length} onChange={(e) => setId(e.target.value)}>
     <option value="">Choose a run</option>{runs.map((item) => <option key={item.id} value={item.id}>{item.id.slice(0, 8)} · {item.kind} · {item.status}</option>)}
   </select></label>{error && <p className="review-alert" role="alert">{error}</p>}
+  {!runs.length && !error && <p className="review-empty">No saved Runs in this native session.</p>}
   {report && <ReviewReport key={report.run.id} report={report} onChange={setReport} readOnly />}</>;
 }
 
@@ -68,7 +76,7 @@ export default function AgentReviewApp() {
     return () => { settingsEpoch.current += 1; }; }, [reloadSettings]);
   useEffect(() => {
     let active = true;
-    document.title = 'FRAG Review · 1.10.3';
+    document.title = 'FRAG Review · 1.10.4';
     fetchAgentSessions().then((items) => {
       if (active) setSessions(items);
     }).catch(() => { if (active) setError('Start the local FRAG Agents host to connect.'); });
@@ -109,7 +117,7 @@ export default function AgentReviewApp() {
         </section>}
         {view && settings && <div hidden={page !== 'workflow'}><ReviewWorkflow key={`${sessionId}:${turn?.id ?? 'draft'}`} view={view} config={view.config}
           settings={settings} onSettings={setSettings} onChange={updateView} openSettings={() => setPage('settings')} visible={page === 'workflow'} /></div>}
-        {view && page === 'runs' && <Runs key={sessionId} sessionId={sessionId} />}
+        {view && page === 'runs' && <Runs key={sessionId} view={view} openWorkspace={() => setPage('workflow')} />}
         {settings && <div hidden={page !== 'settings'}><ReviewSettings saved={settings} config={turn ? view?.config : undefined} reload={reloadSettings} /></div>}
         <div hidden={page !== 'memory'}><h2>Memory · {memorySection}</h2><MemoryPanel section={memorySection} onSectionChange={setMemorySection} /></div>
 
@@ -117,7 +125,7 @@ export default function AgentReviewApp() {
     </main>
     <aside className="review-sidebar"><a className="review-brand" href="/review" aria-label="FRAG Review home"><span>F</span><strong>FRAG</strong></a>
       <LineSidebar active={page} onSelect={setPage} memory={memorySection} onMemory={setMemorySection} />
-      <footer><a href="/review/help" target="_blank" rel="noreferrer">Documentation</a><span>1.10.3</span></footer>
+      <footer><a href="/review/help" target="_blank" rel="noreferrer">Documentation</a><span>1.10.4</span></footer>
     </aside>
   </div></MotionConfig>;
 }

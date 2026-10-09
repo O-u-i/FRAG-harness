@@ -10,7 +10,6 @@ const SIZES = {
   md: { chip: 32, row: 30, font: 13 },
   lg: { chip: 44, row: 40, font: 14 }
 };
-const PAD = 4;
 const GAP = 1;
 const MENU_GAP = 6;
 const DEFAULT_OPTIONS = ['One', 'Two', 'Three'];
@@ -198,15 +197,17 @@ export default function GlideSelect({
   const rowAt = y => {
     const s = scrub.current;
     if (!s) return null;
-    const i = Math.floor((y - s.top + (menuRef.current?.scrollTop ?? 0) - PAD) / step);
+    const i = Math.floor((y - s.list.getBoundingClientRect().top) / step);
     return i >= 0 && i < items.length ? i : null;
   };
   const onListDown = e => {
     if (scrub.current) return;
+    // Keep combobox focus until pointerup commits the selected option.
+    e.preventDefault();
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {}
-    scrub.current = { id: e.pointerId, top: e.currentTarget.getBoundingClientRect().top };
+    scrub.current = { id: e.pointerId, list: e.currentTarget };
     instant.current = true;
     setActive(rowAt(e.clientY));
   };

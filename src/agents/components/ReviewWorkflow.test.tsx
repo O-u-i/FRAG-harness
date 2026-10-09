@@ -16,6 +16,8 @@ describe('Review task status and recovery', () => {
     expect(html).toContain('The native reply is complete');
     expect(html).toContain('no model calls occur while waiting');
     expect(html).toContain('Cancel task');
+    expect(html).toContain('No project evidence configured.');
+    expect(html).toMatch(/disabled=""[^>]*>Preview Context/);
     expect(change).not.toHaveBeenCalled();
   });
   it('makes cancellation and restart visible and hides obsolete controls', () => {

@@ -130,7 +130,7 @@ def create_app(
                     service.flow.runtime = None
                 app.state.runtime.close()
 
-    app = FastAPI(title="FRAG-harness API", version="1.10.3", lifespan=lifespan)
+    app = FastAPI(title="FRAG-harness API", version="1.10.4", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
     app.state.agent_host_enabled = agent_host_enabled if agent_host_enabled is not None else os.environ.get("FRAG_AGENT_HOST_ENABLED") == "1"
     app.state.project_name = workspace_root.name if workspace_root else "FRAG workspace"

@@ -141,7 +141,7 @@ async def carrier(socket: WebSocket):
                     if isinstance(action, dict) and action.get("type") == "chat/turnStarted" and isinstance(action.get("turnId"), str):
                         await host.emit(params.get("channel", ""), {"type": "chat/error", "turnId": action["turnId"][:128],
                             "duration": 0, "part": {"kind": "error", "id": "frag-invalid-task",
-                                "error": {"message": payload["message"]}, "resumable": False}})
+                                "error": {"errorType": "invalidRequest", "message": payload["message"]}, "resumable": False}})
     except WebSocketDisconnect:
         pass
     except asyncio.QueueFull:

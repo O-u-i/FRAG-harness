@@ -5,7 +5,7 @@ Plan E consumes the stable `vscode.lm` API. Configure providers in **Chat: Manag
 1. Open **Agents in the dedicated instance**. Run **Chat: Open Language Models (JSON)** from `Ctrl+Shift+P`. Verify the file belongs to the dedicated user-data directory: `<dedicated-user-data>/User/chatLanguageModels.json`. Do not use your normal `%APPDATA%/Code/User` file or a named editor Profile's file.
 2. Configure providers through **Chat: Manage Language Models**, preserving VS Code-managed secret references. Enter credentials only through that dedicated UI yourself. FRAG does not request, extract, display or copy a real key. The stable consumer API does not expose provider secrets; FRAG reads the bound JSON locally for its configuration revision and saved effort, without exporting the raw file.
 3. In this isolated instance's User settings, set `frag.modelConfigFile` to the verified **absolute** filename. An empty setting has no fallback. FRAG rejects a missing, linked or different Profile file before creating a bridge or Host. Other versions, remote extension hosts, portable and Insiders layouts are not desktop-verified here.
-4. To check installation before choosing a provider, explicitly save `[]` in this dedicated file. FRAG can register/connect/Stop with an empty model catalog and zero model calls. This is not provider readiness.
+4. Only for a **new, empty, model-free installation test**, save `[]` in this dedicated file. **Never replace existing provider configuration with `[]`.** FRAG can register/connect/Stop with an empty catalog and zero model calls; this is not provider readiness.
 5. For actual provider readiness, save your own dedicated provider registration, start FRAG and check that its native model picker advertises the intended model. FRAG excludes API registrations absent from the bound JSON and rejects ambiguous matching groups. Verify configured limits and the saved effort against your provider's documentation. Enumeration is not a generation request and does not prove successful authentication, billing or response quality.
 6. Only a separately previewed, human-approved Context/Inference request verifies generation. Installation testing does not authorize it. Source/configuration changes invalidate the prior binding; prepare and approve a fresh request. Do not silently fall back to another Profile or model.
 
@@ -17,13 +17,13 @@ The model manager lists registrations from multiple sources. Your `chatLanguageM
 
 **FRAG: Stop Project Host** withdraws that Host's bridge entries while retaining the original provider configuration, credentials and project state. Restart can publish them again. The normal VS Code instance's `User/chatLanguageModels.json` is a separate file; equal provider names across the two instances do not make them shared. Neither a same-name pair nor a model-picker label proves a configuration conflict or successful generation.
 
-## v1.10.1 task binding
+## Historical task-binding repair (v1.10.1)
 
 This repair's native creation/Send/Stop path was tested on the locally installed VS Code **1.141.0** with a synthetic model and zero generation calls. The 1.140.0 API/configuration source review below remains its own pinned baseline; provider behavior on 1.141.0 still requires a fresh human-approved generation check. [Verification boundaries](PLAN-E-VERIFICATION.md).
 
 Native provisional session creation may omit the model before the composer submits a task. The repaired Host accepts an unbound session without a catalog default. Every native Send must explicitly select a model from the current bound bridge catalog; missing selection, an unavailable selected model and failed catalog retrieval have distinct errors. Send saves the task only, with zero model calls or automatic indexing. It does not fall back to the session's saved model, a unique catalog entry, another provider or another Profile. Replaying a saved turn cannot change its model.
 
-An empty `[]` catalog still permits installation/connection/Stop checks, but cannot accept a model-bound task. Configuration revision changes still invalidate previews and approvals. Install the matching v1.10.1 Host and VSIX into the existing dedicated-instance workflow to apply the repair; a source checkout edit does not update the installed v1.10.0 Host. See [upgrade steps](README.md#v1101-session-repair-and-upgrade).
+An empty `[]` catalog still permits installation/connection/Stop checks, but cannot accept a model-bound task. Configuration revision changes still invalidate previews and approvals. The repair was introduced in v1.10.1 and is retained by the current release. For installation today, use the [current matching-pair upgrade steps](README.md#upgrade-to-v1104), not those historical package versions. A checkout edit does not update an installed Host.
 
 For a Custom Endpoint using Responses, configure the following in that provider object:
 

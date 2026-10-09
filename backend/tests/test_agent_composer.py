@@ -157,3 +157,27 @@ def test_send_errors_identify_condition_without_length_catchall(tmp_path, source
                 assert "3–500" not in response["error"]["message"]
             assert rpc(socket, "ping", {"channel": ROOT})["result"] == {}
         assert view(client, sid)["session"] == saved and provider.calls == []
+
+
+def test_notification_send_error_has_native_error_type_and_allows_text_retry(tmp_path, source_root, monkeypatch):
+    provider = CountingProvider()
+    with client_for(app_for(tmp_path, source_root, provider)) as client:
+        sid, uri = native_task(client)
+        saved = view(client, sid)["session"]
+        monkeypatch.setattr(client.app.state.context_source_service, "inspect", lambda *args: pytest.fail("Attachment read"))
+        with client.websocket_connect("ws://127.0.0.1:8787/api/agents/ahp") as socket:
+            initialize(socket)
+            channel = chat_uri(uri)
+            rpc(socket, "subscribe", {"channel": channel})
+            socket.send_json({"jsonrpc": "2.0", "method": "dispatchAction", "params": {"channel": channel,
+                "clientSeq": 1, "action": {"type": "chat/turnStarted", "turnId": "rejected",
+                    "message": task(attachments=[{"type": "resource", "uri": "file:///UNREAD.md"}])}}})
+            event = socket.receive_json()["params"]["action"]
+            assert event["type"] == "chat/error" and event["turnId"] == "rejected"
+            assert event["part"]["error"]["errorType"] == "invalidRequest"
+            assert "Context attachments" in event["part"]["error"]["message"]
+            assert event["part"]["resumable"] is False
+            assert view(client, sid)["session"] == saved
+            assert "error" not in send(socket, channel, "retry", task(attachments=[]), seq=2)
+        assert view(client, sid)["session"]["turns"][-1]["id"] == "retry"
+        assert client.get("/api/runtime/runs").json() == [] and provider.calls == []

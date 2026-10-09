@@ -8,7 +8,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from frag_api.schemas.common import ApiModel, ProviderKind
 
-HOST_VERSION = "1.10.3"
+HOST_VERSION = "1.10.4"
 POLICY_VERSION = "selected-read-v1"
 REDACTION_VERSION = "outbound-v1"
 TASK_TEMPLATE_VERSION = "evidence-review-v1"

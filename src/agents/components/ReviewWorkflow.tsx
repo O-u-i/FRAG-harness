@@ -20,6 +20,7 @@ export function ReviewWorkflow({ view, config, settings, onChange, onSettings, o
 }) {
   const turn = view.session.turns.at(-1);
   const inherited = settings.conversation.settings;
+  const savedEvidence = inherited?.evidence ?? settings.project.settings;
   const [initialEvidence] = useState(inherited?.evidence ?? settings.project.settings);
   const [selection, setSelection] = useState<EvidenceSelection>({ mode: initialEvidence.mode, ready: false, topK: inherited?.topK ?? settings.application.settings.topK });
   const [task, setTask] = useState(() => checklistTask(inherited?.checklist ?? settings.application.settings.checklist));
@@ -29,6 +30,8 @@ export function ReviewWorkflow({ view, config, settings, onChange, onSettings, o
   const [dirty,setDirty] = useState(false), [consent,setConsent] = useState(false);
   const [busy,setBusy] = useState(''), [error,setError] = useState('');
   const [viewStep,setViewStep] = useState<number | null>(null), [reportTab,setReportTab] = useState('output');
+  const sourceReady = custom ? selection.ready : savedEvidence.mode === 'plugin' ? !!savedEvidence.plugin
+    : !!savedEvidence.file || (savedEvidence.mode === 'retrieval' && savedEvidence.synthetic);
   const alive = useRef(true), actionActive = useRef(false), reportEntry = useRef<HTMLDivElement>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const running = turn?.state === 'running', report = view.report;
@@ -110,7 +113,8 @@ export function ReviewWorkflow({ view, config, settings, onChange, onSettings, o
         <MemoryPicker runId={report?.run.id} query={turn.text} selected={memory} disabled={!!busy} onChange={(value) => {setMemory(value);invalidate();}} /></details>
       {!ready && <p className="review-alert">Selected native model is not ready. Open Settings for the model setup guide, then refresh readiness.</p>}
       {blocking.length>0 && <p className="review-alert">Blocking checklist: {blocking.map((item)=>item.text).join('; ')}. Set each item to Met and confirm Reviewed by me before approval.</p>}
-      <button type="button" className="review-primary" disabled={!!busy || (custom && !selection.ready)} onClick={() => void act('prepare',prepare)}>Preview {withResearch?'Research':'Context'}</button>
+      {!sourceReady && <p className="review-alert">{custom ? 'Choose explicit evidence for this task before previewing.' : 'No project evidence configured. Save explicit sources in Settings or use Special configuration before previewing.'}</p>}
+      <button type="button" className="review-primary" disabled={!!busy || !sourceReady} onClick={() => void act('prepare',prepare)}>Preview {withResearch?'Research':'Context'}</button>
     </section>}
     {error && <p className="review-alert" role="alert">{error}</p>}{busy && <p role="status">{busy==='execute'?'Running the approved stage…':'Updating the current task…'}</p>}
     {!historical && call && preview && <section className="review-approval"><h3>{stage[0].toUpperCase()+stage.slice(1)} approval</h3><RequestPreview call={call} />

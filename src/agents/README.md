@@ -1,38 +1,24 @@
-# FRAG Review v1.10.3
+# FRAG Review v1.10.4
 
 FRAG Review is the new right-hand page for VS Code Agents. The standalone FRAG GUI keeps its existing layout and fonts. Both entry points reuse the same backend services; the installed route stores its project sessions, runs and review records separately from development state.
 
 The delivery target is desktop VS Code and its resizable Browser pane. Mobile layouts and device testing are outside scope.
 
+v1.10.4 repairs pointer selection in the shared GlideSelect, supplies the native error type, and shows saved tasks awaiting configuration in Runs without inventing a Run. Missing saved evidence disables preview with configuration guidance. The right navigation remains a fixed 192px text sidebar in narrow desktop panes; Memory expands inline rather than using an animated icon or flyout. Native attachments remain unsupported and are never read as evidence. Install both matching packages; a checkout edit does not update an installed Host.
+
 ## Open
 
-Install the matching Host ZIP and VSIX, enable the extension for the Agents window, reload, and run **FRAG: Start Project Host**. Choose a separate evidence folder. A native session is not required to start the Host or open Review.
+**Host 1.10.4 + VSIX 1.10.4 must both be installed.** Updating the extension or checkout does not update an explicit saved `frag.hostInstallation` path. The Host ships install/upgrade steps in `resources/install.md`; the checkout guide is [here](../../integrations/vscode/README.md#upgrade-to-v1104).
 
-### Configure before creating or opening a session
+1. Open the dedicated **Agents** instance. Run **FRAG: Start Project Host** → select the evidence folder → **Bind project**. Skip Start if this window already owns the Host.
+2. Run **FRAG: Open Review** → paste the fresh URL into the right-hand **Browser address bar** → `Enter`.
+3. Leave session selection empty and open **Settings** to save explicit evidence. A conversation is not required for configuration.
+4. When ready: **New / Ctrl+N → folder-name button → Remote → FRAG → Folders → your project**. Select a configured model and send text without native Context attachments.
+5. In Review, choose that session and prepare **Context**, then **Inference**, with a separate exact approval for each stage.
 
-1. In the dedicated **Agents** window, run **FRAG: Start Project Host** and **Bind project** from the welcome screen; skip Start if this window already owns the running Host. A bound evidence project is still required.
-2. Run **FRAG: Open Review**. It copies the running Host's `/review` URL and attempts to open a right-hand Browser tab; it does not create a session or navigate the Browser automatically.
-3. Paste the URL into the **Browser address bar** and press `Enter`. If Files/Changes is visible instead, open Browser using the right pane's `+` menu. Do not paste into the composer or Files search, and do not reuse an old Host port.
-4. Leave **Select a native session** empty and open **Settings** in the right navigation (Settings icon in a narrow pane). Save application preferences and explicit project evidence. Model readiness is Not checked until a native task has a saved model selection. No New, conversation selection or Send is required here.
-5. Create a conversation only when ready for a task, or run **FRAG: Stop Project Host** after configuration only. Start may enumerate configured models but does not generate a model response. Opening Review and saving Settings do not run model stages or automatically build an index.
+Ports change between starts. Do not reuse an old URL or clear Remote Host registrations to upgrade. If Browser says **Paused due to Notification**, close the VS Code notification and press `Ctrl+R` if needed. Files is not the Review page.
 
-### Find the current address and unblock Browser
-
-The installed Host uses a dynamic port, not a fixed README port. In the dedicated **Agents** window, run `Ctrl+Shift+P` → **FRAG: Open Review** to copy the current complete URL, then paste it into the Browser address bar. Its format is `http://127.0.0.1:<current-port>/review`; `<current-port>` is a placeholder, not text to enter. Read the actual port from the freshly pasted URL. Repeat Open Review after a Host restart; Browser history and old session links can point to a stopped Host. If the command says **Run FRAG: Start Project Host first**, start and bind the intended project, then retry.
-
-If Browser shows **Paused due to Notification / Dismiss the notification to continue using the browser**, dismiss the VS Code notification using its close button (including **FRAG Review URL copied...**). Keep the current URL and press `Ctrl+R` in Browser if the page does not resume. This pause is not evidence of a port error or a session requirement. The current copied-URL notification says to select a FRAG session, but that selection is needed only for task review: leave it empty and open **Settings** for advance configuration.
-
-The native Files view is not FRAG Review. FRAG deliberately rejects terminals/native coding tools; a terminal-unavailable notification is not a Review opening failure. Use Open Review rather than Run Task or a terminal.
-
-### Enter a task when ready
-
-In **New / Ctrl+N**, use the folder-name button above the composer: **Remote → FRAG → Folders → your project**. Choose a configured model and send a task. Then select the matching saved session in Review to prepare and separately approve its model stages. Session selection is required for task/run controls, not for the Settings entry above.
-
-[Installation and exact picker steps](../../integrations/vscode/README.md). The installed route needs no source checkout, backend `.env`, proposed extension API or VS Code modification. The advertised directory is the bound project; native file/edit/terminal operations remain unsupported.
-
-v1.10.3 permits an unbound native provisional session, but Send must explicitly select a currently available configured model before a task is saved. Send performs zero model calls; Review owns each later preview and approval. Missing selection, stale model IDs and catalog lookup failures have separate messages. Install matching v1.10.3 Host and VSIX packages to apply this repair; editing the checkout does not update an installed Host.
-
-The native model manager can show the same model under its supplier and **Frag**. Frag is the running Host's bridge entry over the dedicated instance's bound `chatLanguageModels.json`, not another provider configuration. Stopping the Host withdraws that entry; supplier credentials and saved project state remain. [Configuration and model identity](../../integrations/vscode/MODEL-CONFIGURATION.md).
+Keep the dedicated model file, credentials and project state. The installed route needs no checkout, backend `.env` or proposed API; native file/edit/terminal operations remain unsupported. A selected model is required at Send, not provisional session creation. Start and Send do not generate a model response.
 
 ## One shared workflow
 
@@ -40,7 +26,7 @@ The native model manager can show the same model under its supplier and **Frag**
 
 Normal tasks use **Context → Inference → Review** after project evidence is saved in **Settings**. Before preparation, choose saved configuration or a special configuration for **Current run** (default) or **Conversation**. Special configuration uses **Evidence → Research (optional) → Context → Inference → Review**. Later tasks in an overridden conversation skip repeated Evidence editing and start Research or Context with fresh evidence and approvals. Inspect the provider, model, endpoint, exact model API arguments and bindings; check **I reviewed this exact request**, then approve that single stage. Preparing the next stage is another explicit action. Native Send and VS Code permission settings never approve a model call.
 
-**Runs** is scoped to the selected native session. Output, requests, sources and review share one report. Human revisions preserve the original output. JSON and Markdown exports use the existing runtime report. Structural/citation checks and human semantic review remain separate outcomes.
+**Runs** is scoped to the selected native session. Before preparation it displays the current saved task and configuration status; successful preparation creates the Run, without calling a model. Empty history disables the saved-run selector. Output, requests, sources and review share one report. Human revisions preserve the original output. JSON and Markdown exports use the existing runtime report. Structural/citation checks and human semantic review remain separate outcomes.
 
 The answer renders bounded Markdown: headings, paragraphs, emphasis, inline/fenced code, lists, quotes, tables and HTTP(S) links. Citation checks and notes are collapsed review details, including a visible count of missing-information gaps. Raw HTML remains escaped text; remote images are never fetched automatically. Saved model text and exports are unchanged. This renderer is original application code with no extra dependency; it does not claim full CommonMark support or nested-list syntax.
 
@@ -74,7 +60,7 @@ Approval tokens exist only in the running backend. A backend restart requires a 
 src/agents/
   AgentReviewApp.tsx             Entry and page composition
   components/
-    Navigation.tsx              Line Sidebar, Glass Icons, progress Stepper
+    Navigation.tsx              Fixed text sidebar, inline Memory, progress Stepper
     ReviewSettings.tsx          Revision-bound application/project defaults
     reactbits/                  Adapted approved component JSX, types and scoped CSS
     EvidencePicker.tsx          File, retrieval and plugin selection
@@ -82,7 +68,7 @@ src/agents/
     ReviewReport.tsx            Output, requests, sources and human review
     ReviewMarkdown.tsx          Safe model text and collapsed review annotations
   styles.css                    Scoped layout and component styles
-  navigation.css                Sticky entries, responsive rail and Memory flyout
+  navigation.css                Sticky entries and fixed desktop text navigation
   fonts.css                     Archivo font-face definitions
   README.md
 src/api/agentClient.ts           Validated carrier/review HTTP client
@@ -90,9 +76,9 @@ shared/contracts/agents.ts      Carrier and review response contracts
 public/agents/                  Font assets and distributed notices
 ```
 
-The layout integrates the supplied React Bits **LineSidebar, GlassIcons, BranchedMenu, GlideSelect and Stepper** code, retaining the pointer/keyboard selection, branching paths, proximity animation, glass layers and Motion indicators. Application adapters add controlled state, bounded menus, keyboard controls, reduced motion and ResizeObserver height updates. Original JSX is paired with typed application interfaces; CSS is scoped to `.review-root`. Hugeicons demo dependencies are replaced by local SVG paths; no Hugeicons package is installed. **motion 12.23.21**, **framer-motion 12.23.21**, **motion-dom 12.23.21**, **motion-utils 12.23.6** and **tslib 2.8.1** are locked, including overrides for the upstream wide ranges.
+The layout integrates the supplied React Bits **LineSidebar, BranchedMenu, GlideSelect and Stepper** code, retaining pointer/keyboard selection, branching paths, proximity animation and Motion indicators. GlassIcons source remains available but is not rendered by this page. Application adapters add controlled state, bounded menus, keyboard controls, reduced motion and ResizeObserver height updates. Original JSX is paired with typed application interfaces; CSS is scoped to `.review-root`. No Hugeicons package is installed. **motion 12.23.21**, **framer-motion 12.23.21**, **motion-dom 12.23.21**, **motion-utils 12.23.6** and **tslib 2.8.1** are locked, including overrides for the upstream wide ranges.
 
-Main content owns scrolling. Step entries, **Back to view**, **Current stage**, Output and Settings stay sticky with 12px glass blur; task titles and JSON do not. Output/Requests/Sources/Review live in a separate Run report area. Back only reads snapshots, never prepares, recovers, changes inputs or resends a call. At widths below 800px the 192px sidebar becomes a 60px icon rail with a Memory flyout (up to 264px), Escape/outside-click closing and focus return. Current-task drafts survive page navigation; approval consent does not. Styling is scoped to `.review-root` so this entry does not restyle the standalone application.
+Main content owns scrolling; the page and the fixed 192px text sidebar do not become additional scroll containers. Short desktop panes use compact navigation spacing, and Memory expands inline without changing the sidebar width. Step entries, **Back to view**, **Current stage**, Output and Settings stay sticky with 12px glass blur; task titles and JSON do not. Output/Requests/Sources/Review live in a separate Run report area. Back only reads snapshots, never prepares, recovers, changes inputs or resends a call. Current-task drafts survive page navigation; approval consent does not. Styling is scoped to `.review-root` so this entry does not restyle the standalone application. The native chat/Browser split is owned by VS Code; set the divider to an approximately equal split there, not through this page.
 
 All ordinary text uses **Archivo Variable 5.3.0**, normal style, variable weight **100–900**, with `Archivo, Arial, sans-serif` fallbacks. The three unchanged Latin, extended Latin and Vietnamese WOFF2 files match the source font package. Code uses the system monospace stack. Neither Public Sans nor Libre Bodoni is used by this page.
 

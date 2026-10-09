@@ -41,6 +41,7 @@ def build():
         for name in ("synthetic-risk-review.md", "eval-cases.json"):
             put(archive, ROOT / "shared/demo/rag" / name, "resources/demo/rag/" + name)
         put(archive, ROOT / "src/agents/README.md", "resources/review.md")
+        put(archive, ROOT / "integrations/vscode/README.md", "resources/install.md")
         put(archive, ROOT / "integrations/vscode/install-host.ps1", "install-host.ps1")
         notices = []
         for name in ("react", "react-dom", "scheduler", "zod"):

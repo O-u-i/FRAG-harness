@@ -52,4 +52,12 @@ if (mismatched.length > 0) {
   process.exit(1);
 }
 
-console.log(`Version sync passed: UI, lockfile, backend, health, and README use ${expected}.`);
+// Copyable installation examples must agree too, not just each guide's heading.
+for (const path of ['README.md', 'integrations/vscode/README.md', 'integrations/vscode/bridge/README.md', 'src/agents/README.md']) {
+  const references = [...readFileSync(path, 'utf8').matchAll(/frag-(?:host|bridge)-(\d+\.\d+\.\d+)\.(?:zip|vsix)|FRAG\\+host\\+(\d+\.\d+\.\d+)/g)];
+  for (const match of references) if ((match[1] ?? match[2]) !== packageVersion) {
+    console.error(`Version sync failed: stale installation reference ${match[0]} in ${path}; expected ${packageVersion}.`);
+    process.exit(1);
+  }
+}
+console.log(`Version sync passed: UI, lockfile, backend, health, and installation examples use ${expected}.`);

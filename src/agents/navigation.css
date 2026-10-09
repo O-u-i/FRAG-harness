@@ -1,7 +1,7 @@
 /* Application layout around the approved React Bits references. */
 .review-root { grid-template-columns: minmax(0, 1fr) 192px; }
 .review-root [hidden] { display: none !important; }
-.review-sidebar { padding: 24px 16px 18px; gap: 28px; overflow: visible; position: relative; }
+.review-sidebar { padding: 24px 16px 18px; gap: 28px; overflow: hidden; min-height: 0; }
 .review-brand { padding-bottom: 22px; border-bottom: 1px solid var(--review-border); }
 .review-navigation { position: relative; }
 .review-root .line-sidebar { width: 100%; }
@@ -12,14 +12,6 @@
 .review-memory-group { border-top: 1px solid var(--review-border); margin-top: 28px; padding-top: 20px; }
 .review-root .branched-menu__head,.review-root .branched-menu__item { background: transparent; border: 0; padding-top: 0; padding-bottom: 0; }
 .review-root .branched-menu__head:hover,.review-root .branched-menu__item:hover { background: #ffffff08; }
-.review-rail-nav { display: none; }
-.review-root .icon-btns { display: block; padding: 0; margin: 0; }
-.review-root .icon-btn { width: 38px; height: 38px; min-height: 38px; padding: 0; font-size: 9px; background: transparent; }
-.review-root .icon-btn__label { display: none; }
-.review-memory-flyout { position: absolute; right: 52px; top: 120px; width: min(264px, calc(100vw - 76px)); background: #212121f2; backdrop-filter: blur(12px);
-  border: 1px solid #ffffff24; box-shadow: 0 12px 36px #0008; border-radius: 12px; padding: 14px; z-index: 50; }
-.review-memory-flyout .branched-menu { max-width: 100%; }
-.review-memory-flyout>button { margin-top: 14px; width: 100%; }
 .review-root .review-sticky-entries { position: sticky; top: 0; z-index: 30; padding: 10px 0 12px; margin-bottom: 24px;
   background: #181818e0; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid #ffffff20; }
 .review-root .outer-container { min-height: 0; aspect-ratio: auto; padding: 0; width: 100%; }
@@ -50,16 +42,6 @@
 .review-root .memory-layout pre,.review-snapshot pre { max-width: 100%; overflow: auto; font-size: 12px; padding: 12px; background: #111; }
 .review-root .review-field input { background: #222; border: 1px solid #555; padding: 10px; border-radius: 6px; color: var(--review-text); }
 @media (max-width: 799px) {
-  .review-root { grid-template-columns: minmax(0,1fr) 60px; }
-  .review-sidebar { padding: 18px 10px; gap: 26px; }
-  .review-brand { justify-content: center; padding: 0 0 20px; }
-  .review-brand strong,.review-expanded-nav,.review-sidebar footer a { display: none; }
-  .review-brand span { width: 30px; height: 33px; }
-  .review-rail-nav { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-  .review-rail-nav>button { width: 40px; height: 42px; padding: 9px; background: transparent; border-color: transparent; }
-  .review-rail-nav>button[aria-current] { background: #ffffff0c; border-color: #ffffff30; }
-  .review-rail-nav>div { margin-top: 15px; padding-top: 22px; border-top: 1px solid var(--review-border); }
-  .review-sidebar footer { justify-content: center; font-size: 9px; padding-top: 12px; }
   .review-content { padding: 18px 16px 45px; }
   .review-header { padding: 12px 16px; }
   .review-root .step-indicator-inner { width: 28px; height: 28px; }
@@ -68,6 +50,16 @@
   .review-task h2 { font-size: 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .review-root .icon-btn__back,.review-root .icon-btn__front,.review-root .line-sidebar__label { transform: none !important; }
+  .review-root .line-sidebar__label { transform: none !important; }
   .review-root * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+@media (max-height: 700px) {
+  .review-sidebar { padding: 12px 16px; gap: 10px; }
+  .review-brand { padding-bottom: 10px; }
+  .review-root .line-sidebar__list { gap: 4px; }
+  .review-root .line-sidebar__item { min-height: 32px; padding: 4px 8px; }
+  .review-memory-group { margin-top: 12px; padding-top: 8px; }
+  .review-root .branched-menu__head,.review-root .branched-menu__item { min-height: 30px; height: 30px; }
+  .review-sidebar footer { padding-top: 10px; }
 }
