@@ -5,7 +5,8 @@ import './styles.css';
 import { MemoryPanel, type Memory } from './memory';
 type Source = {id:string;kind:'local'|'fc';root:string|null;excludedPaths:string[];enabled:boolean;approved:true;revision:number;selectedMemory:{memoryId:string;version:number}[]};
 import { RunSummary, RunDetails, formatLocalTime, type Run } from './runs';
-type Overview = {version:string;sources:Source[];runs:Run[];memory:Memory[];fcState:string};
+import { WorkflowReceipts, type WorkflowReceipt } from './workflows';
+type Overview = {version:string;sources:Source[];runs:Run[];memory:Memory[];fcState:string;workflowReceipts:WorkflowReceipt[]};
 type Page = 'settings'|'runs'|'memory';
 import { request } from './client';
 const blank:Source = {id:'kb',kind:'local',root:'',excludedPaths:[],enabled:true,approved:true,revision:0,selectedMemory:[]};
@@ -44,7 +45,7 @@ function App() {
   function chooseSource(value:Source) { setSource(value); setApproved(false); }
   const sourceDirty = JSON.stringify(source) !== JSON.stringify(data?.sources.find(value=>value.id===source.id));
   return <main>
-    <header><div><small>EVIDENCE TOOLS</small><h1>FRAG <span>1.12.1</span></h1></div>
+    <header><div><small>EVIDENCE TOOLS</small><h1>FRAG <span>1.13.0</span></h1></div>
       <button disabled={busy} onClick={()=>perform('overview',{})}>Refresh</button></header>
     <nav aria-label="Management pages">{(['settings','runs','memory'] as Page[]).map(item=><button key={item} aria-current={page===item?'page':undefined} onClick={()=>showPage(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}</nav>
     <p className="notice">The native VS Code Local Agent owns chat, model requests, research and the final answer. FRAG returns evidence only when a tool is invoked.</p>
@@ -75,6 +76,7 @@ function App() {
       {data && !data.runs.length && <p>No tool Runs in this project's private state.</p>}
       {data?.runs.map(run=><details key={run.id}><RunSummary run={run} runs={data.runs}/><RunDetails run={run}/></details>)}
     </section>}
+    {page==='runs' && <WorkflowReceipts receipts={data?.workflowReceipts ?? []}/>}
     {page==='memory' && <MemoryPanel runs={data?.runs ?? []} records={data?.memory ?? []} busy={busy} perform={perform}/>}
     {result!==undefined && <details className="advanced"><summary>Advanced · last local operation JSON</summary><pre>{JSON.stringify(result,null,2)}</pre></details>}
   </main>;

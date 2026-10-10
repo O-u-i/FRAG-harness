@@ -2,7 +2,7 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "FRAG 1.12.1 - Native evidence and monthly review",
+    "title": "FRAG 1.13.0 - Native evidence and isolated safety",
     "locale": "en",
     "animation": "none",
     "quality_profile": "showcase",
@@ -226,7 +226,7 @@
       "title": "Honest records",
       "items": [
         "Completed Runs do not establish answer correctness",
-        "Memory activation and advice remain human-reviewed"
+        "Synthetic receipts; production advice unavailable"
       ]
     }
   ]

@@ -1,10 +1,12 @@
-# FRAG-harness 1.12.1
+# FRAG-harness 1.13.0
 
 **Read-only evidence tools for the native VS Code Local Agent.** FRAG manages authorized sources, deterministic Context packs, tool Runs and reviewed Memory. VS Code owns chat, model configuration, research/tool loops and final inference.
 
 ## What changed
 
-Version 1.12.1 adds a distinct-parent retrieval baseline and on-demand monthly finance evidence. FC owns a deterministic three-month report; its exact month ID is human-whitelisted. Required reports survive byte/token fitting whole or delivery fails. There is no new agent runtime, scheduler, autonomous Memory promotion or trading capability.
+The distinct-parent retrieval baseline and on-demand monthly finance evidence remain. FC owns a deterministic three-month report; its exact month ID is human-whitelisted. Required reports survive byte/token fitting whole or delivery fails. There is no new agent runtime, scheduler, autonomous Memory promotion or trading capability.
+
+Version 1.13.0 adds an isolated, **model-free synthetic recommendation safety foundation** and separate safe receipts. Production recommendations remain unavailable: no model request/output carrier, complete financial foundation or confirmed-plan delivery contract is implemented. This is not a filter for ordinary native chat. [Safety foundation and verification boundaries](docs/recommendation-safety.md).
 
 The standalone Web GUI, direct file/locator execution, fixed Context → Inference stages, FRAG Research runner, LangGraph/checkpointer, model providers, AHP remote host and generic plugin catalog are retired. There is no second chat, Send interception, composer replacement or automatic preview loop.
 
@@ -19,16 +21,16 @@ Keep working native model configuration. FRAG never reads/rewrites model credent
 ### First install
 
 1. Open your project with **File: Open Folder** in the main VS Code window. Trust it only if you trust its contents. Keep the project, extracted bundle and installed Host in separate, unlinked directories.
-2. Extract `frag-host-1.12.1.zip` in File Explorer. Run the following from any PowerShell terminal; this portable example assumes the extracted bundle is in your Downloads folder, so adjust it if needed. The second command explicitly uses PowerShell 7, even if the terminal defaults to Windows PowerShell 5.1:
+2. Extract `frag-host-1.13.0.zip` in File Explorer. Run the following from any PowerShell terminal; this portable example assumes the extracted bundle is in your Downloads folder, so adjust it if needed. The second command explicitly uses PowerShell 7, even if the terminal defaults to Windows PowerShell 5.1:
 
    ```powershell
-   Set-Location (Join-Path $env:USERPROFILE 'Downloads\frag-host-1.12.1')
+   Set-Location (Join-Path $env:USERPROFILE 'Downloads\frag-host-1.13.0')
    pwsh -NoProfile -File .\install-host.ps1
    ```
 
-   The installer creates `%LOCALAPPDATA%\FRAG\host\1.12.1`, initializes the locked backend environment and refuses to overwrite an existing installation. Run it from the extracted bundle, not the source checkout. If `pwsh` is not recognized, PowerShell 7 must be available before continuing; do not substitute Windows PowerShell 5.1.
+   The installer creates `%LOCALAPPDATA%\FRAG\host\1.13.0`, initializes the locked backend environment and refuses to overwrite an existing installation. Run it from the extracted bundle, not the source checkout. If `pwsh` is not recognized, PowerShell 7 must be available before continuing; do not substitute Windows PowerShell 5.1.
 
-3. Run **Extensions: Install from VSIX**, select `frag-bridge-1.12.1.vsix`, then **Developer: Reload Window**. Host and VSIX must match exactly. Leave `frag.hostInstallation` empty for the default location, or set it to the new installed Host directory. An explicit old path still overrides the new default.
+3. Run **Extensions: Install from VSIX**, select `frag-bridge-1.13.0.vsix`, then **Developer: Reload Window**. Host and VSIX must match exactly. Leave `frag.hostInstallation` empty for the default location, or set it to the new installed Host directory. An explicit old path still overrides the new default.
 4. In native Chat, select **Local**, **Agent**, and your actual model in the model picker. Keep an already-working provider unchanged. For a new provider, use **Chat: Manage Language Models** and its native provider setup; enter the key only in the secure native prompt. Confirm the endpoint, API type, model ID, tool capability and token limits against that provider's contract. Explicit Custom Endpoint models need valid model-level input/context and output limits; follow [native token-limit setup](integrations/vscode/README.md#native-model-token-limits), rather than copying another model's limits. After adding/changing provider details or a key, run **Developer: Reload Window in the actual main project window where you will chat**; opening a separate configuration/diagnostic window does not reload the original one. Do not put keys or copied user configuration in project files, FRAG Settings or chat.
 5. Before authorizing real sources, test an empty native chat with FRAG tools disabled and no attached private files: “Say hello without using tools.” For a new or changed Responses provider, send one more short message in that same chat. A listed model is not proof of authentication; a successful first reply is not proof of multi-turn or tool continuation. If either turn fails, follow [native model troubleshooting](integrations/vscode/README.md#native-model-configuration-and-errors) before changing FRAG. A utility-model notification is a separate background-feature issue, not proof that the main model failed.
 6. Run **FRAG: Open Settings**; this starts the evidence backend on demand. Set a source ID (`kb` is the default), its absolute directory and excluded relative paths. Review the enabled source and any selected Memory, check the approval box and save authorization. A new-source form displaying `kb` does not create a saved source; only a saved authorized profile is available to tools. Approval permits indexing and returning bounded source text to your native Agent/model; start with a nonsecret test directory.
@@ -60,7 +62,7 @@ Keep working native model configuration. FRAG never reads/rewrites model credent
 | `frag_read` | Expand only evidence returned by a completed Search Run. No arbitrary file/locator inputs or source expansion. |
 | `frag_fc_read` | Optional official FC reader: discover whitelisted Workspace/record IDs, then read selected records. No calculation, database access, Dashboard or mutation. |
 | Settings | Authorize/disable sources, exclude paths, refresh indexes and pin at most three active Memory audit revisions per source. |
-| Runs | Summary, evidence, included Memory and warnings; complete audit JSON is separately collapsed. Historical tables stay intact but the legacy Runs panel/reader are retired. |
+| Runs | Tool evidence, included Memory and warnings; complete audit JSON is separately collapsed. Separate synthetic recommendation receipts contain only allowlisted diagnostics, never drafts or user decisions. Historical tables stay intact. |
 | Memory | Select one of four recent evidence Runs or find an older exact Run ID; write/edit/review/promote candidates. Content versions change only with text/scope; audit revisions preserve approvals and stale-pin checks. Legacy Memory remains read-only. |
 
 Markdown, text, PDF, DOCX, CSV, XLSX and HTML are supported; OCR is not. Parent/child chunks provide hit-centered excerpts. FTS ranking is not proof of factual support. Links/reparse points, hidden entries, agent rules, model settings and generated directories are excluded; exclude additional private paths before indexing. Authorization is private project state, not a filesystem ACL.
@@ -106,7 +108,7 @@ The Agent can answer without FRAG. A pack returns directly as a tool result, nev
 
 ## Storage and recovery
 
-**FRAG: Open Private State Folder** locates per-project extension global storage, separate from installation/workspace files. `source_profiles` and `tool_runs` are additive SQLite tables; old Run/session rows are not rewritten or replayed. Legacy Memory remains readable; old source identities are not automatically rebound to new scopes.
+**FRAG: Open Private State Folder** locates per-project extension global storage, separate from installation/workspace files. `source_profiles`, `tool_runs` and `recommendation_receipts` are additive SQLite tables; old Run/session rows are not rewritten or replayed. Recommendation receipts are not completed evidence for Memory. Legacy Memory remains readable; old source identities are not automatically rebound to new scopes.
 
 One backend owns each project database. Interrupted deliveries are marked interrupted on restart, never automatically resent. Completed tool Runs are immutable. “Completed” records finalized FRAG output, not proof that a native model consumed it or answered correctly. Native snapshots, checkpoints, chat history and final citation validation are outside FRAG's observable API. No FRAG-owned checkpointer is promised.
 

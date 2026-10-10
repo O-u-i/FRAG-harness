@@ -10,6 +10,8 @@ VERSION=json.loads((ROOT/'package.json').read_text())['version']
 OUT=ROOT/'.tmp/packages'
 VIEW=ROOT/'.tmp/agents-dist'
 BACKEND=['__init__.py','__main__.py','host.py','main.py','fc_reader.py','errors.py','request_spec.py','schemas/__init__.py','schemas/context_source.py','schemas/governance.py','schemas/memory.py','schemas/plugin.py','schemas/native.py','services/__init__.py','services/context_source_service.py','services/rag_markdown.py','services/memory_service.py','services/runtime_policy.py','services/source_index.py','services/evidence_tools.py','repositories/__init__.py','repositories/rag_index_repository.py','repositories/tool_store.py']
+BACKEND += ['schemas/workflow.py', 'repositories/workflow_store.py',
+    'services/workflow_budget.py', 'services/recommendation_workflow.py']
 
 def put(archive,source,destination):
     if not source.is_file() or source.is_symlink():

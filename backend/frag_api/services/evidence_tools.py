@@ -116,16 +116,8 @@ class EvidenceTools:
         self.repository.save(value)
         return pack
 
-    def complete(self, request):
-        run = self.repository.get(request.run_id)
-        if run.status != "prepared" or run.pack is None:
-            raise RuntimeConflictError()
-        if request.failure:
-            self.repository.save(run.model_copy(update={"status": "failed", "pack": None, "error_code": request.failure}))
-            return {"failed": True}
-        if request.cancelled:
-            self.repository.save(run.model_copy(update={"status": "cancelled"}))
-            return {"cancelled": True}
+    def validate_current(self, run):
+        """Revalidate evidence without completing, rewriting or replaying its ToolRun."""
         profile = self.profile(run.source_id)
         if profile.revision != run.source_revision:
             raise RuntimeConflictError()
@@ -147,6 +139,19 @@ class EvidenceTools:
                     raise RuntimeConflictError()
         selections = [] if run.tool == "frag_fc_read" and run.input["operation"] == "list" else profile.selected_memory
         self.memory.select(selections, scope)
+        return profile, scope, selections
+
+    def complete(self, request):
+        run = self.repository.get(request.run_id)
+        if run.status != "prepared" or run.pack is None:
+            raise RuntimeConflictError()
+        if request.failure:
+            self.repository.save(run.model_copy(update={"status": "failed", "pack": None, "error_code": request.failure}))
+            return {"failed": True}
+        if request.cancelled:
+            self.repository.save(run.model_copy(update={"status": "cancelled"}))
+            return {"cancelled": True}
+        profile, scope, selections = self.validate_current(run)
         pack = omit_evidence(run.pack, request.omitted_evidence_ids)
         if len(canonical_json(pack).encode("utf-8")) > MAX_PACK_BYTES:
             raise PolicyRejectedError()

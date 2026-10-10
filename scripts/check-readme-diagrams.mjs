@@ -3,6 +3,10 @@ const base='docs/architecture/native-tools/workflow';
 const spec=JSON.parse(readFileSync(base+'.json','utf8')), html=readFileSync(base+'.html','utf8'), svg=readFileSync(base+'.svg','utf8'), readme=readFileSync('README.md','utf8');
 if(spec.schema_version!==2||spec.meta.quality_profile!=='showcase'||spec.nodes.length>12) throw new Error('Diagram authoring contract drift');
 if(!html.includes(spec.meta.title)||!svg.includes('<svg')||/<script\b|javascript:/i.test(svg)) throw new Error('Invalid diagram artifacts');
+if(!svg.includes(spec.meta.title)) throw new Error('Canonical SVG title differs from the current spec');
+for(const [name,artifact] of [['HTML',html],['SVG',svg]]) {
+ if(!artifact.includes('data-frag-archify-light="true"')||!artifact.includes('data-theme="light"')||artifact.includes('[data-theme="dark"]')) throw new Error(name+' must preserve the approved light-only policy');
+}
 for(const node of spec.nodes) if(!html.includes(node.label)||!svg.includes(node.label)) throw new Error('Missing diagram node '+node.id);
 const mermaid = readme.split('```mermaid')[1]?.split('```')[0];
 if(!mermaid) throw new Error('Mermaid source missing');

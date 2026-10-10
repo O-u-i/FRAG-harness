@@ -11,13 +11,14 @@ from frag_api import errors
 from frag_api.fc_reader import load_fc
 from frag_api.request_spec import strict_json
 from frag_api.repositories.tool_store import ToolStore
+from frag_api.repositories.workflow_store import WorkflowStore
 from frag_api.schemas import memory as m
 from frag_api.schemas.native import SourceProfile, SearchInput, ReadInput, FcInput, CompleteInput, ToolRun, RunLookupInput
 from frag_api.services.context_source_service import ContextSourceError
 from frag_api.services.evidence_tools import EvidenceTools
 from frag_api.services.runtime_policy import redact_value
 
-VERSION = "1.12.1"
+VERSION = "1.13.0"
 ERROR_CODES = {
     errors.PolicyRejectedError: (403, "POLICY_REJECTED"),
     errors.RuntimeConflictError: (409, "REVISION_CONFLICT"),
@@ -45,6 +46,7 @@ def create_app(state: Path, secret: str):
     except (errors.PluginValidationError, OSError):
         fc, fc_state = None, "invalid_restart_after_repair"
     tools = EvidenceTools(store, state / "rag/native", fc)
+    workflows = WorkflowStore(store)
     @asynccontextmanager
     async def lifespan(_):
         try:
@@ -54,6 +56,7 @@ def create_app(state: Path, secret: str):
     app = FastAPI(title="FRAG Evidence Tools", version=VERSION, lifespan=lifespan,
         docs_url=None, redoc_url=None, openapi_url=None)
     app.state.tools = tools
+    app.state.workflows = workflows
     @app.middleware("http")
     async def private_api(request: Request, call_next):
         if request.headers.get("origin") or not hmac.compare_digest(request.headers.get("authorization", ""), "Bearer " + secret):
@@ -103,7 +106,8 @@ def create_app(state: Path, secret: str):
             with store.connection() as db:
                 records = [{**item.model_dump(by_alias=True), "legacyReadOnly": not bool(db.execute("SELECT 1 FROM tool_runs WHERE id=?", (item.provenance_run_id,)).fetchone())} for item in memory]
             return {"version": VERSION, "sources": store.profiles(), "runs": store.runs(),
-                "memory": records, "fcState": fc_state}
+                "memory": records, "fcState": fc_state, "workflowReceipts": workflows.receipts(),
+                "recommendations": {"available": False, "reasonCode": "CARRIER_UNAVAILABLE"}}
         if action == "run-get":
             return store.get(RunLookupInput.model_validate(body).run_id)
         if action == "source-save":

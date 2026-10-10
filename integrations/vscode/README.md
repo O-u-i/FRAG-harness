@@ -1,12 +1,12 @@
-# VS Code setup · FRAG 1.12.1
+# VS Code setup · FRAG 1.13.0
 
 Use the **main VS Code window, native Local Agent**. Keep working native model/provider configuration; do not launch a FRAG Remote Host or replace the model manager.
 
 ## Installation
 
-Follow [First install](../../README.md#first-install) for the PowerShell 7 commands, matching packages, native model check and source authorization. Extract `frag-host-1.12.1.zip` and run its `install-host.ps1` with Python 3.12 and `uv` available. The installer creates a new versioned directory, never overwriting old installations. `uv sync --frozen` initializes locked dependencies; Python/wheels are not bundled.
+Follow [First install](../../README.md#first-install) for the PowerShell 7 commands, matching packages, native model check and source authorization. Extract `frag-host-1.13.0.zip` and run its `install-host.ps1` with Python 3.12 and `uv` available. The installer creates a new versioned directory, never overwriting old installations. `uv sync --frozen` initializes locked dependencies; Python/wheels are not bundled.
 
-Install matching `frag-bridge-1.12.1.vsix` using **Extensions: Install from VSIX**. Open one trusted local folder. Set `frag.hostInstallation` if needed; default installation is `%LOCALAPPDATA%/FRAG/host/1.12.1`.
+Install matching `frag-bridge-1.13.0.vsix` using **Extensions: Install from VSIX**. Open one trusted local folder. Set `frag.hostInstallation` if needed; default installation is `%LOCALAPPDATA%/FRAG/host/1.13.0`.
 
 Run **FRAG: Open Settings**, approve a directory/exclusions, save, then explicitly **Build / Refresh index**. Opening a project never automatically indexes or sends evidence. Enable `frag_search`, `frag_read` and optional `frag_fc_read` in the native tools picker. Source ID `kb` is the default; mention other Settings IDs explicitly.
 
@@ -17,7 +17,7 @@ Use the [upgrade checklist](../../README.md#upgrade-an-existing-installation): s
 ## Upgrade from 1.10.x
 
 1. Stop the old FRAG Host and dedicated Agents window.
-2. Install matching 1.12.1 Host/VSIX. A newer VSIX cannot replace an explicit old `frag.hostInstallation`: point it to the new directory and reload VS Code.
+2. Install matching 1.13.0 Host/VSIX. A newer VSIX cannot replace an explicit old `frag.hostInstallation`: point it to the new directory and reload VS Code.
 3. Remove obsolete FRAG entries from the old window's `chat.remoteAgentHosts` yourself, if present. FRAG never silently edits those settings or deletes old installed packages.
 4. Use the same workspace and extension ID `frag-local.frag-bridge` to retain project storage. Legacy Runs/Memory are read-only. Reapprove directories/Memory and build new indexes; old file selections do not grant directory access.
 5. Keep existing native model credentials/configuration. There is no new FRAG model key or model bridge to configure.
