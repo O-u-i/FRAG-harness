@@ -2,7 +2,7 @@
   "name": "frag-bridge",
   "displayName": "FRAG Evidence Tools",
   "description": "Scoped read-only evidence and reviewed Memory for the native VS Code Local Agent.",
-  "version": "1.11.0",
+  "version": "1.12.1",
   "publisher": "frag-local",
   "private": true,
   "engines": {
@@ -56,7 +56,7 @@
           "type": "string",
           "default": "",
           "scope": "application",
-          "description": "Matching 1.11.0 backend installation. Empty uses the standard local 1.11.0 installation."
+          "description": "Matching 1.12.1 backend installation. Empty uses the standard local 1.12.1 installation."
         },
         "frag.financeCoreUI": {
           "type": "string",
@@ -129,7 +129,7 @@
       {
         "name": "frag_fc_read",
         "displayName": "FRAG Finance Core Read",
-        "modelDescription": "Optional pinned official FC reader. operation list discovers only backend-whitelisted Workspace/record IDs. operation read accepts one listed Workspace and up to 10 listed records. Requires human-enabled finance-core source. No financial calculation, mutations, database access or Dashboard; those belong to the standalone FC UI.",
+        "modelDescription": "Optional pinned official FC reader. operation list discovers only backend-whitelisted Workspace/record IDs. operation read accepts one listed Workspace and up to 10 listed records. monthly-review:YYYY-MM returns the completed anchor month and its prior two months as one required, summary-only report; no detail expansion or currency mixing. Insufficient budget rejects delivery. Requires human-enabled finance-core source. No financial calculation, mutations, database access or Dashboard; those belong to the standalone FC UI.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "frag_fc_read",
         "inputSchema": {

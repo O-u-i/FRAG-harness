@@ -2,10 +2,39 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "FRAG 1.11.0 \u00b7 Native Evidence Tools",
+    "title": "FRAG 1.12.1 - Native evidence and monthly review",
     "locale": "en",
     "animation": "none",
-    "quality_profile": "showcase"
+    "quality_profile": "showcase",
+    "subtitle": "Native reasoning, authorized evidence and FC-owned financial calculations.",
+    "views": [
+      {
+        "id": "native",
+        "label": "Native evidence loop",
+        "focus": [
+          "chat",
+          "agent",
+          "permission",
+          "read",
+          "pack",
+          "continue",
+          "answer"
+        ],
+        "note": "On-demand tool results continue native research, not a second FRAG chat."
+      },
+      {
+        "id": "boundaries",
+        "label": "Source and report gates",
+        "focus": [
+          "settings",
+          "read",
+          "pack",
+          "memory",
+          "runs"
+        ],
+        "note": "Exact FC month whitelist, atomic required evidence and human-reviewed background."
+      }
+    ]
   },
   "lanes": [
     {
@@ -82,7 +111,7 @@
       "col": 2,
       "type": "backend",
       "label": "Scoped Evidence",
-      "sublabel": "FTS5 / pinned FC reader",
+      "sublabel": "FTS5 parents / FC report",
       "width": 132
     },
     {
@@ -91,7 +120,7 @@
       "col": 3,
       "type": "security",
       "label": "Context Pack",
-      "sublabel": "Redact, bind, budget",
+      "sublabel": "Required reports stay whole",
       "width": 132
     },
     {
@@ -188,16 +217,16 @@
       "dot": "emerald",
       "title": "Evidence boundary",
       "items": [
-        "16 KiB pack; native token budget when supplied",
-        "Stale sources or Memory versions reject delivery"
+        "16 KiB + native token budget; required reports are atomic",
+        "Three months, currencies and coverage stay together"
       ]
     },
     {
       "dot": "amber",
       "title": "Honest records",
       "items": [
-        "Runs do not capture or validate the final answer",
-        "Legacy records remain read-only; no replay"
+        "Completed Runs do not establish answer correctness",
+        "Memory activation and advice remain human-reviewed"
       ]
     }
   ]

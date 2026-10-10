@@ -17,7 +17,7 @@ from frag_api.services.context_source_service import ContextSourceError
 from frag_api.services.evidence_tools import EvidenceTools
 from frag_api.services.runtime_policy import redact_value
 
-VERSION = "1.11.0"
+VERSION = "1.12.1"
 ERROR_CODES = {
     errors.PolicyRejectedError: (403, "POLICY_REJECTED"),
     errors.RuntimeConflictError: (409, "REVISION_CONFLICT"),

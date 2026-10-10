@@ -16,6 +16,7 @@ tmp/
 .local-plan-b/
 .local-plan-e/
 .local-agent-context.json
+.local-acceptance/
 .pytest_cache/
 *.tsbuildinfo
 vite.config.js
@@ -26,6 +27,8 @@ AGENTS.md
 AGENTS.override.md
 .agents/
 .codex/
+.github/agents/
+.github/skills/
 docs/codex-skills/
 scripts/check-skill-lock.mjs
 docs/history-transition.md

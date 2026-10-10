@@ -1,6 +1,6 @@
 [project]
 name = "frag-harness-backend"
-version = "1.11.0"
+version = "1.12.1"
 description = "Native VS Code read-only evidence tools"
 requires-python = ">=3.12,<3.13"
 dependencies = [

@@ -4,7 +4,7 @@ const { realpathSync, existsSync, mkdirSync, readFileSync } = require('node:fs')
 const { join } = require('node:path');
 const { createHash, randomBytes } = require('node:crypto');
 const net = require('node:net');
-const VERSION = '1.11.0';
+const VERSION = '1.12.1';
 function projectIdentity(folder) { return createHash('sha256').update(realpathSync(folder).toLowerCase()).digest('hex'); }
 async function unusedPort() {
   const server = net.createServer();

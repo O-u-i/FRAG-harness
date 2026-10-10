@@ -91,7 +91,7 @@ def test_private_api_strict_input_no_old_routes(setup):
     auth = {'authorization':'Bearer '+'x'*64}
     assert client.get('/api/health').status_code == 403
     assert client.get('/api/health', headers={**auth,'origin':'https://untrusted.example'}).status_code == 403
-    assert client.get('/api/health', headers=auth).json()['serviceVersion'] == '1.11.0'
+    assert client.get('/api/health', headers=auth).json()['serviceVersion'] == '1.12.1'
     for body in ['{"query":"apples","query":"other"}', '{"query":"apples","topK":NaN}', '{"query":"apples","path":"../secret"}']:
         assert client.post('/api/tools/frag_search', headers=auth, content=body).status_code == 422
     assert client.post('/api/manage/source-save', headers=auth, json={'id':'bad','root':'invalid','approved':1}).status_code == 422

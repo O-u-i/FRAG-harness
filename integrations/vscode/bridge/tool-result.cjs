@@ -5,6 +5,7 @@ function canonical(value) {
   return JSON.stringify(value);
 }
 function omit(pack, ids) {
+  if ((pack.requiredEvidenceIds || []).some(id => ids.includes(id))) throw new Error('TOOL_TOKEN_BUDGET_TOO_SMALL_FOR_REQUIRED_EVIDENCE');
   const evidence = pack.evidence.filter(item => !ids.includes(item.evidenceId));
   const kept = new Set(evidence.map(item => item.evidenceId));
   return { ...pack, evidence, sourceBindings: pack.sourceBindings.filter(item => item.evidenceIds.some(id => kept.has(id)))
@@ -21,7 +22,9 @@ async function fitPack(pack, tokenizer, cancellation) {
       tokens = await tokenizer.countTokens(canonical(value), cancellation);
       if (tokens <= tokenizer.tokenBudget) break;
       if (!value.evidence.length) throw new Error('TOOL_TOKEN_BUDGET_TOO_SMALL_FOR_METADATA_AND_MEMORY');
-      omitted.push(value.evidence[value.evidence.length - 1].evidenceId);
+      const optional = value.evidence.filter(item => !(pack.requiredEvidenceIds || []).includes(item.evidenceId));
+      if (!optional.length) throw new Error('TOOL_TOKEN_BUDGET_TOO_SMALL_FOR_REQUIRED_EVIDENCE');
+      omitted.push(optional[optional.length - 1].evidenceId);
       value = omit(pack, omitted);
     }
   }

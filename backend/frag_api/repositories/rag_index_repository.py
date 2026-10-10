@@ -177,12 +177,19 @@ class RagIndexRepository:
                     FROM rag_chunks_fts
                     JOIN rag_chunks AS c ON c.chunk_id = rag_chunks_fts.chunk_id
                     WHERE rag_chunks_fts MATCH ?
-                    ORDER BY bm25_score ASC, c.document_id ASC, c.ordinal ASC
-                    LIMIT ?
+                    ORDER BY bm25_score ASC, c.document_id ASC, c.ordinal ASC, c.chunk_id ASC
                     """,
-                    (match_expression, top_k),
-                ).fetchall()
-                hits = [SearchRow(*row) for row in rows]
+                    (match_expression,),
+                )
+                hits, seen = [], set()
+                for row in rows:
+                    hit = SearchRow(*row)
+                    if hit.parent_id in seen:
+                        continue
+                    hits.append(hit)
+                    seen.add(hit.parent_id)
+                    if len(hits) == top_k:
+                        break
                 parents = {}
                 for parent_id in dict.fromkeys(item.parent_id for item in hits):
                     row = connection.execute(

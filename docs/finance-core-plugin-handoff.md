@@ -1,23 +1,43 @@
 # Optional official Finance Core reader
 
-Cross-repo impact: NONE
-Contract change: NONE
-Other repo status: NOT_TOUCHED
-Required compatible version: FC API 3.1.1; official reader 1.1.0 / protocol 2.
+```text
+Cross-repo impact: BOTH_REQUIRED
+Contract change: ADDITIVE
+Other repo status: UPDATED
+Required compatible version: FC product 3.3.0 / API 3.2.0; official reader 1.2.0 / protocol 2; FRAG 1.12.1
+```
 
-Only `finance-core-frag-plugin-v1.1.0.zip` is installable, SHA-256 `a96d5d2c4c8e4c8a7232db4be825925d37fb80052e74f6eab450744c62ccfacb`. Manifest/file bytes are checked before execution and before/after reads. Generic discovery, protocol-1 runners and plugin UI mounting are removed. Official UI bytes remain integrity-checked archive content, not an active FRAG page.
+FC owns the adapter source and deterministic financial reports. This local contract/artifact handoff is not a public release or production installation. The unified maintenance task updates both repositories directly; no separate other-repository prompt is required.
 
-Stop the project backend. From its installed backend directory run `.venv/Scripts/python.exe -m frag_api.fc_reader --archive <official-archive> --state-dir <private-project-state>`. **FRAG: Open Private State Folder** locates the target. Installation grants no record access.
+Only `finance-core-frag-plugin-v1.2.0.zip` is installable, SHA-256 `9d4f66b101183b19d5e50d807386c276cc77937517a6f7d59be813971ccd1ee6`. Manifest/file bytes are checked before execution and before/after reads. Earlier archives remain unchanged historical artifacts; they are not compatible with this reader. Official UI bytes are integrity-checked archive content, not an active FRAG page. Core FRAG runs without FC.
+
+## Private configuration
+
+Stop the target project backend before installing. From its installed backend directory run `.venv/Scripts/python.exe -m frag_api.fc_reader --archive <official-archive> --state-dir <private-project-state>`. **FRAG: Open Private State Folder** locates the target. Installation grants no source or record access.
 
 Configure only in the private state directory's `fc.env`:
 
 ```dotenv
 FINANCE_CORE_PLUGIN_API_URL=http://127.0.0.1:8788
 FINANCE_CORE_PLUGIN_UI_URL=http://127.0.0.1:5174
-FINANCE_CORE_PLUGIN_READ_TOKEN=<backend-only-read-token>
-FINANCE_CORE_PLUGIN_RECORDS_JSON={"<approved-workspace>":["entry:<approved-id>"]}
+FINANCE_CORE_PLUGIN_READ_TOKEN=<backend-only-ledger-read-token>
+FINANCE_CORE_PLUGIN_RECORDS_JSON={"<approved-workspace>":["monthly-review:2025-03"]}
 ```
 
-Use valid real identifiers; placeholders are not runnable configuration. At most ten records are whitelisted. Restart, then explicitly enable finance-core in Settings. Configure `frag.financeCoreUI` separately for the standalone UI.
+Use valid real Workspace IDs; placeholders are not runnable configuration. At most ten exact IDs are whitelisted across Workspaces. Restart, then explicitly enable finance-core in Settings. Configure `frag.financeCoreUI` separately for the standalone UI. Credentials never enter Webview inputs, packs, browser storage, logs or Git.
 
-`operation: list` discovers configured IDs only; `operation: read` accepts one listed Workspace and records. Package/config/record revisions are revalidated before bounded delivery. No SQLite access, finance calculation, mutation, imported Dashboard or automatic retry. FC retains all domain rules, authentication, storage and writes. No FC source/HTTP contract changes are required. Synthetic tests use mocked HTTP, not live financial data.
+## Read contract and approval scope
+
+`operation: list` discovers configured IDs only. Report labels are derived from the whitelist without fetching every report. `operation: read` accepts one listed Workspace and selected listed IDs. Package, supplier configuration and record revisions are revalidated before finalized delivery; a changed report or whitelist rejects an outstanding pack.
+
+- `monthly-review:YYYY-MM` reads `/api/v3/workspaces/{workspaceId}/reports/monthly-review?month=YYYY-MM`. The concrete anchor must be completed in the Asia/Shanghai calendar; the report includes the anchor and prior two months.
+- Only posted ledger entries contribute. Cash is netted per entry/currency to exclude internal cash transfers. Recognized income/expenses use valuation amounts in the entry's balancing currency. Currencies are never implicitly converted or merged.
+- Reversals affect their own month and expose signed adjustments already included in totals. Account roles use current Master data, not historical role snapshots. Unassignable posted dates block all totals. Real-world completeness stays unknown, even after reconciliation passes.
+- The summary omits account names/IDs, Journal descriptions, references and posting memos. The adapter validates its strict summary shape and does not truncate it. `requiredEvidenceIds` protects the report in backend byte fitting, extension token fitting and completion; insufficient capacity rejects delivery.
+- `entry:<approved-id>` and `draft:<approved-id>` remain optional explicit detail selections. Their whitelist is separate authorization to disclose those records; a monthly report does not authorize expansion to them. Legacy bounded record formatting is unchanged.
+
+There is no FC SQLite access, financial recalculation in FRAG, mutation, imported Dashboard, provider credential access, automatic retry, wildcard month, scheduler or autonomous Memory update. FC's own UI authenticates and owns all writes.
+
+## Verification boundary
+
+Default tests use synthetic sources and mocked HTTP. Local acceptance may exercise an isolated real loopback FC service without model/provider calls. Approved private fixtures remain in ignored isolated acceptance storage, never the default suite, archive, README, screenshots or Git. Local contract, browser, native invocation, paid-provider behavior and human financial-semantic acceptance must be reported separately.

@@ -44,7 +44,7 @@ function App() {
   function chooseSource(value:Source) { setSource(value); setApproved(false); }
   const sourceDirty = JSON.stringify(source) !== JSON.stringify(data?.sources.find(value=>value.id===source.id));
   return <main>
-    <header><div><small>EVIDENCE TOOLS</small><h1>FRAG <span>1.11.0</span></h1></div>
+    <header><div><small>EVIDENCE TOOLS</small><h1>FRAG <span>1.12.1</span></h1></div>
       <button disabled={busy} onClick={()=>perform('overview',{})}>Refresh</button></header>
     <nav aria-label="Management pages">{(['settings','runs','memory'] as Page[]).map(item=><button key={item} aria-current={page===item?'page':undefined} onClick={()=>showPage(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}</nav>
     <p className="notice">The native VS Code Local Agent owns chat, model requests, research and the final answer. FRAG returns evidence only when a tool is invoked.</p>
@@ -57,7 +57,7 @@ function App() {
       <form onSubmit={e=>{e.preventDefault(); void perform('source-save',source); setApproved(false);}}>
         <label>Source ID <input required pattern="[a-z][a-z0-9-]{0,62}" value={source.id} disabled={source.revision>0 || source.kind==='fc'} onChange={e=>chooseSource({...source,id:e.target.value})}/></label>
         {source.kind==='local' ? <><label>Approved directory (absolute path)<input required value={source.root||''} onChange={e=>chooseSource({...source,root:e.target.value})}/></label>
-          <label>Excluded relative paths (one per line)<textarea value={source.excludedPaths.join('\n')} onChange={e=>chooseSource({...source,excludedPaths:e.target.value.split('\n').filter(Boolean)})}/></label></> : <p>Reader: {data?.fcState}. Only the installed official FC 1.1.0 artifact and backend-configured Workspace/record IDs are available. Dashboard and writes open the standalone FC UI.</p>}
+          <label>Excluded relative paths (one per line)<textarea value={source.excludedPaths.join('\n')} onChange={e=>chooseSource({...source,excludedPaths:e.target.value.split('\n').filter(Boolean)})}/></label></> : <p>Reader: {data?.fcState}. Only the installed official FC 1.2.0 artifact and backend-configured Workspace/record IDs are available. Dashboard and writes open the standalone FC UI.</p>}
         <label className="check"><input type="checkbox" checked={source.enabled} onChange={e=>chooseSource({...source,enabled:e.target.checked})}/>Enable this source</label>
         <fieldset><legend>Human-selected Memory (maximum 3, exact audit revisions)</legend>
           <p>Background only. Inapplicable, stale or conflicted selections block delivery rather than silently disappearing.</p>
