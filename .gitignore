@@ -16,6 +16,7 @@ tmp/
 .local-plan-b/
 .local-plan-e/
 .local-agent-context.json
+.local-guidance/
 .local-acceptance/
 .pytest_cache/
 *.tsbuildinfo
