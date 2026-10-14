@@ -13,7 +13,7 @@ from frag_api.request_spec import canonical_json
 def tools(tmp_path):
     records = {"monthly-review:2025-03": {"text": "Three months, adjustments and completeness warnings", "revision": "a" * 64},
         "entry:optional": {"text": "Optional detail", "revision": "b" * 64}}
-    reader = SimpleNamespace(version="1.2.0", digest="c" * 64, source_revision="d" * 64,
+    reader = SimpleNamespace(version="1.3.0", digest="c" * 64, source_revision="d" * 64,
         ensure_current=lambda: None,
         selected_scopes=lambda: {"scopes": [{"id": "sandbox", "records": [{"id": key} for key in records]}]},
         read_selected=lambda _workspace, ids: [{"label": key, **records[key]} for key in ids])

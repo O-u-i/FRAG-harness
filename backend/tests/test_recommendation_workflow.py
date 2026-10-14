@@ -4,13 +4,15 @@ from threading import Event
 from uuid import uuid4
 
 import pytest
+import httpx
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
+from frag_api.fc_reader import install_fc
 from frag_api.main import create_app
 from frag_api.repositories.workflow_store import WorkflowStore
 from frag_api.request_spec import canonical_json, fingerprint
-from frag_api.schemas.native import CompleteInput, ReadInput, SearchInput, SourceProfile
+from frag_api.schemas.native import CompleteInput, FcInput, ReadInput, SearchInput, SourceProfile
 from frag_api.schemas.memory import MemoryCandidateRequest
 from frag_api.schemas.workflow import CheckResult, EvidenceReference, SyntheticContext, WorkflowReceipt
 from frag_api.services.recommendation_workflow import PrivateCandidate, SyntheticRecommendationWorkflow
@@ -199,6 +201,67 @@ def test_actual_windowed_search_and_read_cannot_satisfy_required_evidence(workfl
     assert_isolated(workflow_fixture, outcome)
 
 
+@pytest.mark.parametrize("with_monthly_report", [False, True])
+def test_fc_required_workflow_evidence_must_be_whole_reports(tmp_path, fc_archive, monkeypatch, with_monthly_report):
+    state = tmp_path / "state"
+    state.mkdir()
+    install_fc(fc_archive, state)
+    monkeypatch.setenv("FINANCE_CORE_PLUGIN_READ_TOKEN", "synthetic-token")
+    record_ids = ["entry:one", "monthly-review:2025-03"] if with_monthly_report else ["entry:one"]
+    monkeypatch.setenv("FINANCE_CORE_PLUGIN_RECORDS_JSON", canonical_json({"synthetic": record_ids}))
+    app = create_app(state, "x" * 64)
+    tools = app.state.tools
+    record = {"id": "one", "date": "2025-03-01", "postings": [
+        {"accountId": "a" * 64, "side": "debit" if index % 2 else "credit", "units": "1", "commodityCode": "CNY"}
+        for index in range(120)]}
+    record["postings"][-1]["accountId"] = "synthetic-required-tail"
+
+    def serve(request):
+        assert request.method == "GET"
+        if request.url.path == "/api/v3/health":
+            data = {"status": "ok", "service": "finance-core", "apiVersion": "3.3.0"}
+        elif request.url.path == "/api/v3/workspaces":
+            data = {"data": [{"id": "synthetic", "status": "active"}]}
+        elif request.url.path == "/api/v3/workspaces/synthetic/reports/monthly-review":
+            data = {"workspaceId": "synthetic", "readOnly": True, "data": {
+                "schemaVersion": 1, "calculationVersion": "monthly-review-v1", "month": "2025-03",
+                "windowStart": "2025-01-01", "windowEndExclusive": "2025-04-01", "status": "ready",
+                "revision": fingerprint("synthetic empty completed months"),
+                "months": [{"month": month, "postedEntryCount": 0, "reversalEntryCount": 0,
+                    "otherCategoryPostingCount": 0, "currencies": []} for month in ("2025-01", "2025-02", "2025-03")],
+                "coverage": {"ledgerCalculation": "complete", "externalCompleteness": "unknown",
+                    "accountClassification": "current-account-definitions", "invalidDateEntryCount": 0}}}
+        else:
+            assert request.url.path == "/api/v3/workspaces/synthetic/journal-entries/one"
+            data = {"workspaceId": "synthetic", "data": record}
+        return httpx.Response(200, json=data)
+
+    monkeypatch.setitem(tools.fc.read_evidence.__globals__, "_client", lambda base, token: httpx.Client(
+        base_url=base, headers={"authorization": "Bearer " + token}, transport=httpx.MockTransport(serve)))
+    try:
+        tools.repository.save_profile(SourceProfile(id="finance-core", kind="fc", approved=True))
+        pack = tools.fc_read(FcInput(operation="read", workspaceId="synthetic", recordIds=record_ids))
+        tools.complete(CompleteInput(runId=pack["runId"]))
+        assert "synthetic-required-tail" not in pack["evidence"][0]["text"]
+        run = tools.repository.get(pack["runId"])
+        context = SyntheticContext(evidence=(EvidenceReference(runId=run.id, resultDigest=run.result_digest,
+            requiredEvidenceIds=tuple(pack["requiredEvidenceIds"] if with_monthly_report else
+                [item["evidenceId"] for item in pack["evidence"]])),),
+            planRevision=fingerprint("synthetic plan"), constraintsRevision=fingerprint("synthetic constraints"),
+            financialFoundationComplete=True)
+        gate = SyntheticRecommendationWorkflow(app.state.workflows, tools, enabled=True)
+        candidate = PrivateCandidate(b"synthetic private proposal")
+        result = gate.check_and_release(candidate, context,
+            checker=lambda *_: PASSED, current_context=lambda: context)
+        if with_monthly_report:
+            assert result.reason is None and result.checked_bytes == candidate.body
+        else:
+            assert result.reason == "REQUIRED_EVIDENCE_INCOMPLETE" and result.checked_bytes is None
+        assert tools.repository.get(run.id) == run
+    finally:
+        tools.repository.close()
+
+
 def test_cancel_can_win_over_private_check_return(workflow_fixture):
     gate = controller(workflow_fixture)
     entered, resume = Event(), Event()
@@ -271,6 +334,37 @@ def test_timeout_and_late_success_cannot_release(workflow_fixture, monkeypatch, 
     result = release(gate, workflow_fixture, checker=check)
     assert result.reason == "DEADLINE_EXCEEDED" and result.checked_bytes is None
     assert result.receipt.status == "refused"
+    assert_isolated(workflow_fixture, result)
+
+
+def test_deadline_expired_during_final_context_read_cannot_release(workflow_fixture):
+    app, context, _, _ = workflow_fixture
+    clock = Clock()
+    gate = controller(workflow_fixture, clock=clock)
+
+    def current_context():
+        if app.state.workflows.receipts()[0].status == "checked":
+            clock.value = 600
+        return context
+
+    result = release(gate, workflow_fixture, current_context=current_context)
+    assert result.reason == "DEADLINE_EXCEEDED" and result.checked_bytes is None
+    assert app.state.workflows.get(result.receipt.id).status == "refused"
+    assert_isolated(workflow_fixture, result)
+
+
+def test_candidate_changed_during_final_context_read_requires_rechecking(workflow_fixture):
+    app, context, candidate, _ = workflow_fixture
+    gate = controller(workflow_fixture)
+
+    def current_context():
+        if app.state.workflows.receipts()[0].status == "checked":
+            candidate.body = b"synthetic post-check rewrite"
+        return context
+
+    result = release(gate, workflow_fixture, current_context=current_context)
+    assert result.reason == "RESULT_CHANGED" and result.checked_bytes is None
+    assert app.state.workflows.get(result.receipt.id).status == "refused"
     assert_isolated(workflow_fixture, result)
 
 

@@ -14,7 +14,7 @@ def test_fc_package_is_named_and_byte_pinned(tmp_path, fc_archive, monkeypatch):
     monkeypatch.setenv('FINANCE_CORE_PLUGIN_READ_TOKEN','synthetic-token')
     monkeypatch.setenv('FINANCE_CORE_PLUGIN_RECORDS_JSON','{"synthetic":["entry:one"]}')
     reader = load_fc(state/'plugins')
-    assert reader.version == '1.2.0'
+    assert reader.version == '1.3.0'
     assert reader.id == 'finance-core'
     with pytest.raises(PluginValidationError):
         _checked_package(state/'plugins','untrusted-other')
@@ -35,7 +35,7 @@ def test_fc_tools_use_only_whitelisted_http_get_and_revalidate(tmp_path,fc_archi
         calls.append((request.method,request.url.path))
         assert request.headers['authorization'] == 'Bearer synthetic-token'
         if request.url.path == '/api/v3/health':
-            result={'status':'ok','service':'finance-core','apiVersion':'3.2.0'}
+            result={'status':'ok','service':'finance-core','apiVersion':'3.3.0'}
         elif request.url.path == '/api/v3/workspaces':
             result={'data':[{'id':'synthetic','status':'active','name':'Synthetic Workspace'}]}
         elif request.url.path == '/api/v3/workspaces/synthetic/journal-entries/one':

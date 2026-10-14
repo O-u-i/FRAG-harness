@@ -156,6 +156,9 @@ class SyntheticRecommendationWorkflow:
             required = set(reference.required_evidence_ids) | set(run.pack.get("requiredEvidenceIds", []))
             if not required.issubset(items) or any(items[key].get("windowed", False) for key in required):
                 return "REQUIRED_EVIDENCE_INCOMPLETE"
+            # The pinned reader attests whole monthly reports, not its bounded journal summaries.
+            if run.tool == "frag_fc_read" and any(not items[key].get("locatorId", "").startswith("monthly-review:") for key in required):
+                return "REQUIRED_EVIDENCE_INCOMPLETE"
             self.tools.validate_current(run)
         return None
 
@@ -237,8 +240,6 @@ class SyntheticRecommendationWorkflow:
             # A slow commit must not release a result beyond the whole-workflow deadline.
             try:
                 self._budget.ready()
-                if candidate.body != body:
-                    return self._refuse("RESULT_CHANGED", revoke_unreleased=True)
                 final_context = current_context()
                 final_context = SyntheticContext.model_validate(final_context.model_dump(by_alias=True))
                 if final_context != context:
@@ -246,6 +247,10 @@ class SyntheticRecommendationWorkflow:
                 reason = self._evidence_reason(final_context)
                 if reason:
                     return self._refuse(reason, revoke_unreleased=True)
+                if candidate.body != body:
+                    return self._refuse("RESULT_CHANGED", revoke_unreleased=True)
+                # Final context/source reads also consume the whole-workflow deadline.
+                self._budget.ready()
             except BudgetRejected as error:
                 return self._refuse(error.reason, revoke_unreleased=True)
             except Exception:

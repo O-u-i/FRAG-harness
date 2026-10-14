@@ -1,15 +1,15 @@
 # Optional official Finance Core reader
 
 ```text
-Cross-repo impact: NONE
-Contract change: NONE
-Other repo status: NOT_TOUCHED
-Required compatible version: FC product 3.3.0 / API 3.2.0; official reader 1.2.0 / protocol 2; FRAG 1.13.0
+Cross-repo impact: BOTH_REQUIRED
+Contract change: ADDITIVE
+Other repo status: UPDATED
+Required compatible version: FC product 3.4.0 / API 3.3.0; official reader 1.3.0 / protocol 2; FRAG 1.13.0
 ```
 
-FC owns the adapter source and deterministic financial reports. FRAG 1.13.0 retains the previously approved contract and exact artifact unchanged; no FC source, calculation or release work is included. This compatibility note is not a public release, production installation or standing cross-repository authorization.
+FC owns the adapter source and deterministic financial reports. This compatibility slice exact-pins official reader 1.3.0 for API 3.3.0 after FC contract/artifact verification. FRAG's legacy Monthly Review v1 record shape, explicit whitelist, required evidence and read-only behavior remain unchanged. New personal-finance endpoints are owner-session-only and are not available to FRAG. No recommendation runtime or new financial calculation is included. This note is not publication, production installation or standing cross-repository authorization.
 
-Only `finance-core-frag-plugin-v1.2.0.zip` is installable, SHA-256 `9d4f66b101183b19d5e50d807386c276cc77937517a6f7d59be813971ccd1ee6`. Manifest/file bytes are checked before execution and before/after reads. Earlier archives remain unchanged historical artifacts; they are not compatible with this reader. Official UI bytes are integrity-checked archive content, not an active FRAG page. Core FRAG runs without FC.
+Only `finance-core-frag-plugin-v1.3.0.zip` is installable, SHA-256 `cdce52d343b9673621a587ac0fe67cfd8867b46179fede46648fd67860b9acfd`. Manifest/file bytes are checked before execution and before/after reads. Earlier archives remain unchanged historical artifacts; they are not compatible with this reader. Official UI bytes are integrity-checked archive content, not an active FRAG page. Core FRAG runs without FC.
 
 ## Private configuration
 

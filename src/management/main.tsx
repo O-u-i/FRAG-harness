@@ -58,7 +58,7 @@ function App() {
       <form onSubmit={e=>{e.preventDefault(); void perform('source-save',source); setApproved(false);}}>
         <label>Source ID <input required pattern="[a-z][a-z0-9-]{0,62}" value={source.id} disabled={source.revision>0 || source.kind==='fc'} onChange={e=>chooseSource({...source,id:e.target.value})}/></label>
         {source.kind==='local' ? <><label>Approved directory (absolute path)<input required value={source.root||''} onChange={e=>chooseSource({...source,root:e.target.value})}/></label>
-          <label>Excluded relative paths (one per line)<textarea value={source.excludedPaths.join('\n')} onChange={e=>chooseSource({...source,excludedPaths:e.target.value.split('\n').filter(Boolean)})}/></label></> : <p>Reader: {data?.fcState}. Only the installed official FC 1.2.0 artifact and backend-configured Workspace/record IDs are available. Dashboard and writes open the standalone FC UI.</p>}
+          <label>Excluded relative paths (one per line)<textarea value={source.excludedPaths.join('\n')} onChange={e=>chooseSource({...source,excludedPaths:e.target.value.split('\n').filter(Boolean)})}/></label></> : <p>Reader: {data?.fcState}. Only the installed official FC 1.3.0 artifact and backend-configured Workspace/record IDs are available. Dashboard and writes open the standalone FC UI.</p>}
         <label className="check"><input type="checkbox" checked={source.enabled} onChange={e=>chooseSource({...source,enabled:e.target.checked})}/>Enable this source</label>
         <fieldset><legend>Human-selected Memory (maximum 3, exact audit revisions)</legend>
           <p>Background only. Inapplicable, stale or conflicted selections block delivery rather than silently disappearing.</p>
