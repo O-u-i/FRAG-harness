@@ -219,7 +219,7 @@ def test_fc_required_workflow_evidence_must_be_whole_reports(tmp_path, fc_archiv
     def serve(request):
         assert request.method == "GET"
         if request.url.path == "/api/v3/health":
-            data = {"status": "ok", "service": "finance-core", "apiVersion": "3.8.0"}
+            data = {"status": "ok", "service": "finance-core", "apiVersion": "3.9.0"}
         elif request.url.path == "/api/v3/workspaces":
             data = {"data": [{"id": "synthetic", "status": "active"}]}
         elif request.url.path == "/api/v3/workspaces/synthetic/reports/monthly-review":

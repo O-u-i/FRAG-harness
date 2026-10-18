@@ -48,7 +48,7 @@ function App() {
   function chooseSource(value:Source) { setSource(value); setApproved(false); }
   const sourceDirty = JSON.stringify(source) !== JSON.stringify(data?.sources.find(value=>value.id===source.id));
   return <main>
-    <header><div><small>EVIDENCE TOOLS</small><h1>FRAG <span>1.13.2</span></h1></div>
+    <header><div><small>EVIDENCE TOOLS</small><h1>FRAG <span>1.13.3</span></h1></div>
       <button disabled={busy} onClick={()=>perform('overview',{})}>Refresh</button></header>
     <nav aria-label="Management pages">{(['settings','runs','memory'] as Page[]).map(item=><button key={item} aria-current={page===item?'page':undefined} onClick={()=>showPage(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}</nav>
     <p>Evidence-only tools.<Help label="Native Agent ownership" text="The native VS Code Local Agent owns chat, model requests, research and the final answer. FRAG returns evidence only when a tool is invoked."/></p>
@@ -62,7 +62,7 @@ function App() {
       <form onSubmit={e=>{e.preventDefault(); void perform('source-save',source); setApproved(false);}}>
         <label>Source ID <input required pattern="[a-z][a-z0-9-]{0,62}" value={source.id} disabled={source.revision>0 || source.kind==='fc'} onChange={e=>chooseSource({...source,id:e.target.value})}/></label>
         {source.kind==='local' ? <><label>Approved directory (absolute path)<input required value={source.root||''} onChange={e=>chooseSource({...source,root:e.target.value,confirmedPlans:[]})}/></label>
-          <label>Excluded relative paths (one per line)<textarea value={source.excludedPaths.join('\n')} onChange={e=>chooseSource({...source,excludedPaths:e.target.value.split('\n').filter(Boolean)})}/></label></> : <p>Reader: {data?.fcState} · GET-only.<Help label="Finance Core reader" text="Only the byte-pinned official FC 1.8.0 / API 3.8.0 reader and backend-configured Workspace/record IDs are available. Exact monthly-review and economic-evidence summaries remain whole required evidence. Other personal reports and debt recording are not reader capabilities. Dashboard and all writes belong to the standalone FC UI."/></p>}
+          <label>Excluded relative paths (one per line)<textarea value={source.excludedPaths.join('\n')} onChange={e=>chooseSource({...source,excludedPaths:e.target.value.split('\n').filter(Boolean)})}/></label></> : <p>Reader: {data?.fcState} · GET-only.<Help label="Finance Core reader" text="Only the byte-pinned official FC 1.9.0 / API 3.9.0 reader and backend-configured Workspace/record IDs are available. Exact monthly-review, month-to-date and economic-evidence summaries remain whole required evidence. Month-to-date is provisional posted Journal activity, not a full month, balance sheet or proof that unrecorded days had zero activity. Other personal reports and debt recording are not reader capabilities. Dashboard and all writes belong to the standalone FC UI."/></p>}
         <label className="check"><input type="checkbox" checked={source.enabled} onChange={e=>chooseSource({...source,enabled:e.target.checked})}/>Enable this source</label>
         {source.kind==='local' && <fieldset><legend>Human-confirmed plans<Help label="Complete plan confirmation" text="Confirm an explicitly selected Markdown/text document from a completed Search in Runs, after reviewing its whole file. A search hit, file name or index refresh is not confirmation. Overflow refuses the complete plan; it never trims constraints."/></legend>
           <p>Changed plans require human reconfirmation. Required evidence is never truncated.</p>

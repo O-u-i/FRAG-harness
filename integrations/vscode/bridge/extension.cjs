@@ -14,7 +14,7 @@ function activate(context) {
     if (!vscode.workspace.isTrusted || vscode.env.remoteName || vscode.workspace.workspaceFolders?.length !== 1 || vscode.workspace.workspaceFolders[0].uri.scheme !== 'file') {
       throw new Error('FRAG requires one trusted local desktop workspace.');
     }
-    const installation = vscode.workspace.getConfiguration('frag').get('hostInstallation') || join(process.env.LOCALAPPDATA, 'FRAG', 'host', '1.13.2');
+    const installation = vscode.workspace.getConfiguration('frag').get('hostInstallation') || join(process.env.LOCALAPPDATA, 'FRAG', 'host', '1.13.3');
     starting = launchHost(installation, vscode.workspace.workspaceFolders[0].uri.fsPath, context.globalStorageUri.fsPath);
     try { host = await starting; return host; } finally { starting = undefined; }
   }
@@ -58,7 +58,7 @@ function activate(context) {
   async function open(page) {
     const owned = await start();
     if (!panel) {
-      panel = vscode.window.createWebviewPanel('frag.management', 'FRAG · 1.13.2', vscode.ViewColumn.Beside, {
+      panel = vscode.window.createWebviewPanel('frag.management', 'FRAG · 1.13.3', vscode.ViewColumn.Beside, {
         enableScripts: true, localResourceRoots: [vscode.Uri.file(join(owned.installation, 'resources', 'dist'))],
       });
       const webview = panel.webview, nonce = randomBytes(16).toString('hex');

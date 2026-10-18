@@ -1,6 +1,6 @@
 # Complete confirmed-plan evidence
 
-FRAG 1.13.2 retains a bounded whole-plan read to the existing Search → Read flow. It does not add a model loop, financial calculation or production recommendation carrier.
+FRAG 1.13.3 retains a bounded whole-plan read to the existing Search → Read flow. It does not add a model loop, financial calculation or production recommendation carrier.
 
 ## Human selection and exact revisions
 
@@ -21,10 +21,12 @@ Clearing and saving plan selections also restores the prior persisted source-con
 
 The complete plan and exact selected Memory must fit the existing 16 KiB pack and any native token budget. Overflow is refusal, not an 8,000-character window, silent omission of Memory or removal of constraints. Whole monthly and economic reports retain required-evidence protection. Evidence completion rechecks these rules.
 
-The opt-in **synthetic** complete-evidence policy requires a completed whole-plan Run bound to the selected revision and one whole official FC economic report in a completed evidence Run. Its coverage must establish recorded cash stocks, liability balances and dated obligations with no critical missing facts. The referenced FC revision, exact as-of/window and server-required IDs must match. Missing facts reject before checking/release even when a test context asserts completeness. Its safe receipt identifies `recommendation-complete-evidence-v1`; the original Slice A policy/fixed cases remain separate and unchanged.
+The opt-in **synthetic** complete-evidence policy requires a completed whole-plan Run bound to the selected revision and one whole official FC economic report in a completed evidence Run. Its coverage must establish recorded cash stocks, liability balances and dated obligations with no critical missing facts. The referenced FC revision, exact as-of/window and server-required IDs must match. Missing facts reject before checking/release even when a test context asserts completeness. Current safe receipts identify `recommendation-complete-evidence-v2`; older v1 receipts remain readable history, and the original Slice A policy/fixed cases remain separate and unchanged.
 
-Official FC reader **1.8.0 / protocol 2**, API **3.8.0**, adds only explicitly whitelisted `economic-evidence:YYYY-MM-DD:YYYY-MM-DD` summaries. Gross balances, dated confirmed current-debt repayments, out-of-horizon debt and planned expenses remain distinct; personal availability, future charges and external completeness remain unknown. Other owner-session-only personal endpoints are not exposed. Three-month flows or a local virtual Markdown document cannot attest economic stocks/timing. FRAG neither opens FC SQLite nor supplies financial arithmetic. See the [exact reader contract](finance-core-plugin-handoff.md).
+Official FC reader **1.9.0 / protocol 2**, API **3.9.0**, adds only explicitly whitelisted `economic-evidence:YYYY-MM-DD:YYYY-MM-DD` summaries. Gross balances, dated confirmed current-debt repayments, out-of-horizon debt and planned expenses remain distinct; personal availability, future charges and external completeness remain unknown. Other owner-session-only personal endpoints are not exposed. Three-month flows or a local virtual Markdown document cannot attest economic stocks/timing. FRAG neither opens FC SQLite nor supplies financial arithmetic. See the [exact reader contract](finance-core-plugin-handoff.md).
 
 Question-mark icons replace instructional long text in management pages; mouse hover shows the full guidance, with basic focus/Escape support and no custom touch interaction. Errors, authorization disclosures, safety warnings and essential Run status remain visible.
+
+The separate `month-to-date:YYYY-MM-DD` report is provisional posted Journal evidence for one exact cutoff. It remains whole required evidence, but does not become a completed three-month report, a balance sheet or a substitute for economic-stock/obligation coverage. Unrecorded days and real-world completeness stay unknown. No recommendation prerequisite or production gate is relaxed.
 
 Slice B's model-free evidence path can be verified with virtual plans and a test sandbox through the released FC contract. That is not production recommendation completeness or human financial acceptance. A dedicated checked-only carrier, provider budget/privacy verification and subsequent native/human workflow acceptance remain prerequisites for Slice C. The real financial Run is a separate user-operated step.

@@ -7,7 +7,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from frag_api.schemas.context_source import ApiModel
 
-HOST_VERSION = "1.13.2"
+HOST_VERSION = "1.13.3"
 
 
 class FrozenModel(ApiModel):

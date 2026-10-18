@@ -2,7 +2,7 @@
   "name": "frag-bridge",
   "displayName": "FRAG Evidence Tools",
   "description": "Scoped read-only evidence and reviewed Memory for the native VS Code Local Agent.",
-  "version": "1.13.2",
+  "version": "1.13.3",
   "publisher": "frag-local",
   "private": true,
   "engines": {
@@ -56,7 +56,7 @@
           "type": "string",
           "default": "",
           "scope": "application",
-          "description": "Matching 1.13.2 backend installation. Empty uses the standard local 1.13.2 installation."
+          "description": "Matching 1.13.3 backend installation. Empty uses the standard local 1.13.3 installation."
         },
         "frag.financeCoreUI": {
           "type": "string",
@@ -133,7 +133,7 @@
       {
         "name": "frag_fc_read",
         "displayName": "FRAG Finance Core Read",
-        "modelDescription": "Optional exact-pinned official FC 1.8.0 / API 3.8.0 GET-only reader. operation list discovers only backend-whitelisted Workspace/record IDs without fetching every report. operation read accepts one listed Workspace and up to 10 listed records. monthly-review:YYYY-MM returns three completed months; economic-evidence:YYYY-MM-DD:YYYY-MM-DD returns gross recorded cash/debt, confirmed current-balance repayment dates, plans and explicit unknowns for the exact 1-366 day horizon. These summaries are whole required evidence; insufficient budget refuses. Forecast plans are not debt maturities, and coverage is not personal disposable availability or future-charge/external completeness. No owner access, detail expansion, currency mixing, financial calculation, mutations, database access or Dashboard. Requires human-enabled finance-core source.",
+        "modelDescription": "Optional exact-pinned official FC 1.9.0 / API 3.9.0 GET-only reader. operation list discovers only backend-whitelisted Workspace/record IDs without fetching every report. operation read accepts one listed Workspace and up to 10 listed records. monthly-review:YYYY-MM returns three completed months. month-to-date:YYYY-MM-DD returns only that month's posted Journal activity through the exact nonfuture date, inclusive; it is provisional, unrecorded days are unknown (not real-world zero activity), and it is not a full monthly review or balance sheet. economic-evidence:YYYY-MM-DD:YYYY-MM-DD returns gross recorded cash/debt, confirmed current-balance repayment dates, plans and explicit unknowns for the exact 1-366 day horizon. All summaries are whole required evidence; insufficient budget refuses. Forecast plans are not debt maturities, and coverage is not personal disposable availability or future-charge/external completeness. No owner access, detail expansion, currency mixing, financial calculation, mutations, database access or Dashboard. Requires human-enabled finance-core source.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "frag_fc_read",
         "inputSchema": {

@@ -1,4 +1,4 @@
-# FRAG-harness 1.13.2
+# FRAG-harness 1.13.3
 
 Read-only evidence tools inside the **main VS Code window**. VS Code owns chat and models; FRAG supplies authorized evidence, Runs and reviewed Memory.
 
@@ -15,13 +15,13 @@ Read-only evidence tools inside the **main VS Code window**. VS Code owns chat a
 
 ### 1. Get the two matching files
 
-Local checkouts and GitHub use the same folder: [`packages/v1.13.2/`](packages/v1.13.2/).
+Local checkouts and GitHub use the same folder: [`packages/v1.13.3/`](packages/v1.13.3/).
 
 | File | Download / local filename |
 | --- | --- |
-| Host | [frag-host-1.13.2.zip](packages/v1.13.2/frag-host-1.13.2.zip) |
-| VS Code extension | [frag-bridge-1.13.2.vsix](packages/v1.13.2/frag-bridge-1.13.2.vsix) |
-| SHA-256 checksums | [receipt-1.13.2.json](packages/v1.13.2/receipt-1.13.2.json) |
+| Host | [frag-host-1.13.3.zip](packages/v1.13.3/frag-host-1.13.3.zip) |
+| VS Code extension | [frag-bridge-1.13.3.vsix](packages/v1.13.3/frag-bridge-1.13.3.vsix) |
+| SHA-256 checksums | [receipt-1.13.3.json](packages/v1.13.3/receipt-1.13.3.json) |
 
 **On GitHub:** open the Host and VSIX links and download the files. **Locally:** copy them from the folder above, relative to the repository root (contains this `README.md` and `package.json`). Missing files? [Build packages](#development-and-verification).
 
@@ -32,8 +32,9 @@ Put both files in `%USERPROFILE%\Downloads`. Paste that path into File Explorer'
 Open **PowerShell 7** from the Windows Start menu. Run from **any directory**:
 
 ```powershell
-$Zip = Join-Path $env:USERPROFILE 'Downloads\frag-host-1.13.2.zip'
-$Bundle = Join-Path $env:USERPROFILE 'Downloads\frag-host-1.13.2'
+$ErrorActionPreference = 'Stop'
+$Zip = Join-Path $env:USERPROFILE 'Downloads\frag-host-1.13.3.zip'
+$Bundle = Join-Path $env:USERPROFILE 'Downloads\frag-host-1.13.3'
 Expand-Archive -LiteralPath $Zip -DestinationPath $Bundle
 Set-Location $Bundle
 pwsh -NoProfile -File .\install-host.ps1
@@ -43,8 +44,8 @@ Use the **extracted bundle's** installer, not the source file `integrations\vsco
 
 | Location | Purpose |
 | --- | --- |
-| `%USERPROFILE%\Downloads\frag-host-1.13.2` | Extracted bundle; contains the installer |
-| `%LOCALAPPDATA%\FRAG\host\1.13.2` | Installed Host; created by the installer |
+| `%USERPROFILE%\Downloads\frag-host-1.13.3` | Extracted bundle; contains the installer |
+| `%LOCALAPPDATA%\FRAG\host\1.13.3` | Installed Host; created by the installer |
 | Your chosen project folder | Native Chat workspace; separate and unlinked from both locations above |
 
 The installer **refuses an existing target**. Skip it only if that exact Host version was installed successfully; otherwise retain the folder for inspection. Never delete project state to retry. If the extraction folder already exists, change `$Bundle` to a new folder.
@@ -52,14 +53,14 @@ The installer **refuses an existing target**. Skip it only if that exact Host ve
 ### 3. Install the VSIX in VS Code
 
 1. In your usual **main VS Code window**, press `Ctrl+K`, then `Ctrl+O` to open your project folder.
-2. Press `Ctrl+Shift+P`, run `Extensions: Install from VSIX`, and select `frag-bridge-1.13.2.vsix` from the exact Downloads folder in step 1.
+2. Press `Ctrl+Shift+P`, run `Extensions: Install from VSIX`, and select `frag-bridge-1.13.3.vsix` from the exact Downloads folder in step 1.
 3. Press `Ctrl+,`, search `@id:frag.hostInstallation`, and **leave its value empty** to use the default Host above. Clear an explicit old path; it overrides the new default. Do not enter the literal `%LOCALAPPDATA%` here.
 4. Press `Ctrl+Shift+P` and run `Developer: Reload Window` **in this same project window**.
 
 Need the resolved installation path? Run this in PowerShell:
 
 ```powershell
-Join-Path $env:LOCALAPPDATA 'FRAG\host\1.13.2'
+Join-Path $env:LOCALAPPDATA 'FRAG\host\1.13.3'
 ```
 
 ### 4. Check the native model — in VS Code Chat
@@ -96,7 +97,7 @@ Press `Ctrl+Shift+P` → `FRAG: Open Settings`.
 
 3. `Ctrl+Shift+P` → `FRAG: Open Runs`. Inspect the new Run, evidence and warnings; the test file states **blue**. Judge the model's answer separately.
 
-**Optional FC comes later:** [install/configure the official FC reader](docs/finance-core-plugin-handoff.md). Core FRAG does not need FC.
+**Optional FC comes later:** [install/configure the official FC reader](docs/finance-core-plugin-handoff.md#first-real-vault-run). An unfinished month uses an exact `month-to-date:YYYY-MM-DD` selection, not a completed-month report. Core FRAG does not need FC.
 
 ## Upgrade an existing installation
 
@@ -130,7 +131,7 @@ No daily installation or key re-entry. Chat can answer without FRAG; an unchange
 | Symptom | Next action |
 | --- | --- |
 | `pwsh` is not recognized | Make PowerShell 7 available before continuing; do not substitute PowerShell 5.1. |
-| Host installation refuses the target | Inspect `%LOCALAPPDATA%\FRAG\host\1.13.2`. Reuse a successful exact-version install; do not blindly delete it. |
+| Host installation refuses the target | Inspect `%LOCALAPPDATA%\FRAG\host\1.13.3`. Reuse a successful exact-version install; do not blindly delete it. |
 | FRAG commands/tools are missing | Check the matching VSIX, trusted single local folder, Local Agent mode and Configure Tools. |
 | `NOT_FOUND` / `INDEX_NOT_BUILT` | Save source `kb` in FRAG Settings, then build its index. Use the saved ID if you chose another name. |
 | `INDEX_STALE_REFRESH_REQUIRED` | Review changed files, then refresh the source index manually. |
@@ -188,7 +189,7 @@ npm run test:python
 npm run package:agents
 ```
 
-**Output:** [`packages/v1.13.2/`](packages/v1.13.2/) — matching Host ZIP, VSIX and SHA-256 receipt. Return to [First install](#first-install); building does not install anything into VS Code.
+**Output:** [`packages/v1.13.3/`](packages/v1.13.3/) — matching Host ZIP, VSIX and SHA-256 receipt. Return to [First install](#first-install); building does not install anything into VS Code.
 
 Tests use synthetic sources, not real data or model keys. Offline checks, native-model continuation and human acceptance are separate. Publication and production installation remain manual.
 
