@@ -2,10 +2,11 @@
 const vscode = require('vscode');
 const { join } = require('node:path');
 const { readFileSync } = require('node:fs');
+const { spawn } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
 const { launchHost } = require('./host-launcher.cjs');
 const { canonical, fitPack } = require('./tool-result.cjs');
-const ACTIONS = new Set(['overview','run-get','source-save','source-status','source-build','plan-confirm','memory-candidate','memory-revise','memory-promote','memory-retire','memory-versions','memory-conflict','memory-resolve','memory-recommend']);
+const ACTIONS = new Set(['overview','run-get','source-save','source-status','source-build','plan-confirm','fc-connection-open','fc-connection-check','memory-candidate','memory-revise','memory-promote','memory-retire','memory-versions','memory-conflict','memory-resolve','memory-recommend']);
 let host, starting, panel;
 function activate(context) {
   async function start() {
@@ -14,13 +15,26 @@ function activate(context) {
     if (!vscode.workspace.isTrusted || vscode.env.remoteName || vscode.workspace.workspaceFolders?.length !== 1 || vscode.workspace.workspaceFolders[0].uri.scheme !== 'file') {
       throw new Error('FRAG requires one trusted local desktop workspace.');
     }
-    const installation = vscode.workspace.getConfiguration('frag').get('hostInstallation') || join(process.env.LOCALAPPDATA, 'FRAG', 'host', '1.13.3');
+    const installation = vscode.workspace.getConfiguration('frag').get('hostInstallation') || join(process.env.LOCALAPPDATA, 'FRAG', 'host', '1.13.4');
     starting = launchHost(installation, vscode.workspace.workspaceFolders[0].uri.fsPath, context.globalStorageUri.fsPath);
     try { host = await starting; return host; } finally { starting = undefined; }
   }
   async function stop() {
     if (starting) await starting.catch(() => {});
     if (host) { await host.stop(); host = undefined; }
+  }
+  async function connectFC() {
+    const owned = await start();
+    await owned.request('/api/manage/fc-connection-prepare', {});
+    const windows = process.env.SystemRoot || process.env.WINDIR;
+    if (!windows) throw new Error('FC_PRIVATE_EDITOR_UNAVAILABLE');
+    await new Promise((resolve, reject) => {
+      const editor = spawn(join(windows, 'System32', 'notepad.exe'), [join(owned.state, 'fc.env')], { windowsHide: false, stdio: 'ignore' });
+      editor.once('error', () => reject(new Error('FC_PRIVATE_EDITOR_UNAVAILABLE')));
+      editor.once('spawn', () => { editor.unref(); resolve(); });
+    });
+    void vscode.window.showInformationMessage('Paste the FC connection configuration in Notepad: Ctrl+A, Ctrl+V, Ctrl+S. Then use Check connection in FRAG Settings.').then(undefined, () => {});
+    return { opened: true };
   }
   context.subscriptions.push({ dispose() { void stop(); } });
   for (const name of ['frag_search','frag_read','frag_fc_read']) {
@@ -55,10 +69,10 @@ function activate(context) {
       },
     }));
   }
-  async function open(page) {
+  async function open(page, sourceId = '') {
     const owned = await start();
     if (!panel) {
-      panel = vscode.window.createWebviewPanel('frag.management', 'FRAG · 1.13.3', vscode.ViewColumn.Beside, {
+      panel = vscode.window.createWebviewPanel('frag.management', 'FRAG · 1.13.4', vscode.ViewColumn.Beside, {
         enableScripts: true, localResourceRoots: [vscode.Uri.file(join(owned.installation, 'resources', 'dist'))],
       });
       const webview = panel.webview, nonce = randomBytes(16).toString('hex');
@@ -66,21 +80,22 @@ function activate(context) {
       const html = readFileSync(join(owned.installation,'resources','dist','index.html'), 'utf8');
       webview.html = html.replace(/(src|href)="\.\/([^\"]+)"/g, (_, attr, path) => `${attr}="${base}/${path}"`)
         .replace(/<script /g, `<script nonce="${nonce}" `)
-        .replace('<head>', `<head><script nonce="${nonce}">globalThis.FRAG_INITIAL_PAGE=${JSON.stringify(page)};</script><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource}; img-src ${webview.cspSource} data:; font-src 'none'; connect-src 'none';">`);
+        .replace('<head>', `<head><script nonce="${nonce}">globalThis.FRAG_INITIAL_PAGE=${JSON.stringify(page)};globalThis.FRAG_INITIAL_SOURCE_ID=${JSON.stringify(sourceId)};</script><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource}; img-src ${webview.cspSource} data:; font-src 'none'; connect-src 'none';">`);
       panel.onDidDispose(() => { panel = undefined; });
       webview.onDidReceiveMessage(async message => {
         if (!message || typeof message.id !== 'number' || !ACTIONS.has(message.action)) return;
-        try { const value = await (await start()).request('/api/manage/' + message.action, message.body || {});
+        try { const value = message.action === 'fc-connection-open' ? await connectFC() : await (await start()).request('/api/manage/' + message.action, message.body || {});
           await webview.postMessage({ id: message.id, value });
         } catch (error) { await webview.postMessage({ id: message.id, error: error.message }); }
       }, undefined, context.subscriptions);
     }
     panel.reveal(vscode.ViewColumn.Beside);
-    await panel.webview.postMessage({ page });
+    await panel.webview.postMessage({ page, sourceId });
   }
   for (const page of ['settings','runs','memory']) context.subscriptions.push(vscode.commands.registerCommand('frag.' + page, () => open(page)));
   context.subscriptions.push(vscode.commands.registerCommand('frag.start', start));
   context.subscriptions.push(vscode.commands.registerCommand('frag.stop', stop));
+  context.subscriptions.push(vscode.commands.registerCommand('frag.connectFC', async () => { await open('settings', 'finance-core'); return connectFC(); }));
   context.subscriptions.push(vscode.commands.registerCommand('frag.openState', async () => {
     const owned = await start(); await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(owned.state));
   }));

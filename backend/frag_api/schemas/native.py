@@ -23,6 +23,18 @@ class PlanConfirmationInput(ApiModel):
         return self
 
 
+class FcSelection(ApiModel):
+    workspace_id: str = Field(alias='workspaceId', pattern=r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+    record_ids: list[str] = Field(alias='recordIds', min_length=1, max_length=10)
+
+    @field_validator('record_ids')
+    @classmethod
+    def distinct_records(cls, values):
+        if len(set(values)) != len(values) or any(len(value) > 128 for value in values):
+            raise ValueError('Select distinct bounded financial records.')
+        return values
+
+
 class SourceProfile(ApiModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,62}$")
     kind: Literal["local", "fc"] = "local"
@@ -33,6 +45,7 @@ class SourceProfile(ApiModel):
     revision: int = Field(default=0, ge=0, strict=True)
     selected_memory: list[MemorySelection] = Field(default_factory=list, alias="selectedMemory", max_length=3)
     confirmed_plans: list[ConfirmedPlan] = Field(default_factory=list, alias="confirmedPlans", max_length=10)
+    fc_selection: FcSelection | None = Field(default=None, alias='fcSelection')
 
     @field_validator("approved", mode="before")
     @classmethod
@@ -45,6 +58,8 @@ class SourceProfile(ApiModel):
     def source_kind(self):
         if (self.kind == "local") != bool(self.root):
             raise ValueError("Local sources require a root; FC sources do not accept filesystem roots.")
+        if self.kind != 'fc' and self.fc_selection is not None:
+            raise ValueError('Only Finance Core sources accept a financial selection.')
         if self.kind == "fc" and (self.id != "finance-core" or self.excluded_paths or self.confirmed_plans):
             raise ValueError("Only the named Finance Core source is supported.")
         if len({m.memory_id for m in self.selected_memory}) != len(self.selected_memory):

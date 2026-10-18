@@ -1,14 +1,18 @@
-# VS Code setup · FRAG 1.13.3
+# VS Code setup · FRAG 1.13.4
 
 Use the **main VS Code window, native Local Agent**. Keep working native model/provider configuration; do not launch a FRAG Remote Host or replace the model manager.
 
 ## Installation
 
-Follow [First install](../../README.md#first-install) for the PowerShell 7 commands, matching packages, native model check and source authorization. Extract `frag-host-1.13.3.zip` and run its `install-host.ps1` with Python 3.12 and `uv` available. The installer creates a new versioned directory, never overwriting old installations. `uv sync --frozen` initializes locked dependencies; Python/wheels are not bundled.
+Follow [First install](../../README.md#first-install) for the PowerShell 7 commands, matching packages, native model check and source authorization. Extract `frag-host-1.13.4.zip` and run its `install-host.ps1` with Python 3.12 and `uv` available. The installer creates a new versioned directory, never overwriting old installations. `uv sync --frozen` initializes locked dependencies; Python/wheels are not bundled.
 
-Install matching `frag-bridge-1.13.3.vsix` using **Extensions: Install from VSIX**. Open one trusted local folder. Set `frag.hostInstallation` if needed; default installation is `%LOCALAPPDATA%/FRAG/host/1.13.3`.
+Install matching `frag-bridge-1.13.4.vsix` using **Extensions: Install from VSIX**. Open one trusted local folder. Set `frag.hostInstallation` if needed; default installation is `%LOCALAPPDATA%/FRAG/host/1.13.4`.
 
 Run **FRAG: Open Settings**, approve a directory/exclusions, save, then explicitly **Build / Refresh index**. Opening a project never automatically indexes or sends evidence. Enable `frag_search`, `frag_read` and optional `frag_fc_read` in the native tools picker. Source ID `kb` is the default; mention other Settings IDs explicitly.
+
+## Optional Finance Core
+
+The Host bundles the exact official reader; first start prepares it without granting source access. Use **FC Settings → Connect FRAG → Copy FRAG configuration**, then `Ctrl+Shift+P` → `FRAG: Connect Finance Core`. The exact backend-only `fc.env` opens in Notepad. Paste/save, then **Check connection**, select the smaller FRAG subset and **Save authorization** in FRAG Settings. No separate reader install, Workspace-ID lookup or JSON editing. [Connection and factual-Run guide](../../docs/finance-core-plugin-handoff.md).
 
 ## Upgrade from 1.11.x or later native-tool versions
 
@@ -17,7 +21,7 @@ Use the [upgrade checklist](../../README.md#upgrade-an-existing-installation): s
 ## Upgrade from 1.10.x
 
 1. Stop the old FRAG Host and dedicated Agents window.
-2. Install matching 1.13.3 Host/VSIX. A newer VSIX cannot replace an explicit old `frag.hostInstallation`: point it to the new directory and reload VS Code.
+2. Install matching 1.13.4 Host/VSIX. A newer VSIX cannot replace an explicit old `frag.hostInstallation`: point it to the new directory and reload VS Code.
 3. Remove obsolete FRAG entries from the old window's `chat.remoteAgentHosts` yourself, if present. FRAG never silently edits those settings or deletes old installed packages.
 4. Use the same workspace and extension ID `frag-local.frag-bridge` to retain project storage. Legacy Runs/Memory are read-only. Reapprove directories/Memory and build new indexes; old file selections do not grant directory access.
 5. Keep existing native model credentials/configuration. There is no new FRAG model key or model bridge to configure.
@@ -46,7 +50,7 @@ Use [Daily startup and shutdown](../../README.md#daily-startup-and-shutdown); th
 | Tool token budget too small | Reduce selected Memory/evidence or use sufficient native budget; Memory is not silently discarded. |
 | Responses replies once, then returns `400` / `invalid_request` | First-turn authentication does not establish continuation support. A generic `400` is inconclusive: distinguish a plain second turn from a tool request, then see the stateless diagnosis below. Do not reinstall or reindex FRAG to repair a native request rejection. |
 | Legacy Run cannot continue | Expected: old runners are removed. Start new native work. |
-| FC unavailable | Official pinned reader, private `fc.env`, compatible live API and enabled finance-core source; restart after artifact/config changes. |
+| FC unavailable | Use Connect Finance Core, then Check connection. Verify FC API 3.10.0, the single-Vault read-only grant and explicitly saved FRAG subset. Checking pauses old access; it does not read reports. Nonprivate configuration refuses rather than being repaired automatically. |
 
 ### Native model configuration and errors
 

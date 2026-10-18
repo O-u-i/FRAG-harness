@@ -1,6 +1,6 @@
 # Complete confirmed-plan evidence
 
-FRAG 1.13.3 retains a bounded whole-plan read to the existing Search → Read flow. It does not add a model loop, financial calculation or production recommendation carrier.
+FRAG 1.13.4 retains a bounded whole-plan read to the existing Search → Read flow. It does not add a model loop, financial calculation or production recommendation carrier.
 
 ## Human selection and exact revisions
 
@@ -23,7 +23,7 @@ The complete plan and exact selected Memory must fit the existing 16 KiB pack an
 
 The opt-in **synthetic** complete-evidence policy requires a completed whole-plan Run bound to the selected revision and one whole official FC economic report in a completed evidence Run. Its coverage must establish recorded cash stocks, liability balances and dated obligations with no critical missing facts. The referenced FC revision, exact as-of/window and server-required IDs must match. Missing facts reject before checking/release even when a test context asserts completeness. Current safe receipts identify `recommendation-complete-evidence-v2`; older v1 receipts remain readable history, and the original Slice A policy/fixed cases remain separate and unchanged.
 
-Official FC reader **1.9.0 / protocol 2**, API **3.9.0**, adds only explicitly whitelisted `economic-evidence:YYYY-MM-DD:YYYY-MM-DD` summaries. Gross balances, dated confirmed current-debt repayments, out-of-horizon debt and planned expenses remain distinct; personal availability, future charges and external completeness remain unknown. Other owner-session-only personal endpoints are not exposed. Three-month flows or a local virtual Markdown document cannot attest economic stocks/timing. FRAG neither opens FC SQLite nor supplies financial arithmetic. See the [exact reader contract](finance-core-plugin-handoff.md).
+Official FC reader **1.10.0 / protocol 2**, API **3.10.0**, includes explicitly whitelisted `economic-evidence:YYYY-MM-DD:YYYY-MM-DD` summaries. Gross balances, dated confirmed current-debt repayments, out-of-horizon debt and planned expenses remain distinct; personal availability, future charges and external completeness remain unknown. Other owner-session-only personal endpoints are not exposed. Three-month flows or a local virtual Markdown document cannot attest economic stocks/timing. FRAG neither opens FC SQLite nor supplies financial arithmetic. See the [exact reader contract](finance-core-plugin-handoff.md).
 
 Question-mark icons replace instructional long text in management pages; mouse hover shows the full guidance, with basic focus/Escape support and no custom touch interaction. Errors, authorization disclosures, safety warnings and essential Run status remain visible.
 

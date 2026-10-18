@@ -1,0 +1,14 @@
+[
+  {
+    "file": "frag-host-1.13.4.zip",
+    "bytes": 151345,
+    "sha256": "89c9c052829d83fd6309079f3bb49dd732ef3166b94f72312eef4edb83b36996",
+    "artifactWrittenAt": "2026-10-18T09:05:14.068449+00:00"
+  },
+  {
+    "file": "frag-bridge-1.13.4.vsix",
+    "bytes": 9578,
+    "sha256": "023cb46e0e1e3fea1b2da7f8f099ccbb920e7d2983ae339868afd9378ee7f623",
+    "artifactWrittenAt": "2026-10-18T09:05:14.070449+00:00"
+  }
+]

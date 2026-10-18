@@ -2,7 +2,7 @@
   "name": "frag-bridge",
   "displayName": "FRAG Evidence Tools",
   "description": "Scoped read-only evidence and reviewed Memory for the native VS Code Local Agent.",
-  "version": "1.13.3",
+  "version": "1.13.4",
   "publisher": "frag-local",
   "private": true,
   "engines": {
@@ -45,6 +45,10 @@
         "title": "FRAG: Open Private State Folder"
       },
       {
+        "command": "frag.connectFC",
+        "title": "FRAG: Connect Finance Core"
+      },
+      {
         "command": "frag.openFC",
         "title": "FRAG: Open Finance Core UI"
       }
@@ -56,7 +60,7 @@
           "type": "string",
           "default": "",
           "scope": "application",
-          "description": "Matching 1.13.3 backend installation. Empty uses the standard local 1.13.3 installation."
+          "description": "Matching 1.13.4 backend installation. Empty uses the standard local 1.13.4 installation."
         },
         "frag.financeCoreUI": {
           "type": "string",

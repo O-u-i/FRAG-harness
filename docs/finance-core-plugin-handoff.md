@@ -4,31 +4,35 @@
 Cross-repo impact: BOTH_REQUIRED
 Contract change: ADDITIVE
 Other repo status: UPDATED
-Required compatible version: FC product/API 3.9.0; official reader 1.9.0 / protocol 2; FRAG 1.13.3
+Required compatible version: FC product/API 3.10.0; official reader 1.10.0 / protocol 2; FRAG 1.13.4
 ```
 
-FC owns the adapter source and deterministic financial reports. This BOTH task exact-pins official reader 1.9.0 / API 3.9.0 after FC contract/synthetic tests and official artifact verification. It adds a provisional month-to-date summary while preserving Monthly Review v1, economic evidence and GET-only behavior. Other personal-finance, dated Living, activity/opening and debt-detail/write endpoints are not available through the reader; existing owner-only routes remain owner-only. No recommendation runtime or financial calculation in FRAG is included. This note is not publication, production installation or standing cross-repository authorization.
+FC owns financial rules, calculations, persistence, authentication and its official reader source. FRAG owns explicit source/record authorization, complete bounded evidence, Runs and reviewed Memory. No financial writes, SQLite access, second chat or production recommendation runtime are added to FRAG. Core FRAG works without FC.
 
-Only `finance-core-frag-plugin-v1.9.0.zip` is installable, SHA-256 `f7f53aa42fc6ff213ffee77291ad6b490ee2ae68a97123c057e494e76a30ce2a`. The installed three-file package digest is `9188219f3ccb712e62bec2ad268f22cb3f0db3966b6dff82a357d1b68fa20bef`; minimum Host is 1.13.3. Manifest/file bytes are checked before execution and before/after reads. Earlier archives remain unchanged historical artifacts; they are not compatible with this reader. Official UI bytes are integrity-checked archive content, not an active FRAG page. Core FRAG runs without FC.
+## Install and connect
 
-## Private configuration
+1. Install the [matching FRAG Host and VSIX](../README.md#first-install). The Host bundles and prepares the exact reader at first project start. No separate reader command is needed; earlier installed versions remain for rollback. An explicit reader disable is preserved.
+2. In **FC Settings → Connect FRAG**, choose one Vault, a name and a maximum readable range; create the connection and click **Copy FRAG configuration**.
+3. In VS Code: `Ctrl+Shift+P` → `FRAG: Connect Finance Core`. It creates the private template once and opens **Notepad** on the exact project-state `fc.env`. Paste with `Ctrl+A`, `Ctrl+V`, `Ctrl+S`. Existing files are never overwritten by the command.
+4. In **FRAG Settings → Finance Core**, click **Check connection**. Confirm Vault name/kind and permission ceiling, check at most ten accounts/items or exact dated reports, then explicitly approve and **Save authorization**. No financial index is built.
 
-Stop the target project backend before installing. From its installed backend directory run `.venv/Scripts/python.exe -m frag_api.fc_reader --archive <official-archive> --state-dir <private-project-state>`. **FRAG: Open Private State Folder** locates the target. Installation grants no source or record access.
+The target file is `<this extension's private project state>/fc.env`, found/opened by the command rather than by typing a machine-specific hash. **FRAG: Open Private State Folder** remains an optional inspection route. The backend validates a regular unlinked, single-link, bounded file with a private owner/ACL before reading it. It never repairs or overwrites an existing nonprivate file. No model/environment variables are loaded from it.
 
-Configure only in the private state directory's `fc.env`:
+The FC-generated four lines contain API/UI loopback addresses, the dedicated read token and a single Workspace mapping with **no selected records**. Workspace ID is included automatically. FRAG saves its narrower human selection separately; no JSON editing is needed. The file is backend-only, never a Webview input, tool result, chat attachment, log or Git file. The private editor uses Notepad rather than a native chat-context editor. User-prepared acceptance files using `FC_API_URL`, `FC_WORKSPACE_ID`, `FC_ACCESS_TOKEN` are separate inputs, not this configuration, and are not copied automatically.
 
-```dotenv
-FINANCE_CORE_PLUGIN_API_URL=http://127.0.0.1:8788
-FINANCE_CORE_PLUGIN_UI_URL=http://127.0.0.1:5174
-FINANCE_CORE_PLUGIN_READ_TOKEN=<backend-only-ledger-read-token>
-FINANCE_CORE_PLUGIN_RECORDS_JSON={"<approved-workspace>":["monthly-review:2025-03"]}
-```
+## Permission ceiling and compatibility
 
-Use valid real Workspace IDs; placeholders are not runnable configuration. At most ten exact IDs are whitelisted across Workspaces. Restart, then explicitly enable finance-core in Settings. Configure `frag.financeCoreUI` separately for the standalone UI. Credentials never enter Webview inputs, packs, browser storage, logs or Git.
+FC's `readGrant` supports **all**, **living**, **investment** or **selected** accounts/data items inside exactly one Vault. Dynamic ranges include later supported financial items in that Vault; selected items stay exact. This is financial read authorization, never other Vaults, owner/management data, raw backups or writes. Report items name their whole-Journal/whole-Vault aggregate scope explicitly. A custom account scope is not a date restriction.
+
+FRAG's checked subset must fit the live FC catalog. A broader token does not authorize FRAG to automatically deliver every item. Connection checking fetches health, token-self claims, Workspace metadata and catalog names only; no financial item/report is prefetched. Rechecking, even when it fails, pauses the previous FC source and invalidates pending deliveries before looking at new credentials. Save fresh human authorization to resume. Editing `fc.env` also invalidates the loaded reader until rechecked/restarted. Changing a credential is not a financial-evidence identity.
+
+Only official **reader 1.10.0 / API 3.10.0 / protocol 2**, minimum Host **1.13.4**, is accepted. Archive SHA-256: `99379f5e7cb384eae4d767d861df1a807b8fe83c14a77f9762a58ffebe6caa1c`. Installed three-file digest: `31233f7e5cdfabd9644a93f5562916bb4adf12ef7d289512e76490841939665c`. Exact archive/file bytes are checked before execution and reads; no floating latest. Official `ui.js` is inert integrity-checked compatibility content, not a mounted FRAG page.
+
+Legacy tokens keep their prior capabilities and do not gain the new personal reader routes. New scoped tokens have a distinct prefix rejected by older FC versions, so a downgrade cannot silently ignore their restriction. The new connection check requires a dedicated single-Vault `ledger:read` grant, not a write-capable sandbox token or an owner session. Old env-based selected-report integration remains compatible at its existing explicit boundary, not a new permission grant.
 
 ## Read contract and approval scope
 
-`operation: list` discovers configured IDs only. Report labels are derived from the whitelist without fetching every report. `operation: read` accepts one listed Workspace and selected listed IDs. Package, supplier configuration and record revisions are revalidated before finalized delivery; a changed report or whitelist rejects an outstanding pack.
+`operation: list` discovers human-selected IDs only. Item names come from the FC-authorized catalog, not detail reads. Report labels are derived from the whitelist without fetching every report. `operation: read` accepts one listed Workspace and selected listed IDs. Package, supplier configuration and record revisions are revalidated before finalized delivery; a changed report or whitelist rejects an outstanding pack.
 
 - `monthly-review:YYYY-MM` reads `/api/v3/workspaces/{workspaceId}/reports/monthly-review?month=YYYY-MM`. The concrete anchor must be completed in the Asia/Shanghai calendar; the report includes the anchor and prior two months.
 - `month-to-date:YYYY-MM-DD` reads only `/api/v3/workspaces/{workspaceId}/reports/month-to-date?asOf=YYYY-MM-DD`. It covers that month's first day through the exact nonfuture date, inclusive. Its single-period summary is explicitly partial and posted-Journal-only; unrecorded days and external completeness remain unknown. No invented preceding months, whole-month comparisons or balance-derived spending. Posted opening equity entries can move cash without creating income. Living observations, valuations and forecasts are not Journal activity. The full report is required evidence and never replaces economic-stock/obligation prerequisites.
@@ -41,51 +45,23 @@ Use valid real Workspace IDs; placeholders are not runnable configuration. At mo
 
 There is no FC SQLite access, financial recalculation in FRAG, mutation, imported Dashboard, provider credential access, automatic retry, wildcard month, scheduler or autonomous Memory update. FC's own UI authenticates and owns all writes.
 
+- `finance-item:<kind>:<opaque-id>` reads exactly `/reader/items/{itemId}` for a checked account, asset, cash-flow plan, agreement or transfer-observation item. FC authorizes membership inside the read transaction. The safe projection excludes notes, source text and other-side postings; account posting lines are not balanced whole Journal entries. It remains whole required evidence. Selection-only coverage is not complete economic evidence or recommendation permission.
+
 ## First real Vault Run
 
-**Prerequisites:** manually install matching FRAG 1.13.3 Host/VSIX; FC must serve API 3.9.0. Retain the same VS Code instance/profile/project. Confirm the source and selected native provider before disclosing real summaries. The following is a user-operated factual check, not permission for a developer to execute a real Run or enter Slice C.
+This is a **user-operated factual check**, not authorization for a developer to read real reports or start Slice C. First complete the new connection steps above in the same VS Code project/instance/profile. Confirm the real Vault, exact period and intended native provider before financial data leaves the local evidence boundary.
 
-### 1. Install the reader locally
+1. In FRAG's subset, select **Month to date · Journal** and enter the explicitly approved cutoff date, then approve and save. Do not choose a completed-month report for a partial month.
+2. In native Chat, enable `frag_fc_read`. Ask: **Use #frag_fc_read with operation "list" only. Do not read financial records.** Verify the intended Workspace and exact report ID.
+3. Explicitly ask to read **that one listed report**, with factual cash movement versus income/expense interpretation, separate currencies and coverage limits only. No financial/life action advice or additional reads.
+4. `Ctrl+Shift+P` → `FRAG: Open Runs`. Expand the **read** Run → **Full returned text**. Check `completed`, exact cutoff, all currencies and coverage. **Advanced · complete audit JSON** retains `requiredEvidenceIds`. A completed discovery alone is not a successful financial read. Judge the native answer separately.
 
-In the target VS Code window, `Ctrl+Shift+P` → `FRAG: Open Private State Folder`. Copy that folder's address, then run `FRAG: Stop Evidence Backend`. Obtain exactly `finance-core-frag-plugin-v1.9.0.zip` from FC's `docs/release/` folder; do not use an older archive.
+Stop on a wrong Vault/range, version mismatch, denied permission, stale revision or capacity failure. Do not widen permissions, call owner routes, invent dates/zero values or bypass the official reader. Disable the source and save to stop reads; completed Runs remain immutable. Successful factual review is not automatic Slice C or recommendation approval.
 
-Open **PowerShell 7**, from any directory:
+## Verification boundary and rollback
 
-```powershell
-$ErrorActionPreference = 'Stop'
-$State = Read-Host 'Private state folder full path, without quotes'
-$Archive = Read-Host 'Full path to finance-core-frag-plugin-v1.9.0.zip, without quotes'
-Set-Location -LiteralPath (Join-Path $env:LOCALAPPDATA 'FRAG\host\1.13.3\backend')
-.\.venv\Scripts\python.exe -X utf8 -m frag_api.fc_reader --archive $Archive --state-dir $State
-if ($LASTEXITCODE -ne 0) { throw 'Reader installation failed; stop here.' }
-```
+Default development is synthetic, through the public FC HTTP contract, official reader and private FRAG management/tool APIs. Test tokens with write scope belong only to explicitly isolated FC HTTP acceptance, never the reader. Real-token identity/permission checks do not authorize a financial report or Run. Automatic regression, isolated loopback integration, native-window checks, provider behavior and human financial-semantic acceptance remain distinct.
 
-Expected: `FC reader installed`. No financial report has been read.
+Missing-data refusal alone is not full Slice B acceptance. Whole confirmed-plan plus FC recorded-scope economic evidence still has to pass positively; selection-only item facts cannot replace it. The dedicated production recommendation carrier remains unavailable.
 
-### 2. Create private configuration
-
-In **that private state folder**, manually create **`fc.env`**, not `fc.env.txt`. If one already exists, stop and review it; do not overwrite it or copy acceptance-input files over it.
-
-```dotenv
-FINANCE_CORE_PLUGIN_API_URL=http://127.0.0.1:8788
-FINANCE_CORE_PLUGIN_UI_URL=http://127.0.0.1:5174
-FINANCE_CORE_PLUGIN_READ_TOKEN=<real-vault-ledger-read-token>
-FINANCE_CORE_PLUGIN_RECORDS_JSON={"<real-workspace-id>":["month-to-date:2026-08-18"]}
-```
-
-Replace the placeholders and example date **locally** with the explicitly approved values. Use only the real Vault's `ledger:read` token, not the sandbox write token. Acceptance keys `FC_API_URL`, `FC_WORKSPACE_ID`, `FC_ACCESS_TOKEN` are not Host configuration keys and are not automatically loaded. Never paste either file, token or authentication headers into chat or Webview inputs.
-
-### 3. Enable and discover, then read
-
-1. `Ctrl+Shift+P` → `FRAG: Open Settings` → `Finance Core whitelist`.
-2. Keep `Enable this source` checked; review the approval checkbox and click `Save authorization`. FC needs **no local index build**. `Reader: available` means the package loaded, not that token/API access has passed.
-3. In native Chat, select the intended model and enable `frag_fc_read`. Approval allows the selected summary to reach that provider.
-4. First ask: **Use #frag_fc_read with operation "list" only. Do not read financial records.** Check that only the intended Workspace and exact record ID appear.
-5. Then explicitly ask to read **that one listed record** using operation `read`. Request only factual cash-movement versus income/expense interpretation, separate currencies and coverage limits; no spending/investment action advice or additional records.
-6. `Ctrl+Shift+P` → `FRAG: Open Runs`. Expand the **read** Run, then **Full returned text**; the short preview alone is abbreviated. Check status `completed`, the exact cutoff, all currencies and coverage; **Advanced · complete audit JSON** retains `requiredEvidenceIds`. A completed discovery Run alone is not financial-read success. Judge the native answer separately.
-
-If API/reader versions, Workspace, dates, revisions or capacity fail, stop. Do not widen permissions, substitute a completed month, call owner-only endpoints or treat missing data as zero. Disable `finance-core` and save authorization to stop optional reads; existing Runs remain immutable. This report does not enable production recommendations or automatically authorize Slice C.
-
-## Verification boundary
-
-Default tests use synthetic sources and mocked HTTP. Local acceptance explicitly reads the user-prepared acceptance-input files in an isolated backend program; they are not Host `fc.env`, are not copied to Webview/configuration/Git and are never printed. Test-token writes are only FC isolated HTTP checks against the verified sandbox; the official reader remains GET-only. Real-token identity/permissions/schema checks do not authorize financial reports or a real Run. Local contract, isolated loopback integration, browser, native invocation, paid-provider behavior and human financial-semantic acceptance must be reported separately. Passing missing-data refusal alone is not complete Slice B acceptance; positive whole-plan plus FC recorded-scope evidence is also required.
+To disable FC, uncheck **Enable this source** and save. For a reviewed downgrade, also clear the FC subset while the current backend owns the state, stop it and use the retained matching Host/VSIX. Do not delete databases, rebind provenance, replay Runs or let an older reader ignore new grant restrictions. No commit, push, release, production install or real-data migration is implied by the build.

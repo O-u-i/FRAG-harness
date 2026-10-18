@@ -106,7 +106,7 @@ class EvidenceTools:
             bindings.append(SourceBinding(identity=SourceIdentity(kind="fc_record", namespace="native-fc-v1/" + self.fc.source_revision,
                 resourceId=record_id, workspaceId=request.workspace_id), revision=record["revision"],
                 parserVersion=f"fc/{self.fc.version}/{self.fc.digest}", locatorIds=(record_id,), evidenceIds=(key,)))
-            if record_id.startswith(("monthly-review:", "economic-evidence:", "month-to-date:")):
+            if record_id.startswith(("monthly-review:", "economic-evidence:", "month-to-date:", "finance-item:")):
                 required.append(key)
         return self.prepare("frag_fc_read", request, profile, evidence, bindings, bindings, required=required)
 

@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from frag_api import errors
-from frag_api.fc_reader import load_fc
+from frag_api.fc_connection import configured_reader, prepare_configuration, validate_selection, ensure_bundled_reader
 from frag_api.request_spec import strict_json
 from frag_api.repositories.tool_store import ToolStore
 from frag_api.repositories.workflow_store import WorkflowStore
@@ -18,7 +18,7 @@ from frag_api.services.context_source_service import ContextSourceError
 from frag_api.services.evidence_tools import EvidenceTools
 from frag_api.services.runtime_policy import redact_value
 
-VERSION = "1.13.3"
+VERSION = "1.13.4"
 ERROR_CODES = {
     errors.PolicyRejectedError: (403, "POLICY_REJECTED"),
     errors.RuntimeConflictError: (409, "REVISION_CONFLICT"),
@@ -36,16 +36,24 @@ def error_reply(error):
     status, code = ERROR_CODES.get(type(error), (500, "LOCAL_OPERATION_FAILED"))
     return JSONResponse({"error": {"code": code}}, status_code=status)
 
-def create_app(state: Path, secret: str):
+def create_app(state: Path, secret: str, *, installation: Path | None = None):
     if len(secret) < 32:
         raise ValueError("An ephemeral extension token is required.")
     store = ToolStore(state / "runtime.sqlite3")
     try:
-        fc = load_fc(state / "plugins")
-        fc_state = "available" if fc else "not_installed_or_disabled"
-    except (errors.PluginValidationError, OSError):
-        fc, fc_state = None, "invalid_restart_after_repair"
+        if installation is not None:
+            # Obtain the project's sole-owner lease before changing reader files.
+            ensure_bundled_reader(installation, state)
+        try:
+            profile = store.profile('finance-core')
+        except errors.RuntimeNotFoundError:
+            profile = None
+        fc, fc_secrets = configured_reader(state, profile)
+        fc_state = ("available" if any(fc_secrets) else "connection_required") if fc else "not_installed_or_disabled"
+    except (errors.PluginValidationError, OSError, ValueError):
+        fc, fc_secrets, fc_state = None, (), "connection_required"
     tools = EvidenceTools(store, state / "rag/native", fc)
+    tools.redaction_secrets += fc_secrets
     workflows = WorkflowStore(store)
     @asynccontextmanager
     async def lifespan(_):
@@ -98,6 +106,7 @@ def create_app(state: Path, secret: str):
             raise
     @app.post("/api/manage/{action}")
     async def manage(action: str, request: Request):
+        nonlocal fc_state
         body = strict_json(await request.body())
         if not isinstance(body, dict):
             raise ValueError()
@@ -108,16 +117,47 @@ def create_app(state: Path, secret: str):
             return {"version": VERSION, "sources": store.profiles(), "runs": store.runs(),
                 "memory": records, "fcState": fc_state, "workflowReceipts": workflows.receipts(),
                 "recommendations": {"available": False, "reasonCode": "CARRIER_UNAVAILABLE"}}
+        if action == 'fc-connection-prepare' and not body:
+            return prepare_configuration(state)
+        if action == 'fc-connection-check' and not body:
+            # A changed/failed connection never inherits the previous authorization.
+            # Invalidate pending deliveries before inspecting the new credentials.
+            try:
+                previous = store.profile('finance-core')
+            except errors.RuntimeNotFoundError:
+                previous = None
+            if previous is not None:
+                store.save_profile(previous.model_copy(update={'enabled': False, 'fc_selection': None}))
+            tools.fc, fc_state = None, 'connection_required'
+            candidate, secrets = configured_reader(state, require_file=True)
+            if candidate is None:
+                raise errors.PluginValidationError()
+            options = candidate.connection_options()
+            tools.fc, fc_state = candidate, 'connected_selection_required'
+            tools.redaction_secrets += secrets
+            return options
         if action == "run-get":
             return store.get(RunLookupInput.model_validate(body).run_id)
         if action == "plan-confirm":
             return tools.confirm_plan(PlanConfirmationInput.model_validate(body))
         if action == "source-save":
             profile = SourceProfile.model_validate(body)
+            candidate = None
             if profile.kind == "local":
                 from frag_api.services.source_index import SourceIndex
                 SourceIndex(profile, tools.index_root)
-            return store.save_profile(profile)
+            elif profile.enabled and (profile.fc_selection is not None or (state / 'fc.env').exists()):
+                if profile.fc_selection is None:
+                    raise errors.PolicyRejectedError()
+                candidate, secrets = configured_reader(state, profile, require_file=True)
+                if candidate is None:
+                    raise errors.PluginValidationError()
+                validate_selection(candidate, profile)
+            saved = store.save_profile(profile)
+            if candidate is not None:
+                tools.fc, fc_state = candidate, 'available'
+                tools.redaction_secrets += secrets
+            return saved
         if action in {"source-status", "source-build"} and set(body) == {"sourceId"} and isinstance(body["sourceId"], str):
             index = tools.index(body["sourceId"])
             return index.build() if action == "source-build" else index.status()

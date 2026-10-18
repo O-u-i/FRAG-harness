@@ -10,7 +10,7 @@ VERSION=json.loads((ROOT/'package.json').read_text())['version']
 DELIVERY=ROOT/'packages'/f'v{VERSION}'
 OUT=DELIVERY
 VIEW=ROOT/'.tmp/agents-dist'
-BACKEND=['__init__.py','__main__.py','host.py','main.py','fc_reader.py','errors.py','request_spec.py','schemas/__init__.py','schemas/context_source.py','schemas/governance.py','schemas/memory.py','schemas/plugin.py','schemas/native.py','services/__init__.py','services/context_source_service.py','services/rag_markdown.py','services/memory_service.py','services/runtime_policy.py','services/source_index.py','services/evidence_tools.py','repositories/__init__.py','repositories/rag_index_repository.py','repositories/tool_store.py']
+BACKEND=['__init__.py','__main__.py','host.py','main.py','fc_reader.py','fc_connection.py','errors.py','request_spec.py','schemas/__init__.py','schemas/context_source.py','schemas/governance.py','schemas/memory.py','schemas/plugin.py','schemas/native.py','services/__init__.py','services/context_source_service.py','services/rag_markdown.py','services/memory_service.py','services/runtime_policy.py','services/source_index.py','services/evidence_tools.py','repositories/__init__.py','repositories/rag_index_repository.py','repositories/tool_store.py']
 BACKEND += ['schemas/workflow.py', 'repositories/workflow_store.py',
     'services/workflow_budget.py', 'services/recommendation_workflow.py']
 
@@ -19,7 +19,10 @@ def put(archive,source,destination):
         raise ValueError('Missing or linked package input: '+str(source.relative_to(ROOT)))
     archive.writestr(destination,source.read_bytes())
 
-def build():
+def build(fc_archive):
+    pin=re.search(r'^FC_ARCHIVE_SHA256 = "([a-f0-9]{64})"$',(ROOT/'backend/frag_api/fc_reader.py').read_text(),re.M).group(1)
+    if not fc_archive.is_file() or fc_archive.is_symlink() or sha256(fc_archive.read_bytes()).hexdigest()!=pin:
+        raise ValueError('Supply the exact byte-pinned official Finance Core reader archive.')
     OUT.mkdir(parents=True,exist_ok=True)
     if not (VIEW/'index.html').is_file():raise ValueError('Build the management Webview first.')
     manifest=json.loads((ROOT/'integrations/vscode/bridge/package.json').read_text())
@@ -36,6 +39,7 @@ def build():
         for name in assets:put(archive,VIEW/name,'resources/dist/'+name)
         put(archive,ROOT/'integrations/vscode/README.md','resources/install.md')
         put(archive,ROOT/'integrations/vscode/install-host.ps1','install-host.ps1')
+        put(archive,fc_archive,'resources/finance-core/finance-core-frag-plugin-v1.10.0.zip')
         notices=[]
         locked=json.loads((ROOT/'package-lock.json').read_text())['packages']
         for name in ['react','react-dom','scheduler']:
@@ -57,6 +61,6 @@ def build():
 
 if __name__=='__main__':
     import argparse
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output-dir',type=Path,default=OUT);OUT=parser.parse_args().output_dir.resolve()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output-dir',type=Path,default=OUT);parser.add_argument('--fc-archive',type=Path,required=True);args=parser.parse_args();OUT=args.output_dir.resolve()
     if OUT!=DELIVERY and not OUT.is_relative_to((ROOT/'.tmp').resolve()):raise ValueError('Packages must use the current versioned delivery directory or ignored .tmp.')
-    build()
+    build(args.fc_archive.resolve())

@@ -85,7 +85,8 @@ class ToolStore:
                 raise RuntimeConflictError()
             value = value.model_copy(update={"revision": value.revision + 1})
             # Clearing the feature retains the pre-plan source contract for a reviewed downgrade.
-            record = value.model_dump_json(by_alias=True, exclude={"confirmed_plans"} if not value.confirmed_plans else set())
+            excluded = ({'confirmed_plans'} if not value.confirmed_plans else set()) | ({'fc_selection'} if value.fc_selection is None else set())
+            record = value.model_dump_json(by_alias=True, exclude=excluded)
             db.execute("INSERT INTO source_profiles VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,record=excluded.record", (value.id, value.revision, record))
         return value
 

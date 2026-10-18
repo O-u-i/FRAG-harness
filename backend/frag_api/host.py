@@ -3,7 +3,6 @@ import argparse
 import os
 from pathlib import Path
 import uvicorn
-from dotenv import load_dotenv
 
 def checked_paths(workspace, state, installation):
     for path in (workspace, state, installation):
@@ -27,11 +26,9 @@ def main():
     if not 1024 <= args.port <= 65535:
         parser.error("Use a nonprivileged loopback port.")
     _, state = checked_paths(args.workspace, args.state_dir, args.installation)
-    # FC credentials only; no workspace or model configuration is loaded.
-    load_dotenv(state / "fc.env", override=False)
     from frag_api.main import create_app
     secret = os.environ.pop("FRAG_EXTENSION_TOKEN", "")
-    app = create_app(state, secret)
+    app = create_app(state, secret, installation=args.installation)
     uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False, log_level="critical")
 
 if __name__ == "__main__":

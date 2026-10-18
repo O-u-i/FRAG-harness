@@ -79,3 +79,35 @@ class PluginScopes(PluginModel):
         if len({item.id for item in self.scopes}) != len(self.scopes):
             raise ValueError("Scope IDs must be unique.")
         return self
+
+
+class FcWorkspace(PluginModel):
+    id: str = Field(min_length=1, max_length=128)
+    label: str = Field(min_length=1, max_length=500)
+    kind: Literal['personal', 'sandbox']
+
+
+class FcGrant(PluginModel):
+    mode: Literal['all', 'living', 'investment', 'selected']
+    itemIds: list[str] = Field(max_length=500)
+
+
+class FcCatalogItem(PluginModel):
+    id: str = Field(pattern=r'^(?:(?:account|asset|plan|arrangement|transfer):[a-f0-9]{32}|report:(?:monthly-review|month-to-date|economic-evidence))$')
+    label: str = Field(min_length=1, max_length=500)
+    kind: Literal['account', 'asset', 'plan', 'arrangement', 'transfer', 'report']
+    segment: Literal['living', 'investment'] | None
+
+
+class FcConnectionCatalog(PluginModel):
+    schemaVersion: Literal[1]
+    workspace: FcWorkspace
+    readGrant: FcGrant
+    items: list[FcCatalogItem] = Field(max_length=500)
+    selectedRecordIds: list[str] = Field(max_length=10)
+
+    @model_validator(mode='after')
+    def unique_items(self):
+        if len({item.id for item in self.items}) != len(self.items):
+            raise ValueError('Financial item IDs must be distinct.')
+        return self
