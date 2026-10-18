@@ -1,6 +1,6 @@
 {
   "name": "frag-harness",
-  "version": "1.13.0",
+  "version": "1.13.2",
   "private": true,
   "type": "module",
   "scripts": {

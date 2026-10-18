@@ -1,4 +1,5 @@
-type Evidence = {evidenceId:string;locatorId:string;locatorLabel?:string;relativePath?:string;sourceUri?:string;text:string;windowed?:boolean};
+import { Help } from './help';
+type Evidence = {evidenceId:string;locatorId:string;locatorLabel?:string;relativePath?:string;sourceUri?:string;text:string;windowed?:boolean;role?:string;planRevision?:string};
 type Background = {memoryId:string;version:number;contentVersion?:number;text:string;general:boolean};
 export type Run = {id:string;tool:string;status:string;createdAt:string;sourceId?:string|null;sourceRevision?:number|null;sourceBindings?:unknown[];outputTokens?:number|null;input?:{sourceId?:string;query?:string;searchRunId?:string;operation?:string;workspaceId?:string};pack?:{query?:string;evidence?:Evidence[];memoryBackground?:Background[];warnings?:string[];budget?:{maxBytes:number;omittedEvidenceIds:string[]};discovery?:unknown}|null;errorCode?:string|null};
 
@@ -28,7 +29,7 @@ export function RunSummary({run,runs}:{run:Run;runs:Run[]}) {
   </summary>;
 }
 
-export function RunDetails({run}:{run:Run}) {
+export function RunDetails({run,onConfirmPlan,busy=false}:{run:Run;onConfirmPlan?:(evidenceId:string)=>void;busy?:boolean}) {
   const evidence = run.pack?.evidence ?? [], memory = run.pack?.memoryBackground ?? [];
   const files = new Set(evidence.map(item=>item.relativePath ?? item.sourceUri).filter(Boolean)).size;
   const omitted = run.pack?.budget?.omittedEvidenceIds ?? [];
@@ -40,9 +41,13 @@ export function RunDetails({run}:{run:Run}) {
     <h3>Evidence</h3>
     {evidence.length ? <ol className="evidence-list">{evidence.map(item=><li key={item.evidenceId}>
       <strong>{item.locatorLabel ?? item.locatorId}</strong>
-      <p className="run-context">{item.relativePath ?? item.sourceUri ?? 'Selected record'} · {item.windowed ? 'Windowed excerpt' : 'Returned snippet'}</p>
+      <p className="run-context">{item.relativePath ?? item.sourceUri ?? 'Selected record'} · {item.role==='confirmed_plan' ? 'Complete confirmed plan' : item.windowed ? 'Windowed excerpt' : 'Returned snippet'}</p>
       <p className="evidence-preview">{item.text.length>240 ? item.text.slice(0,240)+'…' : item.text}</p>
       <details><summary>Full returned text · {item.evidenceId}</summary><pre>{item.text}</pre></details>
+      {onConfirmPlan && run.tool==='frag_search' && run.status==='completed' && /\.(md|txt)$/i.test(item.relativePath ?? '') && <div>
+        <p>Review the whole file; this Search excerpt is not a confirmed plan.<Help label="Confirming a plan" text="Confirm only after reviewing the complete file at this path. This excerpt is not the whole plan. Confirmation binds its current revision; changed files require a new human confirmation."/></p>
+        <button disabled={busy} onClick={()=>onConfirmPlan(item.evidenceId)}>Confirm entire document as a plan</button>
+      </div>}
     </li>)}</ol> : <p>{run.pack?.discovery ? 'Configured record discovery only; no evidence text.' : 'No evidence text in this Run.'}</p>}
     <h3>Memory</h3>
     {memory.length ? <ul>{memory.map(item=><li key={item.memoryId}><p>{item.text}</p><p className="run-context">{item.memoryId} · {item.contentVersion ? `v${item.contentVersion} · ` : ''}Revision {item.version} · {item.general?'General':'Source-scoped'} background, not evidence</p></li>)}</ul> : <p>No Memory included.</p>}

@@ -31,11 +31,15 @@ class EvidenceReference(SafeModel):
 
 
 class SyntheticContext(SafeModel):
-    """Synthetic assertions only; not a complete plan/financial-source contract."""
+    """Model-free test assertions, never an FC financial contract or outbound approval."""
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=10)
     plan_revision: Digest | None = Field(default=None, alias="planRevision")
+    plan_evidence: EvidenceReference | None = Field(default=None, alias="planEvidence")
     constraints_revision: Digest | None = Field(default=None, alias="constraintsRevision")
     financial_foundation_complete: bool = Field(default=False, alias="financialFoundationComplete", strict=True)
+    economic_evidence: EvidenceReference | None = Field(default=None, alias="economicEvidence")
+    missing_economic_facts: tuple[Literal["cash_stocks", "liability_balances", "dated_obligations"], ...] = Field(
+        default=("cash_stocks", "liability_balances", "dated_obligations"), alias="missingEconomicFacts", max_length=3)
 
 
 class CheckResult(SafeModel):
@@ -60,7 +64,7 @@ class WorkflowReceipt(SafeModel):
     id: OpaqueId
     kind: Literal["recommendation_workflow"] = "recommendation_workflow"
     mode: Literal["synthetic"] = "synthetic"
-    rule_version: Literal["recommendation-synthetic-v1"] = Field(default="recommendation-synthetic-v1", alias="ruleVersion")
+    rule_version: Literal["recommendation-synthetic-v1", "recommendation-complete-evidence-v1", "recommendation-complete-evidence-v2"] = Field(default="recommendation-synthetic-v1", alias="ruleVersion")
     revision: int = Field(ge=1, strict=True)
     created_at: str = Field(alias="createdAt", pattern=r"^\d{4}-\d{2}-\d{2}T[0-9:.]+\+00:00$")
     updated_at: str = Field(alias="updatedAt", pattern=r"^\d{4}-\d{2}-\d{2}T[0-9:.]+\+00:00$")

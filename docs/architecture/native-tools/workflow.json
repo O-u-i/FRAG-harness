@@ -2,7 +2,7 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "FRAG 1.13.0 - Native evidence and isolated safety",
+    "title": "FRAG 1.13.2 - Native evidence and isolated safety",
     "locale": "en",
     "animation": "none",
     "quality_profile": "showcase",
@@ -32,7 +32,7 @@
           "memory",
           "runs"
         ],
-        "note": "Exact FC month whitelist, atomic required evidence and human-reviewed background."
+        "note": "Exact FC month/window whitelist, atomic required evidence and human-reviewed background."
       }
     ]
   },
@@ -111,7 +111,7 @@
       "col": 2,
       "type": "backend",
       "label": "Scoped Evidence",
-      "sublabel": "FTS5 parents / FC report",
+      "sublabel": "Search / whole plan / FC",
       "width": 132
     },
     {
@@ -120,7 +120,7 @@
       "col": 3,
       "type": "security",
       "label": "Context Pack",
-      "sublabel": "Required reports stay whole",
+      "sublabel": "Required evidence stays whole",
       "width": 132
     },
     {
@@ -218,7 +218,7 @@
       "title": "Evidence boundary",
       "items": [
         "16 KiB + native token budget; required reports are atomic",
-        "Three months, currencies and coverage stay together"
+        "Plans, FC stocks, debt dates and coverage stay whole"
       ]
     },
     {

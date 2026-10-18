@@ -13,7 +13,7 @@ from frag_api.request_spec import canonical_json
 def tools(tmp_path):
     records = {"monthly-review:2025-03": {"text": "Three months, adjustments and completeness warnings", "revision": "a" * 64},
         "entry:optional": {"text": "Optional detail", "revision": "b" * 64}}
-    reader = SimpleNamespace(version="1.3.0", digest="c" * 64, source_revision="d" * 64,
+    reader = SimpleNamespace(version="1.8.0", digest="c" * 64, source_revision="d" * 64,
         ensure_current=lambda: None,
         selected_scopes=lambda: {"scopes": [{"id": "sandbox", "records": [{"id": key} for key in records]}]},
         read_selected=lambda _workspace, ids: [{"label": key, **records[key]} for key in ids])
@@ -52,3 +52,17 @@ def test_report_alone_too_large_is_rejected_not_delivered_empty(tools):
     records["monthly-review:2025-03"]["text"] = "x" * MAX_PACK_BYTES
     with pytest.raises(PolicyRejectedError):
         service.fc_read(FcInput(operation="read", workspaceId="sandbox", recordIds=["monthly-review:2025-03"]))
+
+
+def test_economic_report_is_whole_required_evidence_at_preparation_and_completion(tools):
+    service, records = tools
+    record_id = 'economic-evidence:2026-08-31:2026-09-30'
+    records[record_id] = {'text': 'Full synthetic stock, debt and dated-obligation report', 'revision': 'e' * 64}
+    pack = service.fc_read(FcInput(operation='read', workspaceId='sandbox', recordIds=['entry:optional', record_id]))
+    key = next(item['evidenceId'] for item in pack['evidence'] if item['locatorId'] == record_id)
+    assert pack['requiredEvidenceIds'] == [key]
+    with pytest.raises(PolicyRejectedError):
+        service.complete(CompleteInput(runId=pack['runId'], omittedEvidenceIds=[key]))
+    records[record_id]['text'] = 'x' * MAX_PACK_BYTES
+    with pytest.raises(PolicyRejectedError):
+        service.fc_read(FcInput(operation='read', workspaceId='sandbox', recordIds=[record_id]))

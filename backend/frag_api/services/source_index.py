@@ -145,3 +145,26 @@ class SourceIndex:
             result.append({**item, "text": parent.text[start:start + 8000], "windowed": start > 0 or len(parent.text) > 8000})
         self.ready()
         return result
+
+    def complete_plans(self, evidence):
+        """Whole explicitly confirmed UTF-8 Markdown/text documents, never excerpts."""
+        manifest = self.ready()
+        selected = {value.relative_path: value.revision for value in self.profile.confirmed_plans}
+        result, bindings = [], []
+        for relative in dict.fromkeys(item["relativePath"] for item in evidence):
+            revision = manifest["files"].get(relative)
+            if not revision or selected.get(relative) != revision or Path(relative).suffix.lower() not in {".md", ".txt"}:
+                raise PolicyRejectedError()
+            metadata, data = self.sources.read_snapshot(relative)
+            if metadata.sha256 != revision:
+                raise RagIndexStaleError()
+            identity = self.identity(relative, revision)
+            key = fingerprint({"identity": identity.model_dump(by_alias=True), "role": "confirmed_plan"})[:24]
+            result.append({"evidenceId": key, "sourceId": self.profile.id, "locatorId": "document",
+                "locatorLabel": "Complete confirmed plan", "relativePath": relative,
+                "sourceUri": self.sources._resolve(relative).as_uri(), "text": redact(data.decode("utf-8-sig")),
+                "windowed": False, "role": "confirmed_plan", "planRevision": revision})
+            bindings.append(SourceBinding(identity=identity, revision=revision, parserVersion=manifest["parserVersion"],
+                locatorIds=("document",), evidenceIds=(key,)))
+        self.ready()
+        return result, bindings

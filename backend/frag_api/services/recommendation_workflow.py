@@ -1,5 +1,6 @@
 """Opt-in synthetic gate only. No production carrier, model call or chat interception."""
 from dataclasses import dataclass, field
+import json
 from threading import RLock
 from uuid import uuid4
 
@@ -35,10 +36,12 @@ class SyntheticRecommendationWorkflow:
     The app never constructs this controller and exposes no candidate/check API.
     Context assertions and checker callbacks do NOT implement financial advice quality.
     """
-    def __init__(self, store, tools, *, enabled=False, clock=None, tariff=None):
+    def __init__(self, store, tools, *, enabled=False, clock=None, tariff=None, require_complete_evidence=False):
         self.store, self.tools = store, tools
         self._lock = RLock()
         self._enabled = enabled is True
+        # Retain the fixed Slice A acceptance policy; Slice B opts into stricter evidence.
+        self._complete_evidence = require_complete_evidence is True
         self._finished = not self._enabled
         self._failed_persistence = False
         self._budget = WorkflowBudget(**({"clock": clock} if clock else {}), tariff=tariff)
@@ -47,7 +50,8 @@ class SyntheticRecommendationWorkflow:
         if self._enabled:
             now = utc_now()
             self._receipt = WorkflowReceipt(id=uuid4().hex, revision=1, createdAt=now, updatedAt=now,
-                status="active", stage="evidence", budget=self._budget.snapshot())
+                status="active", stage="evidence", budget=self._budget.snapshot(),
+                ruleVersion="recommendation-complete-evidence-v2" if self._complete_evidence else "recommendation-synthetic-v1")
             try:
                 self.store.save(self._receipt)
             except Exception:
@@ -145,6 +149,8 @@ class SyntheticRecommendationWorkflow:
             return "PLAN_MISSING"
         if not context.constraints_revision:
             return "CONSTRAINTS_MISSING"
+        if self._complete_evidence and (context.plan_evidence is None or context.plan_evidence not in context.evidence):
+            return "PLAN_MISSING"
         if not context.financial_foundation_complete:
             return "FINANCIAL_FOUNDATION_MISSING"
         for reference in context.evidence:
@@ -156,11 +162,50 @@ class SyntheticRecommendationWorkflow:
             required = set(reference.required_evidence_ids) | set(run.pack.get("requiredEvidenceIds", []))
             if not required.issubset(items) or any(items[key].get("windowed", False) for key in required):
                 return "REQUIRED_EVIDENCE_INCOMPLETE"
-            # The pinned reader attests whole monthly reports, not its bounded journal summaries.
-            if run.tool == "frag_fc_read" and any(not items[key].get("locatorId", "").startswith("monthly-review:") for key in required):
+            # Only whole official reports, never bounded journal summaries, attest foundations.
+            if run.tool == "frag_fc_read" and any(not items[key].get("locatorId", "").startswith(("monthly-review:", "economic-evidence:")) for key in required):
                 return "REQUIRED_EVIDENCE_INCOMPLETE"
             self.tools.validate_current(run)
+        if self._complete_evidence:
+            reference = context.plan_evidence
+            run = self.tools.repository.get(reference.run_id)
+            items = {item["evidenceId"]: item for item in run.pack["evidence"]}
+            if (run.tool != "frag_read" or not run.input.get("requireCompletePlan")
+                    or set(reference.required_evidence_ids) != set(run.pack.get("requiredEvidenceIds", []))
+                    or any(items[key].get("role") != "confirmed_plan" or items[key].get("planRevision") != context.plan_revision
+                        for key in reference.required_evidence_ids)):
+                return "REQUIRED_EVIDENCE_INCOMPLETE"
+            if context.missing_economic_facts or context.economic_evidence is None or context.economic_evidence not in context.evidence:
+                return "FINANCIAL_FOUNDATION_MISSING"
+            if not self._economic_foundation(context.economic_evidence):
+                return "FINANCIAL_FOUNDATION_MISSING"
         return None
+
+    def _economic_foundation(self, reference):
+        """Inspect FC coverage, not arithmetic; context booleans cannot fill FC gaps."""
+        run = self.tools.repository.get(reference.run_id)
+        if (run.tool != 'frag_fc_read' or run.source_id != 'finance-core' or run.input.get('operation') != 'read'
+                or set(reference.required_evidence_ids) != set(run.pack.get('requiredEvidenceIds', []))):
+            return False
+        items = [item for item in run.pack['evidence'] if item['evidenceId'] in reference.required_evidence_ids
+                 and item.get('locatorId', '').startswith('economic-evidence:')]
+        if len(items) != 1:
+            return False
+        item = items[0]
+        try:
+            _, as_of, through = item['locatorId'].split(':')
+            report = json.loads(item['text'].partition('\n')[2])
+            bindings = [value for value in run.source_bindings if item['evidenceId'] in value.evidence_ids]
+            return (len(bindings) == 1 and report['revision'] == bindings[0].revision
+                    and report['schemaVersion'] == 1 and report['calculationVersion'] == 'economic-evidence-v1'
+                    and report['asOf'] == as_of and report['through'] == through
+                    and report['balanceBasis'] == 'gross-registered-accounts' and report['missingFacts'] == []
+                    and all(report['coverage'][key] is True for key in ('cashStocks','liabilityBalances','datedObligations'))
+                    and report['coverage']['externalCompleteness'] == 'unknown'
+                    and report['coverage']['currenciesCombined'] is False
+                    and report['coverage']['personalAvailabilityAssessed'] is False)
+        except (ValueError, KeyError, TypeError):
+            return False
 
     @staticmethod
     def _checks_reason(checks):

@@ -22,6 +22,16 @@ test('required monthly report survives optional omissions and fails a smaller bu
   await assert.rejects(fitPack(pack,{tokenBudget:budget-1,countTokens:async text=>text.length},{isCancellationRequested:false}),/REQUIRED_EVIDENCE/);
   assert.equal(pack.evidence.length,2);
 });
+test('whole confirmed plan, monthly/economic reports and selected Memory survive together or refuse', async () => {
+  const pack = {evidence:[{evidenceId:'optional',text:'distractor'},{evidenceId:'plan',role:'confirmed_plan',text:'Full constraints and counterevidence'},{evidenceId:'report',text:'All months and currencies'},{evidenceId:'economic',text:'Cash, liabilities, debt dates and explicit unknowns'}],requiredEvidenceIds:['plan','report','economic'],sourceBindings:[{evidenceIds:['optional','plan','report','economic']}],memoryBackground:[{text:'Exact selected background'}],budget:{maxBytes:16384,omittedEvidenceIds:[]}};
+  const original=structuredClone(pack), budget=canonical(omit(pack,['optional'])).length;
+  const fitted=await fitPack(pack,{tokenBudget:budget,countTokens:async text=>text.length},{isCancellationRequested:false});
+  const result=omit(pack,fitted.omitted);
+  assert.deepEqual(result.evidence.map(item=>item.evidenceId),['plan','report','economic']);
+  assert.deepEqual(result.memoryBackground,original.memoryBackground);
+  await assert.rejects(fitPack(pack,{tokenBudget:budget-1,countTokens:async text=>text.length},{isCancellationRequested:false}),/REQUIRED_EVIDENCE/);
+  assert.deepEqual(pack,original);
+});
 test('canonical JSON and whole-evidence token budget preserve Memory', async () => {
   const pack = {runId:'synthetic',evidence:[{evidenceId:'a',text:'long text'},{evidenceId:'b',text:'more text'}],sourceBindings:[{evidenceIds:['a','b']}],memoryBackground:[{text:'retained reviewed background'}],budget:{maxBytes:16384,omittedEvidenceIds:[]}};
   assert.equal(canonical({z:1,a:['中',{b:true,a:null}]}), '{"a":["中",{"a":null,"b":true}],"z":1}');

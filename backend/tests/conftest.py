@@ -3,7 +3,8 @@ from pathlib import Path
 import pytest
 
 def pytest_addoption(parser):
-    parser.addoption('--fc-archive', default=None, help='Optional local official FC 1.3.0 archive for synthetic compatibility checks.')
+    parser.addoption('--fc-archive', default=None, help='Optional local official FC 1.8.0 archive for synthetic compatibility checks.')
+    parser.addoption('--legacy-host', default=None, help='Optional retained FRAG 1.13.0 Host for disabled-plan rollback checks.')
 
 @pytest.fixture
 def fc_archive(request):

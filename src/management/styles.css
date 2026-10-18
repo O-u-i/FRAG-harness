@@ -33,3 +33,6 @@ pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:var(--vscode-edi
 .evidence-list details { margin-top:8px; padding:8px 0; }
 .advanced { border:1px solid var(--vscode-widget-border,#555); padding:12px; }
 .selected-run { border-left:3px solid var(--vscode-focusBorder,#409cff); padding-left:12px; }
+.help-icon { display:inline-flex; vertical-align:middle; align-items:center; justify-content:center; width:18px; height:18px; margin-left:6px; border:1px solid var(--vscode-descriptionForeground,#aaa); border-radius:50%; color:var(--vscode-descriptionForeground,#bbb); font-size:12px; font-weight:600; line-height:1; cursor:help; }
+.help-icon:focus-visible { outline:2px solid var(--vscode-focusBorder,#409cff); outline-offset:3px; }
+.help-tooltip { position:fixed; z-index:1000; padding:12px 14px; border:1px solid var(--vscode-editorHoverWidget-border,#777); border-radius:4px; background:var(--vscode-editorHoverWidget-background,#252525); color:var(--vscode-editorHoverWidget-foreground,#eee); box-shadow:0 4px 16px #0004; font-size:13px; font-weight:400; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }

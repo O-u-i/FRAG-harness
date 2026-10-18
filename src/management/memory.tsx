@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { request } from './client';
 import { formatLocalTime, isEvidenceRun, recentEvidenceRuns, type Run } from './runs';
+import { Help } from './help';
 
 export type Memory = {id:string;version:number;contentVersion:number;status:string;text:string;general:boolean;conflicts:string[];provenanceRunId:string;legacyReadOnly:boolean};
 type Perform = (action:string,body:unknown)=>Promise<void>;
@@ -23,7 +24,7 @@ export function MemoryPanel({runs,records,busy,perform}:{runs:Run[];records:Memo
     } catch (error) { if(sequence===searchSequence.current) setSearchError(error instanceof Error ? error.message : 'RUN_LOOKUP_FAILED'); }
     finally { if(sequence===searchSequence.current) setSearching(false); }
   }
-  return <section><h2>Reviewed background</h2><p>Write a candidate yourself from a completed tool Run, then edit and explicitly promote it. FRAG cannot read the native Agent's answer.</p>
+  return <section><h2>Reviewed background<Help label="Writing reviewed Memory" text="Write a candidate yourself from a completed tool Run, then edit and explicitly promote it. FRAG cannot read the native Agent's answer."/></h2>
     <form onSubmit={e=>{e.preventDefault(); void findRun();}}>
       <label>Search by exact Run ID<input maxLength={64} required value={runQuery} onChange={e=>{searchSequence.current++; setSearching(false); setSearchError(''); setSelected(undefined); setRunQuery(e.target.value);}}/></label>
       <button disabled={busy || searching || !runQuery.trim()}>Find Run</button>
@@ -31,16 +32,15 @@ export function MemoryPanel({runs,records,busy,perform}:{runs:Run[];records:Memo
     {searching && <p role="status">Finding Run…</p>}
     {searchError && <p role="alert" className="error">{searchError}</p>}
     <form onSubmit={e=>{e.preventDefault(); if(selected) void perform('memory-candidate',{runId:selected.id,text,general:false});}}>
-      <label>Completed evidence Run · latest 4<select required={!selected} value={recent.some(run=>run.id===selected?.id)?selected!.id:''} onChange={e=>{searchSequence.current++; setSearching(false); setSearchError(''); setRunQuery(''); setSelected(recent.find(run=>run.id===e.target.value));}}>
+      <label>Completed evidence Run · latest 4<Help label="Finding older Runs" text="Only the latest four completed Runs with evidence appear here. Search the full Run ID for older records in this project's state."/><select required={!selected} value={recent.some(run=>run.id===selected?.id)?selected!.id:''} onChange={e=>{searchSequence.current++; setSearching(false); setSearchError(''); setRunQuery(''); setSelected(recent.find(run=>run.id===e.target.value));}}>
         <option value="">Choose a recent Run, or search above</option>{recent.map(run=><option key={run.id} value={run.id}>{formatLocalTime(run.createdAt)} · {run.tool} · {run.id}</option>)}
       </select></label>
-      <p>Only the latest four completed Runs with evidence appear here. Search the full Run ID for older records in this project's state.</p>
       {selected && <p className="selected-run" role="status">Selected Run: <code>{selected.id}</code><br/>{selected.tool} · Source: {selected.sourceId ?? '—'} · Query: {selected.pack?.query ?? '—'}</p>}
       <label>Candidate text<textarea required maxLength={4000} value={text} onChange={e=>setText(e.target.value)}/></label><button disabled={busy || searching || !selected || !text.trim()}>Create scoped candidate</button>
     </form>
     <label>Find reviewed background for the selected Run<input maxLength={500} value={memoryQuery} onChange={e=>setMemoryQuery(e.target.value)}/></label>
     <button disabled={busy || searching || !selected || !memoryQuery.trim()} onClick={()=>selected && perform('memory-recommend',{runId:selected.id,query:memoryQuery})}>Find up to 3 applicable records</button>
-    <p>Suggestions never select or promote Memory. Content version changes only when text or scope changes; audit revision also records review/status changes. Settings pins the exact audit revision.</p>
+    <p>Suggestions never select or promote Memory.<Help label="Memory versions and revisions" text="Suggestions never select or promote Memory. Content version changes only when text or scope changes; audit revision also records review/status changes. Settings pins the exact audit revision."/></p>
     {records.map(record=><MemoryEditor key={record.id+':'+record.version} record={record} busy={busy} perform={perform}/>)}
   </section>;
 }
@@ -58,7 +58,7 @@ export function MemoryEditor({record:m,busy,perform}:{record:Memory;busy:boolean
       <label className="check"><input type="checkbox" checked={reviewed} onChange={e=>setReviewed(e.target.checked)}/>I reviewed content, provenance, scope and conflicts.</label>
       <div className="row"><button disabled={busy || m.status!=='candidate' || !!m.conflicts.length || !reviewed || !note.trim() || text.trim()!==m.text || general!==m.general} onClick={()=>perform('memory-promote',{memoryId:m.id,version:m.version,reviewed:true,note})}>Promote</button>
         <button disabled={busy || m.status==='retired'} onClick={()=>perform('memory-retire',{memoryId:m.id,version:m.version})}>Retire</button></div>
-      <p>Save changed text or scope before reviewing and promoting that candidate.</p>
+      <Help label="Reviewing a changed candidate" text="Save changed text or scope before reviewing and promoting that candidate."/>
       <label>Conflicting Memory ID<input value={other} onChange={e=>setOther(e.target.value)}/></label>
       <button disabled={busy || !other} onClick={()=>perform('memory-conflict',{memoryIds:[m.id,other]})}>Mark conflict</button>
       <label>Other reviewed audit revision<input type="number" min={1} value={otherVersion} onChange={e=>setOtherVersion(Number(e.target.value))}/></label>

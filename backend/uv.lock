@@ -103,7 +103,7 @@ wheels = [
 
 [[package]]
 name = "frag-harness-backend"
-version = "1.13.0"
+version = "1.13.2"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },

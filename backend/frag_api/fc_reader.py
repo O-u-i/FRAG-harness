@@ -15,9 +15,9 @@ from frag_api.schemas.plugin import (
     PluginEvidenceRequest, PluginEvidenceResponse, PluginScopes,
 )
 
-FC_API_VERSION = "3.3.0"
+FC_API_VERSION = "3.8.0"
 PLUGIN_ID = "finance-core"
-PROTOCOL2_MIN_HOST_VERSION = "1.12.1"
+PROTOCOL2_MIN_HOST_VERSION = "1.13.2"
 MAX_EVIDENCE_BYTES = 64 * 1024
 FILE_LIMITS = {"manifest.json": 64 * 1024, "adapter.py": 2 * 1024 * 1024, "ui.js": 5 * 1024 * 1024}
 
@@ -112,7 +112,7 @@ def _checked_package(root: Path, plugin_id: str) -> tuple[dict, Path, str, dict[
     if not current["enabled"]:
         return None
     version = current.get("version")
-    if version != "1.3.0":
+    if version != "1.8.0":
         raise PluginValidationError()
     directory = (root / plugin_id / "versions" / version).resolve()
     if _is_reparse_point(root / plugin_id / "versions" / version) or not directory.is_relative_to(root.resolve()) or not directory.is_dir():
@@ -159,7 +159,7 @@ def _checked_package(root: Path, plugin_id: str) -> tuple[dict, Path, str, dict[
         if hashlib.sha256(contents[name]).hexdigest() != expected.lower():
             raise PluginValidationError()
     digest = hashlib.sha256(b"\0".join(contents[name] for name in sorted(FILE_LIMITS))).hexdigest()
-    if digest != "8ffd7dd17b92e61df50def6cdf7fb86d8a85b291e0c21e4efae838bb9d533153":
+    if digest != "7fb0de95e326b5fb156f267d13ef00367deee91a0ab33f4b948180e93873c089":
         raise PluginValidationError()
     return manifest, directory, digest, contents
 
@@ -198,7 +198,7 @@ def load_fc(root: Path) -> FcReader | None:
 def install_fc(archive: Path, state: Path):
     """Install only the byte-pinned released FC artifact, never an arbitrary plugin."""
     import zipfile
-    expected = "cdce52d343b9673621a587ac0fe67cfd8867b46179fede46648fd67860b9acfd"
+    expected = "444ac989e16e3fdaf6d4c0be392da6506492423cfece7b29d70518311c71c9a8"
     state = state.absolute()
     if any(_is_reparse_point(path) for path in (state, *state.parents)) or not state.is_dir():
         raise PluginValidationError()
@@ -213,7 +213,7 @@ def install_fc(archive: Path, state: Path):
             raise PluginValidationError()
         contents = {name: source.read(name) for name in FILE_LIMITS}
     root = state / "plugins"
-    directory = root / PLUGIN_ID / "versions" / "1.3.0"
+    directory = root / PLUGIN_ID / "versions" / "1.8.0"
     current = root / PLUGIN_ID / "current.json"
     if any(_is_reparse_point(path) for path in (directory, *directory.parents, current)):
         raise PluginValidationError()
@@ -225,13 +225,13 @@ def install_fc(archive: Path, state: Path):
         for name, value in contents.items():
             (directory / name).write_bytes(value)
     # Token/record configuration is separate; installation grants no read scope.
-    current.write_text(json.dumps({"enabled":True,"version":"1.3.0"}), encoding="utf8")
+    current.write_text(json.dumps({"enabled":True,"version":"1.8.0"}), encoding="utf8")
     _checked_package(root, PLUGIN_ID)
 
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Install the pinned official FC 1.3.0 reader. Stop this project's backend first.")
+    parser = argparse.ArgumentParser(description="Install the pinned official FC 1.8.0 reader. Stop this project's backend first.")
     parser.add_argument("--archive", type=Path, required=True)
     parser.add_argument("--state-dir", type=Path, required=True)
     args = parser.parse_args()

@@ -6,6 +6,23 @@ from frag_api.schemas.governance import SourceBinding
 from frag_api.schemas.memory import MemorySelection
 
 
+class ConfirmedPlan(ApiModel):
+    relative_path: str = Field(alias="relativePath", min_length=1, max_length=1000)
+    revision: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class PlanConfirmationInput(ApiModel):
+    run_id: str = Field(alias="runId", min_length=1, max_length=64)
+    evidence_id: str = Field(alias="evidenceId", pattern=r"^[0-9a-f]{24}$")
+    confirmed: bool = Field(strict=True)
+
+    @model_validator(mode="after")
+    def explicit_confirmation(self):
+        if self.confirmed is not True:
+            raise ValueError("Plan confirmation requires the JSON boolean true.")
+        return self
+
+
 class SourceProfile(ApiModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,62}$")
     kind: Literal["local", "fc"] = "local"
@@ -15,6 +32,7 @@ class SourceProfile(ApiModel):
     approved: Literal[True]
     revision: int = Field(default=0, ge=0, strict=True)
     selected_memory: list[MemorySelection] = Field(default_factory=list, alias="selectedMemory", max_length=3)
+    confirmed_plans: list[ConfirmedPlan] = Field(default_factory=list, alias="confirmedPlans", max_length=10)
 
     @field_validator("approved", mode="before")
     @classmethod
@@ -27,10 +45,12 @@ class SourceProfile(ApiModel):
     def source_kind(self):
         if (self.kind == "local") != bool(self.root):
             raise ValueError("Local sources require a root; FC sources do not accept filesystem roots.")
-        if self.kind == "fc" and (self.id != "finance-core" or self.excluded_paths):
+        if self.kind == "fc" and (self.id != "finance-core" or self.excluded_paths or self.confirmed_plans):
             raise ValueError("Only the named Finance Core source is supported.")
         if len({m.memory_id for m in self.selected_memory}) != len(self.selected_memory):
             raise ValueError("Memory selections must be distinct.")
+        if len({p.relative_path for p in self.confirmed_plans}) != len(self.confirmed_plans):
+            raise ValueError("Confirmed plans must be distinct.")
         return self
 
 
@@ -43,6 +63,7 @@ class SearchInput(ApiModel):
 class ReadInput(ApiModel):
     search_run_id: str = Field(alias="searchRunId", min_length=1, max_length=64)
     evidence_ids: list[str] = Field(alias="evidenceIds", min_length=1, max_length=10)
+    require_complete_plan: bool = Field(default=False, alias="requireCompletePlan", strict=True)
 
     @model_validator(mode="after")
     def distinct(self):

@@ -13,12 +13,12 @@ from frag_api.request_spec import strict_json
 from frag_api.repositories.tool_store import ToolStore
 from frag_api.repositories.workflow_store import WorkflowStore
 from frag_api.schemas import memory as m
-from frag_api.schemas.native import SourceProfile, SearchInput, ReadInput, FcInput, CompleteInput, ToolRun, RunLookupInput
+from frag_api.schemas.native import SourceProfile, SearchInput, ReadInput, FcInput, CompleteInput, ToolRun, RunLookupInput, PlanConfirmationInput
 from frag_api.services.context_source_service import ContextSourceError
 from frag_api.services.evidence_tools import EvidenceTools
 from frag_api.services.runtime_policy import redact_value
 
-VERSION = "1.13.0"
+VERSION = "1.13.2"
 ERROR_CODES = {
     errors.PolicyRejectedError: (403, "POLICY_REJECTED"),
     errors.RuntimeConflictError: (409, "REVISION_CONFLICT"),
@@ -110,6 +110,8 @@ def create_app(state: Path, secret: str):
                 "recommendations": {"available": False, "reasonCode": "CARRIER_UNAVAILABLE"}}
         if action == "run-get":
             return store.get(RunLookupInput.model_validate(body).run_id)
+        if action == "plan-confirm":
+            return tools.confirm_plan(PlanConfirmationInput.model_validate(body))
         if action == "source-save":
             profile = SourceProfile.model_validate(body)
             if profile.kind == "local":

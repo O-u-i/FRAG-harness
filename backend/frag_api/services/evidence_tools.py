@@ -5,7 +5,7 @@ from uuid import uuid4
 import os
 from frag_api.errors import PolicyRejectedError, RuntimeConflictError
 from frag_api.request_spec import canonical_json, fingerprint
-from frag_api.schemas.native import ToolRun
+from frag_api.schemas.native import ToolRun, ConfirmedPlan
 from frag_api.schemas.governance import SourceBinding, SourceIdentity
 from frag_api.services.memory_service import MemoryService
 from frag_api.services.source_index import SourceIndex
@@ -63,10 +63,29 @@ class EvidenceTools:
         available = {item["evidenceId"]: item for item in search.pack["evidence"]}
         if not set(request.evidence_ids).issubset(available):
             raise PolicyRejectedError()
-        evidence = index.expand([available[key] for key in request.evidence_ids])
-        bindings = [item for item in search.source_bindings if set(item.evidence_ids) & set(request.evidence_ids)]
+        selected = [available[key] for key in request.evidence_ids]
+        if request.require_complete_plan:
+            evidence, bindings = index.complete_plans(selected)
+        else:
+            evidence = index.expand(selected)
+            bindings = [item for item in search.source_bindings if set(item.evidence_ids) & set(request.evidence_ids)]
         scope = index.scope_bindings(index.ready())
-        return self.prepare("frag_read", request, index.profile, evidence, bindings, scope, query=search.pack["query"])
+        return self.prepare("frag_read", request, index.profile, evidence, bindings, scope, query=search.pack["query"],
+            required=[item["evidenceId"] for item in evidence] if request.require_complete_plan else None)
+
+    def confirm_plan(self, request):
+        """Management-only human confirmation; no tool can change this authorization."""
+        run = self.repository.get(request.run_id)
+        if run.tool != "frag_search" or run.status != "completed" or not run.pack:
+            raise PolicyRejectedError()
+        profile, _, _ = self.validate_current(run)
+        item = next((value for value in run.pack["evidence"] if value["evidenceId"] == request.evidence_id), None)
+        if item is None or Path(item["relativePath"]).suffix.lower() not in {".md", ".txt"}:
+            raise PolicyRejectedError()
+        revision = next(binding.revision for binding in run.source_bindings if request.evidence_id in binding.evidence_ids)
+        selection = ConfirmedPlan(relativePath=item["relativePath"], revision=revision)
+        plans = [value for value in profile.confirmed_plans if value.relative_path != selection.relative_path] + [selection]
+        return self.repository.save_profile(type(profile).model_validate({**profile.model_dump(by_alias=True), "confirmedPlans": plans}))
 
     def fc_read(self, request):
         profile = self.profile("finance-core")
@@ -87,7 +106,7 @@ class EvidenceTools:
             bindings.append(SourceBinding(identity=SourceIdentity(kind="fc_record", namespace="native-fc-v1/" + self.fc.source_revision,
                 resourceId=record_id, workspaceId=request.workspace_id), revision=record["revision"],
                 parserVersion=f"fc/{self.fc.version}/{self.fc.digest}", locatorIds=(record_id,), evidenceIds=(key,)))
-            if record_id.startswith("monthly-review:"):
+            if record_id.startswith(("monthly-review:", "economic-evidence:")):
                 required.append(key)
         return self.prepare("frag_fc_read", request, profile, evidence, bindings, bindings, required=required)
 
@@ -127,6 +146,10 @@ class EvidenceTools:
             current = {(binding.identity, binding.revision) for binding in scope}
             if any((binding.identity, binding.revision) not in current for binding in run.source_bindings):
                 raise RuntimeConflictError()
+            if run.input.get("requireCompletePlan"):
+                confirmed = {(value.relative_path, value.revision) for value in profile.confirmed_plans}
+                if any((item["relativePath"], item.get("planRevision")) not in confirmed for item in run.pack["evidence"]):
+                    raise RuntimeConflictError()
         else:
             if self.fc is None:
                 raise PolicyRejectedError()

@@ -50,3 +50,14 @@ test('the finalized redacted query remains visible when the parent is outside th
   expect(html).toContain('Query: redacted');
   expect(html).not.toContain('planning');
 });
+
+test('plan confirmation is a human action on a completed local Search document, never inferred from an excerpt',()=>{
+  const run:Run = {...search,pack:{evidence:[{evidenceId:'plan',locatorId:'s',relativePath:'plan.md',text:'A search excerpt'}]}};
+  const html = renderToStaticMarkup(<RunDetails run={run} onConfirmPlan={()=>{}}/>);
+  expect(html).toContain('Confirm entire document as a plan');
+  expect(html).toContain('reviewing the complete file');
+  for (const value of [{...run,status:'prepared'}, {...run,tool:'frag_read'}, {...run,pack:{evidence:[{evidenceId:'not-plan',locatorId:'s',text:'FC report'}]}}]) {
+    expect(renderToStaticMarkup(<RunDetails run={value} onConfirmPlan={()=>{}}/>)).not.toContain('Confirm entire document as a plan');
+  }
+  expect(renderToStaticMarkup(<RunDetails run={run}/>)).not.toContain('Confirm entire document as a plan');
+});
