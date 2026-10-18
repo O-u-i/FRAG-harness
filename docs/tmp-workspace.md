@@ -2,13 +2,15 @@
 
 `.tmp/` holds local development outputs, not production state. Check it before creating temporary files and at handoff. Every task uses one directory; all its fixtures, logs, profiles and build experiments stay inside it.
 
+Versioned delivery packages and their checksum receipt live in the repository's `packages/v<version>/`, not disposable `.tmp/`. Keep private state and acceptance evidence out of that delivery folder.
+
 ## Locations and names
 
 | Location | Permitted writes | Naming |
 | --- | --- | --- |
 | `.tmp/runs/` | Synthetic tests/evaluations, owned browser review profiles, build experiments and temporary helpers | `YYYYMMDD-HHmm+0800-purpose-NN`, Asia/Shanghai time to the minute; increment NN on a collision |
 | `.tmp/evidence/` | Verified archives, screenshots and redacted acceptance receipts retained after a task | The same timestamped task format; retain original paths/hashes inside archives |
-| `.tmp/packages/` | Current matching Host ZIP, VSIX and package receipt | Versioned package filenames; receipt records artifact time |
+| `.tmp/packages/` | Ignored package staging and retained legacy artifacts; not the default delivery output | Versioned package filenames; receipt records artifact time |
 | `.tmp/agents-dist/` | The standard Review build used by packaging | Fixed tooling path; regenerated build, not retained evidence |
 | `.tmp/uv-cache/`, `.tmp/npm-cache/` | Dependency caches | Fixed tooling paths; clean only when their owners are stopped and the cache is verified disposable |
 | `.tmp/plugin-uploads/` | Active backend plugin staging | Fixed service path; never delete an in-flight upload |

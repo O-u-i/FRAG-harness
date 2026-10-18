@@ -138,3 +138,11 @@ local-sources/**
 
 # Original versioned KB plugin release artifact (three files, no private data).
 !docs/architecture/native-tools/*.svg
+
+# Only the matching delivery pair and checksum receipt belong in Git.
+/packages/*
+!/packages/v1.13.2/
+/packages/v1.13.2/*
+!/packages/v1.13.2/frag-host-1.13.2.zip
+!/packages/v1.13.2/frag-bridge-1.13.2.vsix
+!/packages/v1.13.2/receipt-1.13.2.json

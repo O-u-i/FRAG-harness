@@ -7,7 +7,8 @@ import re
 import zipfile
 ROOT=Path(__file__).resolve().parent.parent
 VERSION=json.loads((ROOT/'package.json').read_text())['version']
-OUT=ROOT/'.tmp/packages'
+DELIVERY=ROOT/'packages'/f'v{VERSION}'
+OUT=DELIVERY
 VIEW=ROOT/'.tmp/agents-dist'
 BACKEND=['__init__.py','__main__.py','host.py','main.py','fc_reader.py','errors.py','request_spec.py','schemas/__init__.py','schemas/context_source.py','schemas/governance.py','schemas/memory.py','schemas/plugin.py','schemas/native.py','services/__init__.py','services/context_source_service.py','services/rag_markdown.py','services/memory_service.py','services/runtime_policy.py','services/source_index.py','services/evidence_tools.py','repositories/__init__.py','repositories/rag_index_repository.py','repositories/tool_store.py']
 BACKEND += ['schemas/workflow.py', 'repositories/workflow_store.py',
@@ -57,5 +58,5 @@ def build():
 if __name__=='__main__':
     import argparse
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output-dir',type=Path,default=OUT);OUT=parser.parse_args().output_dir.resolve()
-    if not OUT.is_relative_to((ROOT/'.tmp').resolve()):raise ValueError('Packages must stay under ignored .tmp.')
+    if OUT!=DELIVERY and not OUT.is_relative_to((ROOT/'.tmp').resolve()):raise ValueError('Packages must use the current versioned delivery directory or ignored .tmp.')
     build()
