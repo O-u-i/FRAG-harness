@@ -3,6 +3,7 @@
   "displayName": "FRAG Evidence Tools",
   "description": "Scoped read-only evidence and reviewed Memory for the native VS Code Local Agent.",
   "version": "1.13.4",
+  "license": "MIT",
   "publisher": "frag-local",
   "private": true,
   "engines": {

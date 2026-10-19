@@ -16,7 +16,7 @@ The Host bundles the exact official reader; first start prepares it without gran
 
 ## Upgrade from 1.11.x or later native-tool versions
 
-Use the [upgrade checklist](../../README.md#upgrade-an-existing-installation): stop the owned backend, preserve private state, install the exact matching Host/VSIX, review any explicit `frag.hostInstallation`, and reload the same instance/profile. A native-tool upgrade does not require a new model provider or API key. Existing approved sources stay subject to current revision/index/Memory checks; do not blindly erase and recreate them. Verify ordinary chat before testing evidence tools.
+Use the [upgrade checklist](../../README.md#update): stop the owned backend, preserve private state, install the exact matching Host/VSIX, review any explicit `frag.hostInstallation`, and reload the same instance/profile. A native-tool upgrade does not require a new model provider or API key. Existing approved sources stay subject to current revision/index/Memory checks; do not blindly erase and recreate them. Verify ordinary chat before testing evidence tools.
 
 ## Upgrade from 1.10.x
 
@@ -30,7 +30,7 @@ Back up unique private state before upgrading. **FRAG: Open Private State Folder
 
 ## Daily use and troubleshooting
 
-Use [Daily startup and shutdown](../../README.md#daily-startup-and-shutdown); there is no daily installation script. Ask the native Agent to use evidence when useful; tool choice is not a Send hook. Refresh changed sources manually. Inspect exact finalized packs in Runs. Write/edit/review/promote Memory yourself, then pin its active version in Settings; edits invalidate old pins.
+Use [Daily use and safety](../../README.md#daily-use-and-safety); there is no daily installation script. Ask the native Agent to use evidence when useful; tool choice is not a Send hook. Refresh changed sources manually. Inspect exact finalized packs in Runs. Write/edit/review/promote Memory yourself, then pin its active version in Settings; edits invalidate old pins.
 
 **FRAG: Stop Evidence Backend** stops this window's owned process only. No tool calls are replayed. Dashboard/writes use **FRAG: Open Finance Core UI**; set `frag.financeCoreUI` to the standalone credential-free loopback URL.
 

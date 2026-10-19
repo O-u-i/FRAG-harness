@@ -5,6 +5,7 @@ import hashlib
 import io
 import os
 import re
+import stat
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -70,6 +71,8 @@ class ContextSourceService:
         path = self._resolve(relative_path)
         with path.open("rb") as handle:
             before = os.fstat(handle.fileno())
+            if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+                raise ContextSourceError("Source must be a regular file with a single link.")
             metadata = self._metadata(path, stat=before)
             if metadata.status != "ready":
                 raise ContextSourceError("File is unavailable for parsing.")
@@ -185,34 +188,44 @@ class ContextSourceService:
 
     def _parse_csv(self, data: bytes):
         with io.StringIO(data.decode("utf-8-sig"), newline="") as handle:
-            rows = list(csv.reader(handle))
-        return self._row_sections(rows, "CSV"), []
+            return self._row_sections(csv.reader(handle), "CSV"), []
 
     def _parse_xlsx(self, data: bytes):
         self._check_office_archive(data)
-        workbook = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        workbook = load_workbook(io.BytesIO(data), read_only=True, data_only=True, keep_links=False)
         sections = []
         try:
             if len(workbook.worksheets) > 10:
                 raise ContextSourceError("Workbook exceeds the 10-sheet extraction limit.")
             for sheet in workbook.worksheets:
-                rows = [["" if value is None else str(value) for value in row] for row in sheet.iter_rows(values_only=True)]
-                sections.extend(self._row_sections(rows, sheet.title, prefix=f"sheet-{len(sections) + 1}"))
+                if (sheet.max_row or 0) > 2_000 or (sheet.max_column or 0) > 50:
+                    raise ContextSourceError("Worksheet dimensions exceed the bounded extraction limits.")
+                sections.extend(self._row_sections(sheet.iter_rows(values_only=True), sheet.title, prefix=f"sheet-{len(sections) + 1}"))
         finally:
             workbook.close()
         return sections, []
 
     @staticmethod
-    def _row_sections(rows: list[list[str]], label: str, prefix: str = "rows") -> list[ExtractedSection]:
-        if len(rows) > 2_000:
-            raise ContextSourceError(f"{label} exceeds the 2,000-row extraction limit.")
-        if any(len(row) > 50 for row in rows):
-            raise ContextSourceError(f"{label} exceeds the 50-column extraction limit.")
-        if any(len(str(cell)) > 500 for row in rows for cell in row):
-            raise ContextSourceError(f"{label} contains a cell longer than 500 characters.")
+    def _row_sections(rows, label: str, prefix: str = "rows") -> list[ExtractedSection]:
+        bounded = []
+        total_chars = 0
+        for index, row in enumerate(rows):
+            if index >= 2_000:
+                raise ContextSourceError(f"{label} exceeds the 2,000-row extraction limit.")
+            if len(row) > 50:
+                raise ContextSourceError(f"{label} exceeds the 50-column extraction limit.")
+            cells = ["" if value is None else str(value) for value in row]
+            if any(len(cell) > 500 for cell in cells):
+                raise ContextSourceError(f"{label} contains a cell longer than 500 characters.")
+            total_chars += sum(map(len, cells)) + max(0, len(cells) - 1) * 3
+            if index % CHUNK_ROWS:
+                total_chars += 1
+            if total_chars > MAX_EXTRACTED_CHARS:
+                raise ContextSourceError("Extracted text exceeds the extraction limit.")
+            bounded.append(cells)
         sections = []
-        for start in range(0, len(rows), CHUNK_ROWS):
-            batch = rows[start:start + CHUNK_ROWS]
+        for start in range(0, len(bounded), CHUNK_ROWS):
+            batch = bounded[start:start + CHUNK_ROWS]
             text = "\n".join(" | ".join(str(cell) for cell in row) for row in batch)
             sections.append(_section(f"{prefix}-{start + 1}-{start + len(batch)}", "rows", f"{label} rows {start + 1}-{start + len(batch)}", text))
         return sections

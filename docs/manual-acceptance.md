@@ -4,7 +4,7 @@ Local checks cover synthetic multi-file indexing, stale-source/config rejection,
 
 A real isolated VS Code 1.141.0 main-window Local Agent consumed `frag_search`, then `frag_read`, then produced a final answer through an offline provider: three model requests, two finalized tool Runs, no paid model/private source. Optional official FC compatibility uses mocked synthetic HTTP, not live records.
 
-Additional scoped live verification on 2026-10-09 used the existing MirrorCoding GPT-6.1 Sol Responses endpoint and explicitly authorized management notes. After enabling the native model's `zeroDataRetentionEnabled` setting, ordinary chat completed three consecutive turns; one Local Agent conversation then completed two evidence questions, each with Search, Read and a final response. Native logs recorded nine successful model requests and FRAG recorded four completed tool Runs. No key was exported, no KB file was modified, and no FRAG model bridge or runtime loop was introduced. See [native continuation troubleshooting](../integrations/vscode/README.md#responses-endpoints-without-reliable-server-side-continuation).
+Scoped live verification also exercised a native Responses-compatible model with explicit source authorization. Ordinary chat and Search → Read → final-response continuation worked in that tested configuration; credentials stayed in native settings, source files were unchanged, and FRAG did not own a model bridge or runtime loop. Private provider/source details and execution receipts stay outside Git. See [native continuation troubleshooting](../integrations/vscode/README.md#responses-endpoints-without-reliable-server-side-continuation).
 
 Human/live acceptance remains separate:
 

@@ -127,6 +127,9 @@ exports/
 real-data/
 attachments/
 
+# Reviewed synthetic Management screenshot only.
+!/docs/images/management.png
+
 # Local context sources: publish only the instructions, never local folder names or files.
 local-sources/**
 !local-sources/

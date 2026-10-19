@@ -1,168 +1,150 @@
 # FRAG-harness 1.13.4
 
-Read-only evidence tools inside the **main VS Code window**. VS Code owns chat and models; FRAG supplies authorized evidence, Runs and reviewed Memory.
+A **local evidence harness for the native VS Code Agent**: read-only tools for
+authorized sources, bounded evidence packs, tool Runs and human-reviewed Memory.
+VS Code owns chat and models; FRAG is not a separate chat app or agent runtime.
 
-[First install](#first-install) · [Update](#upgrade-an-existing-installation) · [Daily use](#daily-startup-and-shutdown) · [Troubleshooting](#troubleshooting)
+[![Original code: MIT](https://img.shields.io/badge/original_code-MIT-blue.svg)](LICENSE)
+[![GitHub repository](https://img.shields.io/badge/GitHub-FRAG--harness-181717?logo=github)](https://github.com/O-u-i/FRAG-harness)
 
-## Start here
+[Issues](https://github.com/O-u-i/FRAG-harness/issues) · [Pull requests](https://github.com/O-u-i/FRAG-harness/pulls)
 
-- **Required:** Windows, VS Code **1.140+**, PowerShell **7** (`pwsh`), `uv`, Python **3.12**, and a model that supports tools.
-- Use your usual VS Code **instance/profile** and **one trusted local folder**. No dedicated Agents window, remote folder or multi-root workspace.
+![FRAG management Webview with synthetic evidence](docs/images/management.png)
 
-**Install once. Update when the version changes. Daily use needs neither step.**
+*Management Webview preview with synthetic data. Runs inside the VS Code extension;
+this capture does not depict a standalone application or live personal sources.*
+
+## Features
+
+- Search and read explicitly authorized local sources with revision-bound evidence.
+- Inspect bounded evidence packs in Runs and manually review/pin Memory.
+- Optionally read selected Finance Core reports without financial writes or direct database access.
+
+## Stack
+
+| Layer | Technology |
+| --- | --- |
+| Desktop integration | VS Code Language Model Tools, Node.js extension |
+| Management Webview | React 19, TypeScript, Vite |
+| Local backend | Python 3.12, FastAPI, SQLite FTS5 |
+| Optional finance | Official Finance Core reader 1.10.0 / FC API 3.10.0, read-only |
+
+**Requirements:** Windows, VS Code 1.140+, PowerShell 7 (`pwsh`), `uv`, Python 3.12 and a tool-capable native model. Use one trusted local folder in your usual VS Code instance/profile.
 
 ## First install
 
-### 1. Get the two matching files
+**Choose the package source:** [build the current source](#development) for the
+current hardening and license-packaging changes. The checked-in 1.13.4
+[Host ZIP](packages/v1.13.4/frag-host-1.13.4.zip),
+[VSIX](packages/v1.13.4/frag-bridge-1.13.4.vsix) and
+[checksum receipt](packages/v1.13.4/receipt-1.13.4.json) are an older snapshot
+with the same version label; they do not include those source changes.
 
-Local checkouts and GitHub use the same folder: [`packages/v1.13.4/`](packages/v1.13.4/).
-
-| File | Download / local filename |
-| --- | --- |
-| Host | [frag-host-1.13.4.zip](packages/v1.13.4/frag-host-1.13.4.zip) |
-| VS Code extension | [frag-bridge-1.13.4.vsix](packages/v1.13.4/frag-bridge-1.13.4.vsix) |
-| SHA-256 checksums | [receipt-1.13.4.json](packages/v1.13.4/receipt-1.13.4.json) |
-
-**On GitHub:** open the Host and VSIX links and download the files. **Locally:** copy them from the folder above, relative to the repository root (contains this `README.md` and `package.json`). Missing files? [Build packages](#development-and-verification).
-
-Put both files in `%USERPROFILE%\Downloads`. Paste that path into File Explorer's address bar and press `Enter` to open the exact folder used below.
-
-### 2. Install the Host in PowerShell 7
-
-Open **PowerShell 7** from the Windows Start menu. Run from **any directory**:
+1. Obtain the Host ZIP, VSIX and receipt from the same build. Compare both files' SHA-256 hashes with that receipt, then put the ZIP and VSIX in Downloads.
+2. In **PowerShell 7**, extract the Host and run its installer:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-$Zip = Join-Path $env:USERPROFILE 'Downloads\frag-host-1.13.4.zip'
-$Bundle = Join-Path $env:USERPROFILE 'Downloads\frag-host-1.13.4'
-if (!(Test-Path -LiteralPath $Zip -PathType Leaf)) { throw 'Download the Host ZIP to the exact Downloads folder above first.' }
+$Zip = Join-Path $env:USERPROFILE 'Downloads/frag-host-1.13.4.zip'
+$Bundle = Join-Path $env:USERPROFILE 'Downloads/frag-host-1.13.4'
 Expand-Archive -LiteralPath $Zip -DestinationPath $Bundle
-Set-Location $Bundle
-pwsh -NoProfile -File .\install-host.ps1
+pwsh -NoProfile -File (Join-Path $Bundle 'install-host.ps1')
 ```
 
-`$env:USERPROFILE` and `$env:LOCALAPPDATA` resolve automatically; do not replace them.
+The installer creates `%LOCALAPPDATA%/FRAG/host/1.13.4` and initializes locked Python dependencies. It refuses existing targets: retain failed installations for inspection and choose a new extraction folder if needed. Use the extracted bundle's installer, not the source checkout's copy.
 
-Use the **extracted bundle's** installer, not the source file `integrations\vscode\install-host.ps1`. It initializes locked dependencies through `uv`; no npm step is needed for installation.
+3. In the **main VS Code window**, open your project. Run **Extensions: Install from VSIX**, select the matching VSIX, then **Developer: Reload Window**. Leave `frag.hostInstallation` empty for the default Host; an explicit old path overrides it.
+4. Select **Local → Agent → your model**. Test ordinary chat with FRAG tools disabled first. Keep credentials in VS Code's native secure settings.
+5. Prepare the synthetic note in [Usage](#usage). Run **FRAG: Open Settings**, approve its nonsecret directory/exclusions, **Save authorization**, then **Build / Refresh index**. No personal vault is preconfigured or automatically indexed.
+6. Enable `frag_search` and `frag_read` in Chat's tools picker, then try the example below.
 
-| Location | Purpose |
-| --- | --- |
-| `%USERPROFILE%\Downloads\frag-host-1.13.4` | Extracted bundle; contains the installer |
-| `%LOCALAPPDATA%\FRAG\host\1.13.4` | Installed Host; created by the installer |
-| Your chosen project folder | Native Chat workspace; separate and unlinked from both locations above |
+Approval permits selected evidence to reach your native model; it does not sandbox the Agent's other tools. Start with synthetic notes.
 
-The installer **refuses an existing target**. Skip it only if that exact Host version was installed successfully; otherwise retain the folder for inspection. Never delete project state to retry. If the extraction folder already exists, change `$Bundle` to a new folder.
+## Usage
 
-### 3. Install the VSIX in VS Code
+Before building the test index, put a `demo.md` in the authorized folder with
+the sentence `The demo review happens on Friday.` Use source ID `kb`, then ask:
 
-1. In your usual **main VS Code window**, press `Ctrl+K`, then `Ctrl+O` to open your project folder.
-2. Press `Ctrl+Shift+P`, run `Extensions: Install from VSIX`, and select `frag-bridge-1.13.4.vsix` from the exact Downloads folder in step 1.
-3. Press `Ctrl+,`, search `@id:frag.hostInstallation`, and **leave its value empty** to use the default Host above. Clear an explicit old path; it overrides the new default. Do not enter the literal `%LOCALAPPDATA%` here.
-4. Press `Ctrl+Shift+P` and run `Developer: Reload Window` **in this same project window**.
+> Use frag_search to find demo review in source kb. Use frag_read on the returned evidence, then answer: when does the demo review happen? Cite the evidence.
 
-Need the resolved installation path? Run this in PowerShell:
+Run **FRAG: Open Runs**: a successful tool check has completed Search and Read
+Runs with that synthetic sentence in the evidence. The native model's answer is
+a separate check; Runs do not certify its correctness.
+
+## Update
+
+Keep the **same project, VS Code instance and profile**.
+
+1. Locate private state with **FRAG: Open Private State Folder** and back up outside Git.
+2. Run **FRAG: Stop Evidence Backend**. Install the new matching Host/VSIX in a new versioned directory; keep the old Host for rollback.
+3. Clear or update explicit `frag.hostInstallation`, then reload the same window. Test ordinary chat, then Search/Read.
+4. Refresh changed indexes and reconfirm stale Memory pins only as required. Never erase state or recreate working model keys as an upgrade step.
+
+[Legacy migration and troubleshooting](integrations/vscode/README.md).
+
+## Repository structure
+
+```text
+backend/                 Python evidence API, index, Runs and tests
+src/management/          Settings, Runs and Memory Webview
+integrations/vscode/     Extension, Host installer and setup guide
+scripts/                 Build, packaging and safety checks
+packages/v1.13.4/        Matching Host, VSIX and checksum receipt
+docs/                    Evidence contracts and architecture
+```
+
+Local guidance, credentials, indexes, databases, private sources and test outputs are ignored, not distributable source. Do not add them with `git add -f`.
+
+## Optional Finance Core
+
+Run FC API **3.10.0** separately; financial records and calculations remain FC-owned.
+
+1. FC **Settings → Connect FRAG**: select one Vault/read ceiling, create the connection, then **Copy FRAG configuration**.
+2. VS Code **FRAG: Connect Finance Core**: paste/save in the private `fc.env` opened by Notepad. Never paste its secret into chat, Git, screenshots or a Webview.
+3. FRAG Settings **Finance Core → Check connection**: verify the Vault/permissions, select the smaller FRAG subset and **Save authorization**. No index build or separate reader installation.
+
+Only explicitly selected records are readable; new items do not expand authorization. [Connection and first factual Run](docs/finance-core-plugin-handoff.md).
+
+## Daily use and safety
+
+- Open the same project/profile; the first command/tool starts the backend. Refresh changed sources manually.
+- Inspect **Runs** and manually review/promote/pin **Memory**. Use **FRAG: Stop Evidence Backend** or close its owning window to stop.
+- The authenticated loopback backend is not a public server. Do not expose it through port forwarding, reverse proxies or tunnels.
+- No automatic vault discovery/indexing/approval. Keep private state/backups outside Git and approve only the smallest required source scope.
+- Completed Runs prove finalized tool delivery, not answer correctness. Required evidence/Memory stays whole or delivery fails. Production financial/life recommendations remain unavailable; the synthetic gate does not filter ordinary native chat.
+
+[Setup/troubleshooting](integrations/vscode/README.md) · [Plans as evidence](docs/confirmed-plan-evidence.md) · [Memory](docs/runtime-memory.md) · [Safety](docs/recommendation-safety.md) · [Acceptance](docs/manual-acceptance.md)
+
+## Development
+
+Use Node.js 22, npm and PowerShell 7 for development. Clone with Git (or
+download/extract the source and start from its repository root):
 
 ```powershell
-Join-Path $env:LOCALAPPDATA 'FRAG\host\1.13.4'
+git clone https://github.com/O-u-i/FRAG-harness.git
+Set-Location FRAG-harness
+npm.cmd ci --cache .tmp/npm-cache
+uv sync --frozen --project backend --cache-dir .tmp/uv-cache
+npm.cmd test
+npm.cmd run test:bridge
+npm.cmd run test:security
+npm.cmd run test:python
+npm.cmd run build
 ```
 
-### 4. Check the native model — in VS Code Chat
+To build a matching Host/VSIX pair, obtain the exact official reader archive
+named below; the packager verifies its pinned hash. Keep new packages in ignored
+staging rather than overwriting the checked-in snapshot:
 
-Select **Local → Agent → your actual model**. Keep a working provider/key unchanged; FRAG does not configure them.
+```powershell
+$Reader = Read-Host 'Path to the exact official finance-core-frag-plugin-v1.10.0.zip'
+uv run --offline --no-sync --project backend --cache-dir .tmp/uv-cache python -X utf8 scripts/package-agents.py --fc-archive "$Reader" --output-dir .tmp/packages/v1.13.4
+```
 
-For a new provider: `Ctrl+Shift+P` → `Chat: Manage Language Models`; enter keys only in the native secure prompt.
-
-Before authorizing private files, disable FRAG tools and test **two short messages in the same chat**. Then test tools below. A greeting alone does not prove tool support.
-
-Provider errors or token limits: [native model setup and troubleshooting](integrations/vscode/README.md#native-model-configuration-and-errors).
-
-### 5. Authorize one source — in FRAG Settings
-
-Press `Ctrl+Shift+P` → `FRAG: Open Settings`.
-
-| Field/action | What to enter or do |
-| --- | --- |
-| Source ID | Keep `kb` for the first test. |
-| Approved directory | Create a nonsecret test folder with `check.md` containing `FRAG smokecheck: blue.`. Copy the folder's **full path** from File Explorer's address bar. |
-| Excluded relative paths | Files/subfolders that must not be indexed. |
-| Approval checkbox | Review the directory, exclusions and any Memory selection. |
-| `Save authorization` | Creates the saved source; a form showing `kb` alone does not. |
-| `Build / Refresh index` | Click explicitly. Indexing is never automatic. |
-
-**Approval permits source text to be returned to your native Agent/model.** It does not restrict the Agent's other tools. No credentials/private material in the first test.
-
-### 6. Make one tool call — in native Chat
-
-1. Open **Configure Tools** in Chat. Enable `frag_search` and `frag_read`; leave `frag_fc_read` off for now.
-2. With the test file above, ask:
-
-   > Use #frag_search with sourceId "kb" and query "smokecheck", then #frag_read on a returned result. What colour does the evidence state?
-
-3. `Ctrl+Shift+P` → `FRAG: Open Runs`. Inspect the new Run, evidence and warnings; the test file states **blue**. Judge the model's answer separately.
-
-## Connect Finance Core — optional
-
-The Host already includes **official reader 1.10.0**. It prepares the reader for each project on first start; **no separate reader installation**. FC must run **API 3.10.0** independently.
-
-| Where | Action |
-| --- | --- |
-| FC → **Settings → Connect FRAG** | Choose one Vault and its maximum readable range: **All / Living / Investment / Specific accounts or data items**. Create the connection, then **Copy FRAG configuration**. |
-| VS Code → `Ctrl+Shift+P` | Run `FRAG: Connect Finance Core`. The correct private **`fc.env`** opens in **Notepad**. Paste with `Ctrl+A`, `Ctrl+V`, then `Ctrl+S`. Do not create or locate a file yourself. |
-| FRAG Settings → **Finance Core** | Click **Check connection**. Verify the Vault name/kind and FC permission ceiling. Select the smaller FRAG subset; report choices reveal date/month fields. Approve and **Save authorization**. No index build. |
-
-**The copied configuration contains a secret. Never paste it into chat, a Webview, Git or screenshots.** Checking shows identity, permissions and item names only; it does not read reports. Up to ten explicitly selected records are available to FRAG. New FC items never automatically enter FRAG's subset.
-
-For the first factual financial check, [list first, then explicitly read one selected report](docs/finance-core-plugin-handoff.md#first-real-vault-run). A partial month uses **Month to date** with an exact cutoff. A tool Run is not human acceptance or financial advice.
-
-
-## Upgrade an existing installation
-
-Keep the **same project, VS Code instance and profile** to retain private state.
-
-1. `Ctrl+Shift+P` → `FRAG: Open Private State Folder`. Back up if needed; keep it outside Git.
-2. `Ctrl+Shift+P` → `FRAG: Stop Evidence Backend` in that same window.
-3. Obtain the new **matching Host ZIP and VSIX**. Follow [Host installation](#2-install-the-host-in-powershell-7) and [VSIX installation](#3-install-the-vsix-in-vs-code). Do not overwrite or delete the old Host.
-4. Clear an explicit old `frag.hostInstallation`, then run `Developer: Reload Window` in the same project window. Do not recreate working model credentials.
-5. Check ordinary chat, then Search/Read. Refresh stale indexes and reconfirm stale Memory pins; do not rebuild unchanged sources.
-
-The matching official reader is bundled and prepared automatically; an explicitly disabled reader stays disabled. Keep FC on the required API version. Existing legacy tokens are not broadened: use **FC Settings → Connect FRAG** for the new scoped setup.
-
-Upgrading from **1.10.x**? Use the separate [legacy migration](integrations/vscode/README.md#upgrade-from-110x); do not restart the retired Remote Host.
-
-## Daily startup and shutdown
-
-| Action | Where / command |
-| --- | --- |
-| Open your project | Main VS Code window: `Ctrl+K`, then `Ctrl+O`. Keep the usual profile/model. |
-| Open FRAG | `Ctrl+Shift+P` → `FRAG: Open Settings`. The first FRAG tool can also start the backend. |
-| Refresh changed sources | FRAG Settings → `Build / Refresh index`. Unchanged sources need no daily rebuild. |
-| Inspect evidence | `Ctrl+Shift+P` → `FRAG: Open Runs`. |
-| Review Memory | `Ctrl+Shift+P` → `FRAG: Open Memory`. Review/promote manually; repin changed versions in Settings. |
-| Stop FRAG | `Ctrl+Shift+P` → `FRAG: Stop Evidence Backend`, or close its owning window. |
-
-No daily installation or key re-entry. Chat can answer without FRAG; an unchanged Runs count alone is not an error. One backend per private project state.
-
-## Troubleshooting
-
-| Symptom | Next action |
-| --- | --- |
-| `pwsh` is not recognized | Make PowerShell 7 available before continuing; do not substitute PowerShell 5.1. |
-| Host installation refuses the target | Inspect `%LOCALAPPDATA%\FRAG\host\1.13.4`. Reuse a successful exact-version install; do not blindly delete it. |
-| FRAG commands/tools are missing | Check the matching VSIX, trusted single local folder, Local Agent mode and Configure Tools. |
-| `NOT_FOUND` / `INDEX_NOT_BUILT` | Save source `kb` in FRAG Settings, then build its index. Use the saved ID if you chose another name. |
-| `INDEX_STALE_REFRESH_REQUIRED` | Review changed files, then refresh the source index manually. |
-| Native chat fails, or tool budget metadata is invalid | Diagnose the native model first; do not reinstall/reindex or bypass budget validation. |
-
-[Detailed model, budget and FC troubleshooting](integrations/vscode/README.md#daily-use-and-troubleshooting).
-
-## Boundaries and further reading
-
-- A completed Run records finalized tool output, **not** model consumption or answer correctness. Required reports/plans and selected Memory stay whole or delivery fails.
-- Production financial/life recommendations remain unavailable. The synthetic safety gate does **not** filter ordinary native chat.
-- FC owns financial calculations, storage and writes; FRAG's optional official reader is GET-only.
-- Private state belongs outside the source checkout. Locate it with `FRAG: Open Private State Folder`; never commit keys, databases, real evidence or backups.
-
-[Confirmed plans](docs/confirmed-plan-evidence.md) · [Memory](docs/runtime-memory.md) · [Safety](docs/recommendation-safety.md) · [Acceptance limits](docs/manual-acceptance.md)
+Copy the new ZIP, VSIX and receipt from `.tmp/packages/v1.13.4/` for
+[installation](#first-install). Use synthetic fixtures and follow
+[temporary-workspace rules](docs/tmp-workspace.md). Building does not install,
+publish or establish live acceptance.
 
 ## Flow
 
@@ -189,25 +171,23 @@ flowchart LR
 
 </details>
 
-## Development and verification
+## Contributing
 
-<details>
-<summary>Build packages — only if the files are missing or you are developing FRAG</summary>
+[Issues](https://github.com/O-u-i/FRAG-harness/issues) and focused
+[pull requests](https://github.com/O-u-i/FRAG-harness/pulls) are welcome. For help or a bug report, include
+the version, expected/actual behavior and a minimal synthetic reproduction—never
+credentials, personal sources or native chat logs.
 
-**Where:** File Explorer → repository root (contains `README.md` and `package.json`) → type `pwsh` in the address bar → `Enter`. Run the commands in that PowerShell 7 window. Building also requires Node.js/npm.
+Keep PRs scoped, run the relevant [development checks](#development), and update
+affected usage/compatibility documentation when behavior changes. Original-code
+contributions use MIT unless explicitly agreed otherwise; contribute only
+material you have the right to share and preserve third-party notices.
 
-```powershell
-npm ci --cache .tmp/npm-cache
-uv sync --frozen --project backend --cache-dir .tmp/uv-cache
-npm run test
-npm run test:bridge
-npm run test:python
-$Reader = Read-Host 'Full path to the official finance-core-frag-plugin-v1.10.0.zip'
-npm run package:agents -- --fc-archive "$Reader"
-```
+## License
 
-**Output:** [`packages/v1.13.4/`](packages/v1.13.4/) — matching Host ZIP, VSIX and SHA-256 receipt. Return to [First install](#first-install); building does not install anything into VS Code.
-
-Tests use synthetic sources, not real data or model keys. Offline checks, native-model continuation and human acceptance are separate. Publication and production installation remain manual.
-
-</details>
+Original code and documentation use the [MIT License](LICENSE), unless a file
+states otherwise. Third-party terms remain separate, including the
+[Archify notice](docs/architecture/ARCHIFY-LICENSE.txt) and packaged dependency
+notices. New Host builds include the [Finance Core MIT notice](integrations/finance-core-LICENSE.txt)
+alongside the unchanged byte-pinned reader. Include the applicable project
+licenses and existing notices when redistributing older packages too.

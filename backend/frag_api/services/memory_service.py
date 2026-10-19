@@ -5,8 +5,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from frag_api.errors import PolicyRejectedError, RuntimeConflictError, RuntimeNotFoundError
-from frag_api.request_spec import canonical_json, fingerprint
-from frag_api.schemas.governance import SourceBinding
+from frag_api.request_spec import canonical_json
 from frag_api.schemas.memory import MemoryRecord
 from frag_api.services.runtime_policy import redact
 

@@ -1,6 +1,7 @@
 {
   "name": "frag-harness",
   "version": "1.13.4",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +9,7 @@
     "test": "vitest run --dir src/management",
     "test:python": "pwsh -NoProfile -File scripts/test-backend.ps1",
     "test:bridge": "node --test integrations/vscode/bridge/test/*.test.cjs",
+    "test:security": "node --test scripts/dev-server-boundary.test.mjs",
     "check:version": "node scripts/check-version-sync.mjs",
     "check:boundaries": "node scripts/check-module-boundaries.mjs",
     "check:safety": "node scripts/check-repository-safety.mjs",
@@ -29,6 +31,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
-    "vitest": "^4.1.10"
+    "vitest": "4.1.11"
   }
 }

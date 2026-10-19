@@ -7,10 +7,6 @@ from pathlib import Path
 
 from frag_api.errors import RagIndexBuildError
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_RAG_INDEX_PATH = REPOSITORY_ROOT / ".local-index" / "rag.sqlite3"
-
-
 @dataclass(frozen=True)
 class IndexDocument:
     document_id: str
@@ -66,7 +62,7 @@ class SearchRow:
 
 
 class RagIndexRepository:
-    def __init__(self, path: str | Path = DEFAULT_RAG_INDEX_PATH):
+    def __init__(self, path: str | Path):
         self.path = Path(path)
 
     def snapshot(self) -> IndexSnapshot:

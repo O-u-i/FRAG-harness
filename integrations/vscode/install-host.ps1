@@ -14,7 +14,7 @@ foreach ($file in Get-ChildItem -LiteralPath $bundleRoot -File -Recurse) {
     if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Linked bundle entries are not allowed.' }
     $relative = [IO.Path]::GetRelativePath($bundleRoot, $file.FullName)
     if ($relative -eq 'install-host.ps1') { continue }
-    if (!($relative.StartsWith('backend\frag_api\') -or $relative -in @('backend\pyproject.toml', 'backend\uv.lock') -or $relative.StartsWith('resources\'))) {
+    if (!($relative.StartsWith('backend\frag_api\') -or $relative -in @('backend\pyproject.toml', 'backend\uv.lock', 'backend\LICENSE') -or $relative.StartsWith('resources\'))) {
         throw 'Unexpected bundle content.'
     }
     $destination = Join-Path $hostTarget $relative

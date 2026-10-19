@@ -72,3 +72,83 @@ def test_source_root_identity_cannot_be_reused_for_another_root(source_root, tmp
     assert a.revision == b.revision
     assert a.identity != b.identity
     assert first.repository.path != second.repository.path
+
+
+def test_table_rows_stop_consuming_at_the_existing_limit():
+    def rows():
+        for _ in range(2_001):
+            yield ["synthetic"]
+        raise AssertionError("Oversized input must not be materialized.")
+    with pytest.raises(ContextSourceError, match="2,000-row"):
+        ContextSourceService._row_sections(rows(), "Synthetic")
+
+
+@pytest.mark.parametrize("data,reason", [
+    (b"row\n" * 2_001, "2,000-row"),
+    (b",".join([b"cell"] * 51), "50-column"),
+    (b"x" * 501, "500 characters"),
+    ((b"x" * 500 + b"\n") * 401, "extraction limit"),
+], ids=["rows", "columns", "cell-length", "total-length"])
+def test_csv_limits_are_checked_during_read(source_root, data, reason):
+    with pytest.raises(ContextSourceError, match=reason):
+        ContextSourceService(source_root)._parse_csv(data)
+
+
+def test_xlsx_oversized_dimensions_are_rejected_before_iteration(source_root, monkeypatch):
+    import frag_api.services.context_source_service as parsing
+
+    class OversizedSheet:
+        max_row = 1_048_576
+        max_column = 16_384
+
+        def iter_rows(self, **_):
+            raise AssertionError("Do not allocate rows for oversized dimensions.")
+
+    class Workbook:
+        worksheets = [OversizedSheet()]
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    workbook = Workbook()
+    def load(_, **options):
+        assert options == {"read_only": True, "data_only": True, "keep_links": False}
+        return workbook
+    monkeypatch.setattr(parsing, "load_workbook", load)
+    monkeypatch.setattr(ContextSourceService, "_check_office_archive", lambda *_: None)
+    with pytest.raises(ContextSourceError, match="dimensions"):
+        ContextSourceService(source_root)._parse_xlsx(b"synthetic fixture")
+    assert workbook.closed
+
+
+def test_repository_requires_an_explicit_private_state_path():
+    from frag_api.repositories.rag_index_repository import RagIndexRepository
+    with pytest.raises(TypeError):
+        RagIndexRepository()
+
+
+def test_snapshot_rejects_hardlinks_to_unapproved_files(source_root, tmp_path):
+    outside = tmp_path / "outside.txt"
+    outside.write_text("Synthetic unapproved content.", encoding="utf-8")
+    try:
+        (source_root / "linked.txt").hardlink_to(outside)
+    except OSError:
+        pytest.skip("Hardlinks unavailable in this test environment.")
+    with pytest.raises(ContextSourceError, match="regular file"):
+        ContextSourceService(source_root).read_snapshot("linked.txt")
+
+
+def test_git_privacy_gate_rejects_new_private_state(tmp_path):
+    import subprocess
+    script = Path(__file__).resolve().parents[2] / "scripts/check-repository-safety.mjs"
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    result = subprocess.run(["node", str(script)], cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    for name in [".local-guidance/plan.md", "local-sources/private-note.md", "fc.env", "nested/AGENTS.md"]:
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("Synthetic privacy regression fixture.", encoding="utf-8")
+        result = subprocess.run(["node", str(script)], cwd=tmp_path, capture_output=True, text=True)
+        assert result.returncode != 0 and name in result.stderr
+        target.unlink()
