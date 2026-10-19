@@ -7,6 +7,8 @@ Other repo status: UPDATED
 Required compatible version: FC product/API 3.10.0; official reader 1.10.0 / protocol 2; FRAG 1.13.4
 ```
 
+FRAG 1.14.0 adds management presentation and a synthetic acceptance workspace only. It retains this released reader/API contract and exact pins; the GUI refresh does not modify FC.
+
 FC owns financial rules, calculations, persistence, authentication and its official reader source. FRAG owns explicit source/record authorization, complete bounded evidence, Runs and reviewed Memory. No financial writes, SQLite access, second chat or production recommendation runtime are added to FRAG. Core FRAG works without FC.
 
 ## Install and connect

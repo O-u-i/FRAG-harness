@@ -1,6 +1,6 @@
 [project]
 name = "frag-harness-backend"
-version = "1.13.4"
+version = "1.14.0"
 description = "Native VS Code read-only evidence tools"
 license = "MIT"
 license-files = ["LICENSE"]

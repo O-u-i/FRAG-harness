@@ -2,7 +2,7 @@
   "name": "frag-bridge",
   "displayName": "FRAG Evidence Tools",
   "description": "Scoped read-only evidence and reviewed Memory for the native VS Code Local Agent.",
-  "version": "1.13.4",
+  "version": "1.14.0",
   "license": "MIT",
   "publisher": "frag-local",
   "private": true,
@@ -34,6 +34,10 @@
         "title": "FRAG: Open Memory"
       },
       {
+        "command": "frag.acceptance",
+        "title": "FRAG: Open Acceptance Workspace"
+      },
+      {
         "command": "frag.start",
         "title": "FRAG: Start Evidence Backend"
       },
@@ -61,7 +65,7 @@
           "type": "string",
           "default": "",
           "scope": "application",
-          "description": "Matching 1.13.4 backend installation. Empty uses the standard local 1.13.4 installation."
+          "description": "Matching 1.14.0 backend installation. Empty uses the standard local 1.14.0 installation."
         },
         "frag.financeCoreUI": {
           "type": "string",
@@ -74,6 +78,12 @@
           "default": "",
           "scope": "machine",
           "description": "Private local state root, separate from source and Host directories. Empty uses VS Code extension storage. FRAG appends projects/<project-hash>. Stop the backend and reload after changing; existing state is never moved. Do not use shared or cloud-synced folders."
+        },
+        "frag.acceptanceRoot": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Private synthetic acceptance container, separate from the project, Host and private state. FRAG appends projects/<project-hash>/acceptance. Empty uses the current project's private state acceptance folder. Preparing is always explicit; changing this setting never moves or deletes files or authorizes a source. Do not use real data, shared or cloud-synced folders."
         }
       }
     },

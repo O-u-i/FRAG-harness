@@ -43,7 +43,9 @@ def build(fc_archive):
         put(archive,ROOT/'integrations/vscode/install-host.ps1','install-host.ps1')
         put(archive,fc_archive,'resources/finance-core/finance-core-frag-plugin-v1.10.0.zip')
         put(archive,ROOT/'integrations/finance-core-LICENSE.txt','resources/licenses/Finance-Core-LICENSE.txt')
+        put(archive,ROOT/'integrations/dracula-LICENSE.txt','resources/licenses/Dracula-LICENSE.txt')
         notices=['Finance Core official reader 1.10.0: MIT; original license in Finance-Core-LICENSE.txt. The byte-pinned reader archive is unchanged.']
+        notices.append('Dracula palette: MIT, Copyright (c) 2023 Dracula Theme; original license in Dracula-LICENSE.txt. Colors adapted for accessible muted text; no theme code copied. Source commit e22ebcc048b8aff586f9bc94db30ff5347070b42.')
         locked=json.loads((ROOT/'package-lock.json').read_text())['packages']
         for name in ['react','react-dom','scheduler']:
             package=ROOT/'node_modules'/name
@@ -56,7 +58,7 @@ def build(fc_archive):
     bridge=ROOT/'integrations/vscode/bridge'
     vsix=OUT/f'frag-bridge-{VERSION}.vsix'
     with zipfile.ZipFile(vsix,'w',zipfile.ZIP_DEFLATED) as archive:
-        for name in ['package.json','extension.cjs','host-launcher.cjs','tool-result.cjs','README.md']:put(archive,bridge/name,'extension/'+name)
+        for name in ['package.json','extension.cjs','host-launcher.cjs','tool-result.cjs','acceptance-workspace.cjs','README.md']:put(archive,bridge/name,'extension/'+name)
         put(archive,ROOT/'LICENSE','extension/LICENSE.txt')
         archive.writestr('[Content_Types].xml','''<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="json" ContentType="application/json"/><Default Extension="cjs" ContentType="application/javascript"/><Default Extension="md" ContentType="text/markdown"/><Default Extension="txt" ContentType="text/plain"/><Default Extension="vsixmanifest" ContentType="text/xml"/></Types>''')
         archive.writestr('extension.vsixmanifest',f'''<?xml version="1.0" encoding="UTF-8"?><PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011"><Metadata><Identity Language="en-US" Id="frag-bridge" Version="{VERSION}" Publisher="frag-local"/><DisplayName>FRAG Evidence Tools</DisplayName><Description xml:space="preserve">Read-only evidence tools for the native Local Agent.</Description><Properties><Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.140.0"/><Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="ui"/></Properties></Metadata><Installation><InstallationTarget Id="Microsoft.VisualStudio.Code"/></Installation><Dependencies/><Assets><Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true"/><Asset Type="Microsoft.VisualStudio.Services.Content.Details" Path="extension/README.md" Addressable="true"/><Asset Type="Microsoft.VisualStudio.Services.Content.License" Path="extension/LICENSE.txt" Addressable="true"/></Assets></PackageManifest>''')

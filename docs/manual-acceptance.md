@@ -1,4 +1,14 @@
-# Acceptance boundaries · 1.11.0
+# Acceptance boundaries
+
+## Current GUI · 1.14.0
+
+Open **FRAG: Open Acceptance Workspace** for explicit synthetic file preparation,
+exact folder paths and the Slice A/B checklist. Follow the [management guide](management-ui.md).
+This GUI refresh does not inherit historical acceptance: matching 1.14.0 native
+loading, OS folder/editor actions, persistence and human A/B approval must be
+observed separately. No production recommendation workflow or Slice C is enabled.
+
+## Historical native baseline · 1.11.0
 
 Local checks cover synthetic multi-file indexing, stale-source/config rejection, transactional persistence, human Memory review/version/scope enforcement, read-only legacy history and a private authenticated loopback API.
 

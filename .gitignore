@@ -161,3 +161,9 @@ local-sources/**
 !/packages/v1.13.4/frag-host-1.13.4.zip
 !/packages/v1.13.4/frag-bridge-1.13.4.vsix
 !/packages/v1.13.4/receipt-1.13.4.json
+
+!/packages/v1.14.0/
+/packages/v1.14.0/*
+!/packages/v1.14.0/frag-host-1.14.0.zip
+!/packages/v1.14.0/frag-bridge-1.14.0.vsix
+!/packages/v1.14.0/receipt-1.14.0.json

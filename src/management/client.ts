@@ -1,5 +1,7 @@
-declare function acquireVsCodeApi(): {postMessage(message:unknown):void};
+declare function acquireVsCodeApi(): {postMessage(message:unknown):void;getState():unknown;setState(state:unknown):void};
 const api = acquireVsCodeApi();
+// Persist presentation only, never source data, credentials, Runs or drafts.
+export const viewState = {read:()=>api.getState(),write:(preferences:unknown)=>api.setState({preferences})};
 let serial = 0;
 const pending = new Map<number,{resolve:(value:any)=>void;reject:(error:Error)=>void}>();
 window.addEventListener('message', ({data}) => {

@@ -4,7 +4,7 @@ const { realpathSync, existsSync, mkdirSync, readFileSync, lstatSync } = require
 const { join, resolve, isAbsolute, relative, dirname, parse, sep } = require('node:path');
 const { createHash, randomBytes } = require('node:crypto');
 const net = require('node:net');
-const VERSION = '1.13.4';
+const VERSION = '1.14.0';
 function projectIdentity(folder) { return createHash('sha256').update(realpathSync(folder).toLowerCase()).digest('hex'); }
 function stateDirectory(storage, project, installation) {
   const refuse = () => { throw new Error('FRAG_PRIVATE_STATE_ROOT_INVALID: Choose an absolute local directory, separate from the project and Host, without links.'); };

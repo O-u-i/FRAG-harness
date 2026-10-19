@@ -22,6 +22,7 @@ test('all native tools invalidate Runs after success, failure and cancellation; 
  vm.runInNewContext(readFileSync(join(__dirname,'../extension.cjs'),'utf8'),{module,process,URL,AbortController,
   require(name){if(name==='vscode')return vscode;if(name==='./host-launcher.cjs')return {launchHost:async()=>owned};
    if(name==='./tool-result.cjs')return {canonical:JSON.stringify,fitPack:async()=>{if(mode==='failure')throw Error('TOKEN_BUDGET');return {omitted:[],tokens:1};}};
+   if(name==='./acceptance-workspace.cjs')return require('../acceptance-workspace.cjs');
    if(name==='node:fs')return {readFileSync:()=>'<head></head>'};return require(name);}});
  module.exports.activate({subscriptions:[],globalStorageUri:{fsPath:'synthetic'}});
  await commands.get('frag.runs')();messages.length=0;events.length=0;

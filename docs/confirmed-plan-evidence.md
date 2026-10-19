@@ -1,6 +1,6 @@
 # Complete confirmed-plan evidence
 
-FRAG 1.13.4 retains a bounded whole-plan read to the existing Search → Read flow. It does not add a model loop, financial calculation or production recommendation carrier.
+FRAG 1.14.0 retains a bounded whole-plan read to the existing Search → Read flow. It does not add a model loop, financial calculation or production recommendation carrier.
 
 ## Human selection and exact revisions
 

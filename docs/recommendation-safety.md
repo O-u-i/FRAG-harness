@@ -1,6 +1,6 @@
 # Model-free recommendation safety foundation
 
-Version 1.13.0 introduced the synthetic safety foundation. Version 1.13.4 retains whole confirmed-plan and FC economic evidence with an opt-in complete-evidence synthetic policy, not a production financial/life recommendation workflow. The native Local Agent still owns general chat, models, research and final inference. Existing evidence tools and pure factual review remain available. There is no second chat, model client, Send interception, scheduler or financial calculation in FRAG.
+Version 1.13.0 introduced the synthetic safety foundation. Version 1.14.0 retains whole confirmed-plan and FC economic evidence with an opt-in complete-evidence synthetic policy, not a production financial/life recommendation workflow. The native Local Agent still owns general chat, models, research and final inference. Existing evidence tools and pure factual review remain available. There is no second chat, model client, Send interception, scheduler or financial calculation in FRAG.
 
 ## What exists
 

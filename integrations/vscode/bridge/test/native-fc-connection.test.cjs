@@ -15,6 +15,7 @@ test('Connect Finance Core prepares the owned private file and opens Notepad, ne
  vm.runInNewContext(readFileSync(join(__dirname,'../extension.cjs'),'utf8'),{module,process,URL,AbortController,
   require(name){if(name==='vscode')return vscode;if(name==='./host-launcher.cjs')return {launchHost:async(...args)=>{launches.push(args);return owned;}};
    if(name==='./tool-result.cjs')return require('../tool-result.cjs');
+   if(name==='./acceptance-workspace.cjs')return require('../acceptance-workspace.cjs');
    if(name==='node:fs')return {readFileSync:()=>'<head></head>'};
    if(name==='node:child_process')return {spawn(executable,args,options){opened.push({executable,args,options});const child=new EventEmitter();child.unref=()=>{};queueMicrotask(()=>child.emit('spawn'));return child;}};
    return require(name);}});

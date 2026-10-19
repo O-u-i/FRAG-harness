@@ -178,7 +178,7 @@ def test_first_host_start_prepares_bundled_pinned_reader_without_credentials_or_
                 time.sleep(.1)
             else:
                 pytest.fail('Owned synthetic Host did not become ready.')
-            assert api.get('/api/health').json()['serviceVersion'] == '1.13.4'
+            assert api.get('/api/health').json()['serviceVersion'] == '1.14.0'
             overview = api.post('/api/manage/overview', json={}).json()
             assert overview['runs'] == []
             assert overview['fcState'] == ('not_installed_or_disabled' if disabled else 'connection_required')

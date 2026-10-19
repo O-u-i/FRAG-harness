@@ -38,11 +38,13 @@ def test_mit_metadata_and_package_notices(tmp_path):
     for name in ['LICENSE', 'backend/LICENSE', 'backend/pyproject.toml',
                  'backend/uv.lock', 'integrations/vscode/README.md',
                  'integrations/finance-core-LICENSE.txt',
+                 'integrations/dracula-LICENSE.txt',
                  'integrations/vscode/install-host.ps1',
                  'integrations/vscode/bridge/package.json',
                  'integrations/vscode/bridge/extension.cjs',
                  'integrations/vscode/bridge/host-launcher.cjs',
                  'integrations/vscode/bridge/tool-result.cjs',
+                 'integrations/vscode/bridge/acceptance-workspace.cjs',
                  'integrations/vscode/bridge/README.md']:
         write(name, (ROOT / name).read_bytes())
     reader = tmp_path / 'synthetic-reader.zip'
@@ -67,7 +69,11 @@ def test_mit_metadata_and_package_notices(tmp_path):
         assert host.read('resources/licenses/FRAG-harness-LICENSE.txt') == license_text
         assert host.read('resources/licenses/Finance-Core-LICENSE.txt') == (
             ROOT / 'integrations/finance-core-LICENSE.txt').read_bytes()
+        assert host.read('resources/licenses/Dracula-LICENSE.txt') == (
+            ROOT / 'integrations/dracula-LICENSE.txt').read_bytes()
         assert 'Finance Core official reader 1.10.0: MIT' in host.read(
+            'resources/licenses/THIRD_PARTY_NOTICES.txt').decode()
+        assert 'Dracula palette: MIT' in host.read(
             'resources/licenses/THIRD_PARTY_NOTICES.txt').decode()
         assert host.read('resources/finance-core/finance-core-frag-plugin-v1.10.0.zip') == reader.read_bytes()
         for name in ['react', 'react-dom', 'scheduler']:
@@ -76,6 +82,8 @@ def test_mit_metadata_and_package_notices(tmp_path):
         assert "'backend\\LICENSE'" in host.read('install-host.ps1').decode()
     with zipfile.ZipFile(out / f'frag-bridge-{state["VERSION"]}.vsix') as vsix:
         assert vsix.read('extension/LICENSE.txt') == license_text
+        assert vsix.read('extension/acceptance-workspace.cjs') == (
+            ROOT / 'integrations/vscode/bridge/acceptance-workspace.cjs').read_bytes()
         manifest = ET.fromstring(vsix.read('extension.vsixmanifest'))
         ns = {'v': 'http://schemas.microsoft.com/developer/vsx-schema/2011'}
         asset = manifest.find(

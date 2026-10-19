@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$InstallPath = (Join-Path $env:LOCALAPPDATA 'FRAG\host\1.13.4'))
+param([string]$InstallPath = (Join-Path $env:LOCALAPPDATA 'FRAG\host\1.14.0'))
 $ErrorActionPreference = 'Stop'
 $bundleRoot = [IO.Path]::GetFullPath($PSScriptRoot)
 $hostTarget = [IO.Path]::GetFullPath($InstallPath)

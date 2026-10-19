@@ -1,4 +1,4 @@
-# FRAG-harness 1.13.4
+# FRAG-harness 1.14.0
 
 A **local evidence harness for the native VS Code Agent**: read-only tools for
 authorized sources, bounded evidence packs, tool Runs and human-reviewed Memory.
@@ -11,13 +11,14 @@ VS Code owns chat and models; FRAG is not a separate chat app or agent runtime.
 
 ![FRAG management Webview with synthetic evidence](docs/images/management.png)
 
-*Management Webview preview with synthetic data. Runs inside the VS Code extension;
-this capture does not depict a standalone application or live personal sources.*
+*Management Webview preview rendered with a synthetic bridge harness. Production
+management runs inside the VS Code extension; this is not live-source or installed-VSIX acceptance.*
 
 ## Features
 
 - Search and read explicitly authorized local sources with revision-bound evidence.
 - Inspect bounded evidence packs in Runs and manually review/pin Memory.
+- Choose Dracula dark or Living light, compact controls and an explicit synthetic A/B workspace.
 - Optionally read selected Finance Core reports without financial writes or direct database access.
 
 ## Stack
@@ -33,25 +34,24 @@ this capture does not depict a standalone application or live personal sources.*
 
 ## First install
 
-**Choose the package source:** [build the current source](#development) for the
-current hardening, license-packaging and private-state settings. The checked-in 1.13.4
-[Host ZIP](packages/v1.13.4/frag-host-1.13.4.zip),
-[VSIX](packages/v1.13.4/frag-bridge-1.13.4.vsix) and
-[checksum receipt](packages/v1.13.4/receipt-1.13.4.json) are an older snapshot
-with the same version label; they do not include those source changes.
+**Use a matching build:** [build the current source](#development), or use the
+1.14.0 [Host ZIP](packages/v1.14.0/frag-host-1.14.0.zip),
+[VSIX](packages/v1.14.0/frag-bridge-1.14.0.vsix) and
+[checksum receipt](packages/v1.14.0/receipt-1.14.0.json) from this GUI refresh.
+Packages are local deliverables, not proof of installation or human acceptance.
 
 1. Obtain the Host ZIP, VSIX and receipt from the same build. Compare both files' SHA-256 hashes with that receipt, then put the ZIP and VSIX in Downloads.
 2. In **PowerShell 7**, extract the Host and run its installer:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-$Zip = Join-Path $env:USERPROFILE 'Downloads/frag-host-1.13.4.zip'
-$Bundle = Join-Path $env:USERPROFILE 'Downloads/frag-host-1.13.4'
+$Zip = Join-Path $env:USERPROFILE 'Downloads/frag-host-1.14.0.zip'
+$Bundle = Join-Path $env:USERPROFILE 'Downloads/frag-host-1.14.0'
 Expand-Archive -LiteralPath $Zip -DestinationPath $Bundle
 pwsh -NoProfile -File (Join-Path $Bundle 'install-host.ps1')
 ```
 
-The installer creates `%LOCALAPPDATA%/FRAG/host/1.13.4` and initializes locked Python dependencies. It refuses existing targets: retain failed installations for inspection and choose a new extraction folder if needed. Use the extracted bundle's installer, not the source checkout's copy.
+The installer creates `%LOCALAPPDATA%/FRAG/host/1.14.0` and initializes locked Python dependencies. It refuses existing targets: retain failed installations for inspection and choose a new extraction folder if needed. Use the extracted bundle's installer, not the source checkout's copy.
 
 3. In the **main VS Code window**, open your project. Run **Extensions: Install from VSIX**, select the matching VSIX, then **Developer: Reload Window**. Leave `frag.hostInstallation` empty for the default Host; an explicit old path overrides it.
 4. Select **Local → Agent → your model**. Test ordinary chat with FRAG tools disabled first. Keep credentials in VS Code's native secure settings.
@@ -70,6 +70,18 @@ the sentence `The demo review happens on Friday.` Use source ID `kb`, then ask:
 Run **FRAG: Open Runs**: a successful tool check has completed Search and Read
 Runs with that synthetic sentence in the evidence. The native model's answer is
 a separate check; Runs do not certify its correctness.
+
+## Management and acceptance
+
+Open **FRAG: Open Settings** for Sources, **Runs** for evidence and **Memory** for
+reviewed background. The appearance button controls theme, density, motion and
+visible Run count; search expands only when needed. Developer JSON is optional,
+not a prerequisite for index status or Memory history.
+
+Run **FRAG: Open Acceptance Workspace** to prepare a per-project synthetic
+workspace, open its exact folder/file and follow explicit authorization, indexing
+and plan confirmation. Nothing passes automatically; financial completeness and
+Slice A synthetic checks remain separate. See the [management guide](docs/management-ui.md).
 
 ## Private state and location
 
@@ -135,7 +147,7 @@ backend/                 Python evidence API, index, Runs and tests
 src/management/          Settings, Runs and Memory Webview
 integrations/vscode/     Extension, Host installer and setup guide
 scripts/                 Build, packaging and safety checks
-packages/v1.13.4/        Matching Host, VSIX and checksum receipt
+packages/v1.14.0/        Matching Host, VSIX and checksum receipt
 docs/                    Evidence contracts and architecture
 ```
 
@@ -184,10 +196,10 @@ staging rather than overwriting the checked-in snapshot:
 
 ```powershell
 $Reader = Read-Host 'Path to the exact official finance-core-frag-plugin-v1.10.0.zip'
-uv run --offline --no-sync --project backend --cache-dir .tmp/uv-cache python -X utf8 scripts/package-agents.py --fc-archive "$Reader" --output-dir .tmp/packages/v1.13.4
+uv run --offline --no-sync --project backend --cache-dir .tmp/uv-cache python -X utf8 scripts/package-agents.py --fc-archive "$Reader" --output-dir .tmp/packages/v1.14.0
 ```
 
-Copy the new ZIP, VSIX and receipt from `.tmp/packages/v1.13.4/` for
+Copy the new ZIP, VSIX and receipt from `.tmp/packages/v1.14.0/` for
 [installation](#first-install). Use synthetic fixtures and follow
 [temporary-workspace rules](docs/tmp-workspace.md). Building does not install,
 publish or establish live acceptance.
