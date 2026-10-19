@@ -18,6 +18,15 @@ FC owns financial rules, calculations, persistence, authentication and its offic
 
 The target file is `<this extension's private project state>/fc.env`, found/opened by the command rather than by typing a machine-specific hash. **FRAG: Open Private State Folder** remains an optional inspection route. The backend validates a regular unlinked, single-link, bounded file with a private owner/ACL before reading it. It never repairs or overwrites an existing nonprivate file. No model/environment variables are loaded from it.
 
+The state root defaults to VS Code extension global storage, not the source
+checkout or FC Vault. A machine-local User Setting, `frag.privateStateRoot`, can
+select another private absolute local root; FRAG still appends
+`projects/<project-hash>/`. Stop/reload when changing it. Old state is not migrated
+automatically. See [private-state location and safeguards](../README.md#private-state-and-location).
+An existing empty `fc.env` with inherited/nonprivate permissions can fail before
+Notepad opens. Inspect metadata only and obtain explicit single-file repair; do
+not weaken the check, delete state or share credentials to diagnose this error.
+
 The FC-generated four lines contain API/UI loopback addresses, the dedicated read token and a single Workspace mapping with **no selected records**. Workspace ID is included automatically. FRAG saves its narrower human selection separately; no JSON editing is needed. The file is backend-only, never a Webview input, tool result, chat attachment, log or Git file. The private editor uses Notepad rather than a native chat-context editor. User-prepared acceptance files using `FC_API_URL`, `FC_WORKSPACE_ID`, `FC_ACCESS_TOKEN` are separate inputs, not this configuration, and are not copied automatically.
 
 ## Permission ceiling and compatibility

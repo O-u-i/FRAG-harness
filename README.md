@@ -34,7 +34,7 @@ this capture does not depict a standalone application or live personal sources.*
 ## First install
 
 **Choose the package source:** [build the current source](#development) for the
-current hardening and license-packaging changes. The checked-in 1.13.4
+current hardening, license-packaging and private-state settings. The checked-in 1.13.4
 [Host ZIP](packages/v1.13.4/frag-host-1.13.4.zip),
 [VSIX](packages/v1.13.4/frag-bridge-1.13.4.vsix) and
 [checksum receipt](packages/v1.13.4/receipt-1.13.4.json) are an older snapshot
@@ -70,6 +70,52 @@ the sentence `The demo review happens on Friday.` Use source ID `kb`, then ask:
 Run **FRAG: Open Runs**: a successful tool check has completed Search and Read
 Runs with that synthetic sentence in the evidence. The native model's answer is
 a separate check; Runs do not certify its correctness.
+
+## Private state and location
+
+FRAG keeps source approvals, indexes, Runs, reviewed Memory, reader files and the
+optional secret `fc.env` **outside the source project and Host installation**.
+By default it uses VS Code's extension [globalStorageUri](https://code.visualstudio.com/api/extension-capabilities/common-capabilities#data-storage), with a separate
+`projects/<project-hash>/` directory for each canonical project path. On standard
+Windows VS Code this is usually:
+
+```text
+%APPDATA%/Code/User/globalStorage/frag-local.frag-bridge/projects/<project-hash>/
+```
+
+Portable builds and other VS Code editions/profiles may differ. Use **FRAG: Open
+Private State Folder** to open the actual project's directory in Explorer, not
+just the parent `projects` directory. The hash is an isolation key, not encryption.
+Keep the same project path, instance and profile to retain the default state;
+moving the source project changes its identity. Never commit or share this folder.
+
+### Choose a custom location
+
+In VS Code **User Settings**, search `@id:frag.privateStateRoot` and set **FRAG:
+Private State Root** to an absolute private local folder. This machine-scoped
+setting is not a project `.vscode/settings.json` value. FRAG appends
+`projects/<project-hash>/`; do not point it at an individual hash folder.
+Relative paths, UNC network paths, links/junctions and roots overlapping the project
+or Host are rejected. Use a local disk, not a mapped network drive or a shared,
+cloud-synced or Git-tracked folder.
+
+**Stop the backend before changing the setting, then reload the window.** Selecting
+a new root never moves, deletes or merges old state: an empty root starts with
+empty approvals, Runs and Memory. Back up the old state while stopped; preserving
+it at another location requires a separately reviewed offline migration. Clearing
+the setting returns to the original VS Code location. No storage setting changes
+native model credentials or the Finance Core Vault location.
+
+### FC connection file errors
+
+`FRAG: Connect Finance Core` creates the private `fc.env` once and opens Notepad.
+Paste the **complete** configuration copied from FC, not just the token. Even an
+empty existing file is checked: inherited/nonprivate permissions, links or an
+invalid file block opening with `FC_ARTIFACT_OR_CONFIG_INVALID`. The command does
+not silently repair permissions, replace saved credentials or relax validation.
+Check only file metadata/ACLs first and arrange an explicit single-file repair;
+do not delete the state folder or grant access to Everyone. Never attach `fc.env`
+or its contents to a chat or bug report. [Connection steps](docs/finance-core-plugin-handoff.md#install-and-connect).
 
 ## Update
 

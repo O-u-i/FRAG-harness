@@ -1,11 +1,33 @@
 'use strict';
 const { spawn } = require('node:child_process');
-const { realpathSync, existsSync, mkdirSync, readFileSync } = require('node:fs');
-const { join } = require('node:path');
+const { realpathSync, existsSync, mkdirSync, readFileSync, lstatSync } = require('node:fs');
+const { join, resolve, isAbsolute, relative, dirname, parse, sep } = require('node:path');
 const { createHash, randomBytes } = require('node:crypto');
 const net = require('node:net');
 const VERSION = '1.13.4';
 function projectIdentity(folder) { return createHash('sha256').update(realpathSync(folder).toLowerCase()).digest('hex'); }
+function stateDirectory(storage, project, installation) {
+  const refuse = () => { throw new Error('FRAG_PRIVATE_STATE_ROOT_INVALID: Choose an absolute local directory, separate from the project and Host, without links.'); };
+  if (typeof storage !== 'string' || !isAbsolute(storage) || storage !== storage.trim() || /^[/\\]{2}/.test(storage)) refuse();
+  const root = resolve(storage);
+  if (root === parse(root).root) refuse();
+  const contains = (parent, child) => {
+    const part = relative(parent, child);
+    return part === '' || (part !== '..' && !part.startsWith('..' + sep) && !isAbsolute(part));
+  };
+  for (const other of [realpathSync(project), resolve(installation)]) {
+    if (contains(root, other) || contains(other, root)) refuse();
+  }
+  const state = join(root, 'projects', projectIdentity(project));
+  for (let node = state; ; node = dirname(node)) {
+    try {
+      const info = lstatSync(node);
+      if (info.isSymbolicLink() || !info.isDirectory()) refuse();
+    } catch (error) { if (error.code !== 'ENOENT') refuse(); }
+    if (node === dirname(node)) break;
+  }
+  return state; // Selection only: never migrate, copy or delete existing state.
+}
 async function unusedPort() {
   const server = net.createServer();
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
@@ -31,7 +53,7 @@ async function launchHost(installation, folder, storage) {
       !readFileSync(join(installation, 'backend', 'pyproject.toml'), 'utf8').includes(`version = "${VERSION}"`)) {
     throw new Error(`Install and initialize the matching v${VERSION} backend bundle.`);
   }
-  const state = join(storage, 'projects', id); mkdirSync(state, { recursive: true });
+  const state = stateDirectory(storage, project, installation); mkdirSync(state, { recursive: true });
   const port = await unusedPort(), token = randomBytes(32).toString('hex');
   const child = spawn(python, ['-X','utf8','-m','frag_api.host','--installation',installation,'--workspace',project,'--state-dir',state,'--port',String(port)], {
     cwd: installation, env: hostEnvironment(installation, token), windowsHide: true, stdio: 'ignore',
@@ -58,4 +80,4 @@ async function launchHost(installation, folder, storage) {
     throw new Error('Backend startup timed out.');
   } catch (error) { await owned.stop(); throw error; }
 }
-module.exports = { launchHost, hostEnvironment, projectIdentity, stopChild };
+module.exports = { launchHost, hostEnvironment, projectIdentity, stateDirectory, stopChild };

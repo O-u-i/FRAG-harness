@@ -16,7 +16,8 @@ function activate(context) {
       throw new Error('FRAG requires one trusted local desktop workspace.');
     }
     const installation = vscode.workspace.getConfiguration('frag').get('hostInstallation') || join(process.env.LOCALAPPDATA, 'FRAG', 'host', '1.13.4');
-    starting = launchHost(installation, vscode.workspace.workspaceFolders[0].uri.fsPath, context.globalStorageUri.fsPath);
+    const storage = vscode.workspace.getConfiguration('frag').get('privateStateRoot') || context.globalStorageUri.fsPath;
+    starting = launchHost(installation, vscode.workspace.workspaceFolders[0].uri.fsPath, storage);
     try { host = await starting; return host; } finally { starting = undefined; }
   }
   async function stop() {
@@ -97,7 +98,8 @@ function activate(context) {
   context.subscriptions.push(vscode.commands.registerCommand('frag.stop', stop));
   context.subscriptions.push(vscode.commands.registerCommand('frag.connectFC', async () => { await open('settings', 'finance-core'); return connectFC(); }));
   context.subscriptions.push(vscode.commands.registerCommand('frag.openState', async () => {
-    const owned = await start(); await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(owned.state));
+    const owned = await start();
+    if (!await vscode.env.openExternal(vscode.Uri.file(owned.state))) throw new Error('FRAG_PRIVATE_STATE_FOLDER_OPEN_FAILED');
   }));
   context.subscriptions.push(vscode.commands.registerCommand('frag.openFC', async () => {
     const url = vscode.workspace.getConfiguration('frag').get('financeCoreUI') || 'http://127.0.0.1:5174';

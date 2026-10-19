@@ -62,13 +62,14 @@ def test_invalid_private_configuration_refuses_before_http_and_never_returns_fil
         assert 'synthetic-' not in response.text and str(state) not in response.text
 
 
-def test_existing_nonprivate_file_is_not_silently_repaired_or_overwritten(tmp_path):
+@pytest.mark.parametrize('content', ['', 'synthetic-secret-in-nonprivate-file'])
+def test_existing_nonprivate_file_is_not_silently_repaired_or_overwritten(tmp_path, content):
     state = tmp_path / 'state'; state.mkdir()
-    path = state / 'fc.env'; path.write_text('synthetic-secret-in-nonprivate-file'); path.chmod(0o644)
+    path = state / 'fc.env'; path.write_text(content); path.chmod(0o644)
     with TestClient(create_app(state, 'x' * 64), headers={'Authorization': 'Bearer ' + 'x' * 64}) as api:
         response = api.post('/api/manage/fc-connection-prepare', json={})
         assert response.status_code == 409 and 'synthetic-secret' not in response.text
-        assert path.read_text() == 'synthetic-secret-in-nonprivate-file'
+        assert path.read_text() == content
 
 
 def test_check_and_human_selection_stay_inside_fc_grant_and_reconnect_disables_pending_delivery(tmp_path, fc_archive, monkeypatch):

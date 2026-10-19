@@ -68,6 +68,12 @@
           "default": "http://127.0.0.1:5174",
           "scope": "application",
           "description": "Loopback standalone Finance Core UI; financial writes stay in FC."
+        },
+        "frag.privateStateRoot": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Private local state root, separate from source and Host directories. Empty uses VS Code extension storage. FRAG appends projects/<project-hash>. Stop the backend and reload after changing; existing state is never moved. Do not use shared or cloud-synced folders."
         }
       }
     },

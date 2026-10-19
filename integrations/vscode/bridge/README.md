@@ -6,4 +6,12 @@ Install matching `frag-host-1.13.4.zip` and `frag-bridge-1.13.4.vsix`. Set `frag
 
 No composer filling, Send interception, AHP registration or final-answer capture. Source data is not authority. Native tool policy is not replaced by FRAG directory approvals. Runs record finalized FRAG results only; legacy records are read-only, never replayed. Installed `resources/install.md` contains upgrade/troubleshooting instructions.
 
+Private state defaults to VS Code extension storage at `projects/<project-hash>/`.
+**FRAG: Open Private State Folder** opens that exact directory. Set
+`frag.privateStateRoot` in machine-local User Settings for a custom absolute
+private local root, separate from source and Host. Stop the backend and reload
+after changing; no existing state is moved or deleted. An empty root starts new
+approvals/history. Keep state and `fc.env` out of Git/shared/cloud-synced folders;
+FC Vaults and native model credentials stay in their respective applications.
+
 Recommendation safety is model-free and synthetic only. Runs may show separate allowlisted workflow receipts, never draft bodies or human decisions. Production recommendations are unavailable; the foundation does not filter native chat or establish a provider budget guarantee.

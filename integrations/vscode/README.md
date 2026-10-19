@@ -10,6 +10,17 @@ Install matching `frag-bridge-1.13.4.vsix` using **Extensions: Install from VSIX
 
 Run **FRAG: Open Settings**, approve a directory/exclusions, save, then explicitly **Build / Refresh index**. Opening a project never automatically indexes or sends evidence. Enable `frag_search`, `frag_read` and optional `frag_fc_read` in the native tools picker. Source ID `kb` is the default; mention other Settings IDs explicitly.
 
+## Private state
+
+The default is VS Code extension global storage, partitioned as `projects/<project-hash>/`.
+**FRAG: Open Private State Folder** opens the exact project directory in Explorer.
+For a different local disk/folder, use the machine-scoped **User Setting**
+`frag.privateStateRoot`; the project hash is still appended. Stop the backend,
+change the setting and reload. No automatic migration or deletion occurs, and an
+empty root has no previous approvals/history. Keep state private, outside Git,
+source and Host folders, without network shares or links. [Default path, privacy
+and migration boundaries](../../README.md#private-state-and-location).
+
 ## Optional Finance Core
 
 The Host bundles the exact official reader; first start prepares it without granting source access. Use **FC Settings → Connect FRAG → Copy FRAG configuration**, then `Ctrl+Shift+P` → `FRAG: Connect Finance Core`. The exact backend-only `fc.env` opens in Notepad. Paste/save, then **Check connection**, select the smaller FRAG subset and **Save authorization** in FRAG Settings. No separate reader install, Workspace-ID lookup or JSON editing. [Connection and factual-Run guide](../../docs/finance-core-plugin-handoff.md).
@@ -51,6 +62,8 @@ Use [Daily use and safety](../../README.md#daily-use-and-safety); there is no da
 | Responses replies once, then returns `400` / `invalid_request` | First-turn authentication does not establish continuation support. A generic `400` is inconclusive: distinguish a plain second turn from a tool request, then see the stateless diagnosis below. Do not reinstall or reindex FRAG to repair a native request rejection. |
 | Legacy Run cannot continue | Expected: old runners are removed. Start new native work. |
 | FC unavailable | Use Connect Finance Core, then Check connection. Verify FC API 3.10.0, the single-Vault read-only grant and explicitly saved FRAG subset. Checking pauses old access; it does not read reports. Nonprivate configuration refuses rather than being repaired automatically. |
+| Connect Finance Core cannot open Notepad; `FC_ARTIFACT_OR_CONFIG_INVALID` | Inspect the exact project's `fc.env` metadata/ACLs, not its secret content. Even an empty file must be private; inherited/nonprivate permissions or links refuse preparation. Request explicit single-file repair rather than deleting state or granting broad access. Reader-integrity errors can use the same code; the code alone does not prove FC/API connectivity failed. |
+| `FRAG_PRIVATE_STATE_ROOT_INVALID` | Choose an absolute local private root separate from the project and Host. Do not use drive roots, network shares, links/junctions or files. Stop/reload after changing the User Setting; existing state is retained, not migrated. |
 
 ### Native model configuration and errors
 
